@@ -27,7 +27,8 @@
 #         succeeds, but quietly invalidates the oldest outstanding token
 #         without any user-visible warning.
 #
-# If it becomes revoked, then the script may need to be re-run.
+# If it becomes revoked, then the script may need to be re-run. Also, if you
+# lose the refresh token, you might need to re-run this script to get another.
 #------------------------------------------------------------------------------
 
 
@@ -132,7 +133,7 @@ echo ""
 # being wrong. It resulted in error "Insufficient Permission: Request had
 # insufficient authentication scopes." So make sure you use the "Installed
 # application flow" scope, https://www.googleapis.com/auth/youtube.
-
+#
 authUrl="https://accounts.google.com/o/oauth2/auth?client_id=$clientId&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/youtube&response_type=code"
 echo "Authorization URL: $authUrl"
 
@@ -158,12 +159,6 @@ echo "   come back to this window."
 echo ""
 read -n 1 -s -r -p "Press any key when you are ready to perform these steps."
 echo ""
-# - OPEN that link in a browser. It will prompt you for authorization.
-# - SELECT your Google account in its first screen (log in if needed).
-# - SELECT the YouTube channel owner/user in its second screen. In my case,
-#   it is the "Vixy & Tony" channel owner that I select.
-# - COPY the authentication code that it gives you after you accept.
-# - PASTE that code into the authenticationCode variable below.
 
 # Attempt to open in whatever browser works on whatever OS the user is running
 # upon. If the command fails then move on to the next possibility, and so on.
@@ -182,7 +177,21 @@ then
     if [[ $? != 0 ]]
     then
       echo "Attempting to launch web browser with start..."
-      start "$authUrl"
+
+      # Special handling of windows command needed, in order to make it
+      # compatible with multiple different flavors of Bash on Windows. For
+      # example, Git Bash will take "start" directly, but the Linux Subsystem
+      # For Windows 10 needs it put into cmd.exe /c in order to work. Also, the
+      # backticks are needed or else it doesn't always work properly.
+      #
+      # Also, we have to escape URL ampersands by adding a caret before each
+      # one, or else windows will interpret them as line splitters. Here I am
+      # telling SED to replace all ampersands (\& - escaped becuase ampersand
+      # is a special command character for SED) with a caret and ampersand
+      # (^\&), and to replace them all (/g).
+      authUrl="$( echo "$authUrl" | sed "s/\&/^\&/g" )"
+      echo "Auth URL updated: $authUrl"
+      `cmd.exe /c "start $authUrl"`
       if [[ $? != 0 ]]
       then
         echo ""
@@ -200,6 +209,8 @@ fi
 echo ""
 echo "---------------------------------------"
 echo "PASTE the authentication code here now:"
+
+# Read input from user, and time out if they don't enter it within 360 seconds.
 read -r -t 360 authenticationCode
 echo ""
 echo "Authentication code: $authenticationCode"
