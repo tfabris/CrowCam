@@ -3,7 +3,9 @@ api-creds
 client_id.json
 crowcam-tokens
 youtube-dl
+youtube-dl.exe
+ffmpeg
+ffmpeg.exe
 wgetcookies.txt
 CrowCamTemp.mp4
 CrowCamTemp.mp4.part
-foobartest.txt
