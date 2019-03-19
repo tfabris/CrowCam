@@ -9,12 +9,12 @@ backyard. The scripts automate some important tasks which would otherwise be
 manual and repetitive, and also work around some unfixed bugs in the streaming
 software and in YouTube itself.
 
-This project would be useful to anyone who uses any kind of unattended outdoor
-camera (not necessarily for crow watching) who wants to stream it to YouTube,
-but might have encountered problems with doing so on YouTube, like I did.
+This project could be useful to anyone who uses any kind of unattended camera
+(not necessarily for bird watching) who wants to stream it to YouTube, but
+might have encountered the same problems with YouTube that I did. It's also
+a good platform for demonstrating some useful programming techniques. Besides
+learning a lot about Bash and shell scripts in general, I learned:
 
-It's also good platform for learning some useful programming techniques.
-Besides learning a lot about Bash and shell scripts in general, I learned:
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
 - How to access and use the Synology API.
@@ -33,6 +33,7 @@ Besides learning a lot about Bash and shell scripts in general, I learned:
 
 ------------------------------------------------------------------------------
 
+
 Table of Contents
 ==============================================================================
 - [Project Information                                                             ](#project-information)
@@ -43,12 +44,13 @@ Table of Contents
 - [Resources                                                                       ](#resources)
 - [Acknowledgments                                                                 ](#acknowledgments)
 
+
 Project Information
 ------------------------------------------------------------------------------
 The CrowCam is a webcam we use to watch the local crows that we feed in our
 backyard. We like to feed them because they are friendly, intelligent, playful,
-entertaining and they [recognize faces](https://goo.gl/NWWpQk). We've even
-written [songs](https://vixy.dreamwidth.org/794522.html) about them.
+entertaining, and they [recognize faces](https://youtu.be/0fiAoqwsc9g).
+We've even written [songs](https://vixy.dreamwidth.org/794522.html) about them.
 
 It is an IP security camera connected to our Synology NAS, which uses
 the Synology Surveillance Station app to record a live feed of the camera. We
@@ -56,18 +58,20 @@ then use the "Live Broadcast" feature of Surveillance Station to push the video
 stream to our YouTube channel, where anyone can watch.
 
 This project is a suite of related Bash script files:
-- CrowCam.sh - CrowCam Controller
-  - This starts and stops the YouTube stream at Sunrise/Sunset, and works
+- [CrowCam.sh - CrowCam Controller                                                 ](#crowcam-sh)
+  - Starts and stops the YouTube stream at Sunrise/Sunset, and works
     around a bug in the Synology NAS which is caused by network outages.
-- CrowCamCleanup.sh - CrowCam Cleanup tool
-  - This cleans out old YouTube stream archives after a certain number of days.
-- CrowCamKeepAlive.sh - CrowCam Keep Alive tool
-  - This ensures that a YouTube stream's DVR functionality works at all times
+- [CrowCamCleanup.sh - CrowCam Cleanup tool                                        ](#crowcamcleanup-sh)
+  - Cleans out old YouTube stream archives after a certain number of days.
+- [CrowCamKeepAlive.sh - CrowCam Keep Alive tool                                   ](#crowcamkeepalive-sh)
+  - Ensures that a YouTube stream's DVR functionality works at all times
     for all users. It works around an unfixed YouTube bug related to DVR
     functionality.
   
-These script files will be copied to the Synology NAS, and launched at timed
-intervals, using the Synology "Task Scheduler" feature.
+These script files will be installed to the Synology NAS, where they will be
+launched repeatedly, at timed intervals, using the Synology "Task Scheduler"
+feature.
+
 
 Requirements
 ------------------------------------------------------------------------------
@@ -80,37 +84,39 @@ Requirements
   to access the YouTube account. These tokens are used by CrowCamCleanup to
   delete old stream archives. If you don't already have one, create one at
   https://developers.google.com/
-- A Bash shell prompt on your local computer, to execute the Preparation
-  script, and if desired, to test and debug the scripts. This can be on a Linux
-  computer, a MacOS computer, or even a Windows computer if you install the
-  [Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
+- A Bash shell prompt on your local computer, to execute the preparation
+  script, and if desired, to test and debug all of the scripts. This can be on
+  a Linux computer, a MacOS computer, or even a Windows computer if you install
+  the [Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
 
 Setup of your YouTube live stream is not documented here. See the YouTube and
 Synology documentation to set this up. Make sure that the camera, NAS, Synology
 Surveillance Station, and "Live Broadcast" features are all working correctly,
 and that you can see the stream on your YouTube channel.
 
+
 Installation
 ------------------------------------------------------------------------------
 ####  Create API credentials file:
-Create an API credentials file named "api-creds" (no file extension). The file
-should contain the user name and password that will be used for connecting to
-the Synology API of your Synology NAS. This should be a user with an account
-on the Synology who has a level of access high enough to access the API and to
-turn the Synology surveillance Station "Live Broadcast" feature on and off.
-The built-in account "admin" naturally has this level of access, but you may
-choose to create a different user for security reasons. Create the "api-creds"
-file and place it in the same directory as these scripts. The file should be
-one line of ASCII text: The username, a space, then the password.
+Create an API credentials file named "api-creds" (no file extension),
+containing a single line of text: A username, a space, and then a password.
+These will be used for connecting to the API of your Synology NAS. Choose an
+account on the Synology NAS which has a level of access high enough to connect
+to the API, and to turn the Synology surveillance Station "Live Broadcast"
+feature on and off. The built-in account "admin" naturally has this level of
+access, but you may choose to create a different user for security reasons.
+Create the "api-creds" file and place it in the same directory as these
+scripts.
 
 ####  Get YouTube-dl:
-This third party program is used for checking and connecting to the YouTube
-live stream in an automated fashion. This is used for checking whether the
-stream is up, and for making sure that the stream's DVR cache stays functional
-at all times. Obtain the latest version of youtube-dl for Linux, and place it
-in the same folder as these scripts. Youtube-dl is obtained either by grabbing
-it from https://github.com/rg3/youtube-dl or by issuing this command at the
-Bash shell prompt:
+YouTube-dl is a third party program which downloads video streams and other
+information from YouTube. We use it for checking and connecting to the YouTube
+live stream in an automated fashion. It is used for checking whether the stream
+is up, and for making sure that the stream's DVR cache stays functional at all
+times. Obtain the latest version of youtube-dl for Linux, and place it in the
+same folder as these scripts. Youtube-dl is obtained either by grabbing it from
+https://ytdl-org.github.io/youtube-dl/download.html, or by issuing this command
+at the Bash shell prompt:
 
      wget https://yt-dl.org/downloads/latest/youtube-dl -O ./youtube-dl
 
@@ -121,13 +127,16 @@ from the YouTube account's "uploads" directory. Unless something goes wrong,
 you should only need create these credentials once.
 - Navigate to your Google developer account dashboard at
   https://console.developers.google.com/apis/dashboard
-- Create a new project to hold the auth creds. Example: I have created a
+- Create a new project to hold the auth creds. For instance, I have created a
   project called "CrowCam" in my account.
 - Once the project is created, select "Credentials" from its left sidebar.
 - Select "Create Credentials" and choose "OAuth Client ID".
-- It will prompt you to "Configure consent screen". Select that.
+- It may tell you that you must "Configure consent screen" before you can
+  create credentials. If it does this, then configure the consent screen as
+  follows:
   - Application Name: CrowCam
-  - Press "Save", you don't need to fill anything else out here.
+  - Press "Save", you don't need to fill anything else out here unless you
+    want to.
 - Now select "Create Credentials" again and choose "OAuth Client ID".
 - Application type: Other.
 - Name: CrowCam
@@ -136,8 +145,8 @@ you should only need create these credentials once.
   them to the clipboard, they will be in the file you're about to download.
   Press OK.
 - The Credentials screen should now show your credentials. Locate the
-  its "download" icon on the right side of the screen (a small downard-pointing
-  arrow). Press that icon.
+  "download" icon on the right side of the screen (a small downard-pointing
+  arrow). Press that icon. It should download a client secret file.
 - Rename the file that you downloaded to "client_id.json"
 - Place the file in the same directory as these script files.
 
@@ -153,10 +162,11 @@ these scripts, set the file permissions, and launch the preparation script:
 
 Note: Do not run the preparation script on the Synology itself. Run it on your
 local PC. The script will launch a web browser for authenticating your
-credentials, and that step will not work on the Synology.
+credentials, but launching a web browser does not work on the Synology.
 
-Follow the prompts on the screen, and make sure to follow all instructions and
-answer all promtps correctly. A file should now be created in the same
+The preparation script will display some messages. Follow its prompts on the
+screen, and make sure to follow all instructions and answer all promtps
+correctly. If done correctly, a file should now be created in the same
 directory as these scripts, named "crowcam-tokens" (no file extension).
 
 Copy the following files to the Synology NAS into /volume1/homes/admin/
@@ -194,15 +204,15 @@ In the Synology Control Panel, open the Task Scheduler, and create three tasks:
      Task:   CrowCam Keep Alive
 ```
 - Schedule: Set all three tasks to run "Daily"
-- Schedule: First run time: "00:00"
+- Schedule: First run time: Set all three tasks to "00:00"
 - Schedule: Frequency: 
     - CrowCam Controller: Frequency: "Every Minute"
     - CrowCam Cleanup:    Frequency: "Every Day" 
     - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
-  for a task that starts at 00:00 and runs every minute, the last run time
-  available will be "23:59".
+  for a task that runs every minute, the last run time available will be
+  "23:59", a task that runs every 20 minutes will be "23:40", etc.
 - Task Settings, Run Command, User-defined script: create a command in each
   task to run each of the the corresponding scripts, for example:
 ```
@@ -210,6 +220,7 @@ In the Synology Control Panel, open the Task Scheduler, and create three tasks:
      CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCamCleanup.sh"
      CrowCam Keep Alive:        bash "/volume1/homes/admin/CrowCamKeepAlive.sh"
 ```
+
 
 Usage and Troubleshooting
 ------------------------------------------------------------------------------
@@ -249,6 +260,7 @@ You can then do one or both of the following:
 Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
 only log its intentions in debug mode, but won't actually clean up any files.
+
 
 What Each Script Does
 ------------------------------------------------------------------------------
@@ -314,6 +326,7 @@ Solution:
 - This program works around the bug by making it so that "someone" (i.e., the
   CrowCamKeepAlive script) is always watching the stream intermittently.
 
+
 Resources
 ------------------------------------------------------------------------------
 Initial OAuth script example:
@@ -344,6 +357,7 @@ Ideas for how to parse the Json results from the Curl calls:
 - https://stackoverflow.com/questions/723157/how-to-insert-a-newline-in-front-of-a-pattern
 - https://stackoverflow.com/questions/38364261/parse-json-to-array-in-a-shell-script
 - https://stackoverflow.com/questions/2489856/piping-a-bash-variable-into-awk-and-storing-the-output
+
 
 Acknowledgments
 ------------------------------------------------------------------------------

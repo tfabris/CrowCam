@@ -3,13 +3,12 @@
 #------------------------------------------------------------------------------
 # CrowCamKeepAlive.sh - Ensures a YouTube stream's DVR functionality works.
 #------------------------------------------------------------------------------
-# IMPORTANT:
+# Please see the accompanying file REAMDE.md for setup instructions. Web Link:
+#        https://github.com/tfabris/CrowCam/blob/master/README.md
 #
-# Please see the accompanying file "REAMDE.md" for how use this script. It
-# contains detailed instructions regarding how to set up and configure all of
-# the scripts in this project. The scripts in this project don't work "out of
-# the box", they need some configuration. All details are found in the file
-# "README.md", so please look there and follow the instructions.
+# The scripts in this project don't work "out of the box", they need some
+# configuration. All details are found in README.md, so please look there
+# and follow the instructions.
 #------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
@@ -29,7 +28,7 @@ trap "exit 1" TERM
 export TOP_PID=$$
 
 # ----------------------------------------------------------------------------
-# Basic startup configuration variables 
+# Startup configuration variables 
 # ----------------------------------------------------------------------------
 
 # Configure debug mode for testing this script. Set this value to blank "" for

@@ -3,13 +3,12 @@
 #------------------------------------------------------------------------------
 # CrowCamCleanupPreparation.sh - Prepare auth tokens for CrowCamCleanup.sh
 #------------------------------------------------------------------------------
-# IMPORTANT:
+# Please see the accompanying file REAMDE.md for setup instructions. Web Link:
+#        https://github.com/tfabris/CrowCam/blob/master/README.md
 #
-# Please see the accompanying file "REAMDE.md" for how use this script. It
-# contains detailed instructions regarding how to set up and configure all of
-# the scripts in this project. The scripts in this project don't work "out of
-# the box", they need some configuration. All details are found in the file
-# "README.md", so please look there and follow the instructions.
+# The scripts in this project don't work "out of the box", they need some
+# configuration. All details are found in README.md, so please look there
+# and follow the instructions.
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -33,7 +32,7 @@
 
 
 #------------------------------------------------------------------------------
-# Basic startup configuration variables 
+# Startup configuration variables 
 #------------------------------------------------------------------------------
 
 # Get the directory of the current script so that we can find files in the
