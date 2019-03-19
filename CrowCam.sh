@@ -57,6 +57,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # Create a variable for the youtube-dl executable.
 executable="$DIR/youtube-dl"
 
+# Slightly different file if testing on Windows PC.
+if [[ $debugMode == *"Win"* ]]
+then
+    executable="$DIR/youtube-dl.exe"
+fi
+
 # Create a variable for the API credentials file. The file itself must be
 # created by you. The file should contain the user name and password that will
 # be used for connecting to the Synology API. Make sure to create this file
@@ -78,7 +84,7 @@ apicreds="$DIR/api-creds"
 # for your particular situation, feel free to experiment with leaving it blank.
 location=""
 
-# Some sugar required for Wget to successfully retrieve a result from Google.
+# Some sugar required for Wget to successfully retrieve a search from Google.
 # Without this, Google gives you a "403 forbidden" message when you try to
 # use Wget to perform a Google search.
 userAgent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"
@@ -378,8 +384,12 @@ Test_Network()
   # so we must have an alternate version if we are testing on Windows.
   if [[ $debugMode == *"Win"* ]]
   then
-    # Windows version of ping test.
-    pingResult=$( PING -n 1 $ThisTestSite)
+    # Special handling of windows command needed, in order to make it
+    # compatible with multiple different flavors of Bash on Windows. For
+    # example, Git Bash will take "PING" directly, but the Linux Subsystem
+    # For Windows 10 needs it put into cmd.exe /c in order to work. Also, the
+    # backticks are needed or else it doesn't always work properly.
+    pingResult=`cmd.exe /c "PING -n 1 $ThisTestSite"`
     if [[ $pingResult == *'TTL='* ]]
     then
       NetworkIsUp=true
@@ -439,7 +449,13 @@ IsServiceUp()
   # Version of service check command for testing on Windows
   if [[ $debugMode == *"Win"* ]]
   then
-    net start | grep -q "$serviceName"
+    # Special handling of windows command needed, in order to make it
+    # compatible with multiple different flavors of Bash on Windows. For
+    # example, Git Bash will take "net start" directly, but the Linux Subsystem
+    # For Windows 10 needs it put into cmd.exe /c in order to work. Also, the
+    # backticks are needed or else it doesn't always work properly. Fun times.
+    winOutput=`cmd.exe /c "net start"`
+    echo "$winOutput" | grep -q "$serviceName"
     ReturnCode=$?
   fi
 
@@ -936,11 +952,10 @@ then
   logMessage "dbg" "problem obtaining sunrise/sunset from Google. Falling back to hard-coded table"
 else
   # If the Google responses were non-empty, use them in place of the fallbacks.
-  logMessage "dbg" "using Google-obtained times for sunrise/sunset"
-  logMessage "dbg" "Sunrise (table):  $sunrise"
-  logMessage "dbg" "Sunrise (Google): $googleSunriseString"
-  logMessage "dbg" "Sunset  (table):  $sunset"
-  logMessage "dbg" "Sunset  (Google): $googleSunsetString"
+  logMessage "dbg" "Using Google-obtained times for sunrise/sunset"
+  logMessage "dbg" "   Sunrise: $googleSunriseString   (Fallback table value:  $sunrise)"
+  logMessage "dbg" "   Sunset:  $googleSunsetString   (Fallback table value:  $sunset)"
+  logMessage "dbg" ""
   sunrise=$googleSunriseString
   sunset=$googleSunsetString
 fi

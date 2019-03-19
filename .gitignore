@@ -7,5 +7,5 @@ youtube-dl.exe
 ffmpeg
 ffmpeg.exe
 wgetcookies.txt
-CrowCamTemp.mp4
-CrowCamTemp.mp4.part
+wget-log*
+CrowCamTemp*

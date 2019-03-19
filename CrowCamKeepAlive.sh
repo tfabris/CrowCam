@@ -57,6 +57,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # Create a variable for the youtube-dl executable.
 executable="$DIR/youtube-dl"
 
+# Slightly different file if testing on Windows PC.
+if [[ $debugMode == *"Win"* ]]
+then
+    executable="$DIR/youtube-dl.exe"
+fi
+
 # Create a variable for the API credentials file. The file itself must be
 # created by you. The file should contain the user name and password that will
 # be used for connecting to the Synology API. Make sure to create this file
@@ -208,7 +214,13 @@ IsServiceUp()
   # Version of service check command for testing on Windows
   if [[ $debugMode == *"Win"* ]]
   then
-    net start | grep -q "$serviceName"
+    # Special handling of windows command needed, in order to make it
+    # compatible with multiple different flavors of Bash on Windows. For
+    # example, Git Bash will take "net start" directly, but the Linux Subsystem
+    # For Windows 10 needs it put into cmd.exe /c in order to work. Also, the
+    # backticks are needed or else it doesn't always work properly. Fun times.
+    winOutput=`cmd.exe /c "net start"`
+    echo "$winOutput" | grep -q "$serviceName"
     ReturnCode=$?
   fi
 
@@ -506,9 +518,6 @@ then
   logMessage "err" "No final URL was obtained from $executable. Exiting program"
   exit 1
 fi
-
-# Log the final URL that we got.
-logMessage "dbg" "Final URL is $finalUrl"
 
 # Now perform the actual work-around download with wget. Interesting note: for
 # live streams, this does not actually download any video, it seems to
