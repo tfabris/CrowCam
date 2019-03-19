@@ -14,7 +14,9 @@
 #------------------------------------------------------------------------------
 # Note: This CrowCamCleanupPreparation.sh script only needs to be run once.
 #------------------------------------------------------------------------------
-# Once this script is successful, it should not need to be run a second time.
+# This script obtains a refresh token for the Google API for controlling your
+# YouTube live stream video channel. Once this script is successful, it should
+# not need to be run a second time, because the refresh token should stay good.
 #
 # YouTube API access requires an OAuth 2.0 access key and a refresh token. My
 # research seems to indicate that the refresh token does not have an
@@ -60,6 +62,8 @@ echo "Current working directory:  $(pwd)"
 # Verify that the necessary external files exist.
 if [ ! -e "$clientIdJson" ]
 then
+  # Instruct the user to look at the instructions which tell you how to get
+  # this file at the start of the installation process.
   echo ""
   echo "Missing file $clientIdJson"
   echo " - Follow the instructions in the README.md file accompanying this"
@@ -87,7 +91,6 @@ clientIdOutput=$(< "$clientIdJson")
 #                 grep -m 1 "client_id"
 # Cut on quotes and return the fourth field only.
 #                 cut -d '"' -f4
-
 clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "client_id" | cut -d '"' -f4)
 clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "client_secret" | cut -d '"' -f4)
 
@@ -95,7 +98,7 @@ clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -
 if test -z "$clientId" 
 then
   echo ""
-  echo "The variable clientId came up empty. Error parsing json file. Exiting program"
+  echo "The variable clientId came up empty. Error parsing json file. Exiting program."
   echo "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
   echo ""
   exit 1
@@ -105,12 +108,13 @@ fi
 if test -z "$clientSecret" 
 then
   echo ""
-  echo "The variable clientSecret came up empty. Error parsing json file. Exiting program"
+  echo "The variable clientSecret came up empty. Error parsing json file. Exiting program."
   echo "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
   echo ""
   exit 1
 fi
 
+# Log what we retrieved.
 echo ""
 echo "Client ID:     $clientId"
 echo "Client Secret: $clientSecret"
@@ -178,22 +182,27 @@ then
     then
       echo "Attempting to launch web browser with start..."
 
+      # "Start" is the windows version, and in the Windows version, we have to
+      # escape URL ampersands by adding a caret before each one, or else
+      # Windows will interpret the ampersands as line splitters. Here I am
+      # telling SED to replace all ampersands (\& - escaped becuase ampersand
+      # is a special command character for SED) with a caret and ampersand
+      # (^\&), and to replace them all (/g).
+      authUrl="$( echo "$authUrl" | sed "s/\&/^\&/g" )"
+      
+      # Debugging, in case you still have problems with the URL:
+      # echo "Auth URL updated: $authUrl"
+
       # Special handling of windows command needed, in order to make it
       # compatible with multiple different flavors of Bash on Windows. For
       # example, Git Bash will take "start" directly, but the Linux Subsystem
       # For Windows 10 needs it put into cmd.exe /c in order to work. Also, the
       # backticks are needed or else it doesn't always work properly.
-      #
-      # Also, we have to escape URL ampersands by adding a caret before each
-      # one, or else windows will interpret them as line splitters. Here I am
-      # telling SED to replace all ampersands (\& - escaped becuase ampersand
-      # is a special command character for SED) with a caret and ampersand
-      # (^\&), and to replace them all (/g).
-      authUrl="$( echo "$authUrl" | sed "s/\&/^\&/g" )"
-      echo "Auth URL updated: $authUrl"
       `cmd.exe /c "start $authUrl"`
       if [[ $? != 0 ]]
       then
+        # If none of the various attempts to launch the browser, above,
+        # suceeded, then I give up, I don't know what to do. Throw an error.
         echo ""
         echo "Unable to launch web browser. There has been an unknown error."
         echo "You many be running this on a system which cannot use any of the"
@@ -220,7 +229,7 @@ echo ""
 if test -z "$authenticationCode" 
 then
   echo ""
-  echo "The variable authenticationCode came up empty. Error obtaining code. Exiting program"
+  echo "The variable authenticationCode came up empty. Error obtaining code. Exiting program."
   echo ""
   exit 1
 fi
@@ -247,7 +256,7 @@ echo "$refreshToken"
 if test -z "$refreshToken" 
 then
   echo ""
-  echo "The variable refreshToken came up empty. Unknown error. Exiting program"
+  echo "The variable refreshToken came up empty. Unknown error. Exiting program."
   echo "The refreshTokenOutput was $( echo $refreshTokenOutput | tr '\n' ' ' )"
   echo ""
   exit 1
@@ -284,7 +293,7 @@ accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep 
 if test -z "$accessToken" 
 then
   echo ""
-  echo "The variable accessToken came up empty. Error accessing API. Exiting program"
+  echo "The variable accessToken came up empty. Error accessing API. Exiting program."
   echo "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
   echo ""
   exit 1
