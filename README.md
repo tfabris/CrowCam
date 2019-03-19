@@ -17,6 +17,7 @@ It's also good platform for learning some useful programming techniques.
 Besides learning a lot about Bash and shell scripts in general, I learned:
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
+- How to access and use the Synology API.
 - How to use OAuth to access the YouTube API from a shell script.
 - How to parse the output of the YouTube API to learn information about the
   videos uploaded to a YouTube channel.
