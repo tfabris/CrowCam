@@ -1,14 +1,18 @@
 #!/bin/bash
 
-# Set youTubeUrl to be the parent YouTube live stream that these scripts are
+# This value points to the parent YouTube live stream that these scripts are
 # controlling. It must be the live stream's main parent URL, not the address
 # of an individual video within the channel. For instance, it must not be an
 # archived video, or a link to a particular day's live stream. You can tell
 # whether it is the correct link by looking at the the style of the URL:
-# Right:  https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live
-# Wrong:  https://www.youtube.com/watch?v=gZ6xszyhRYm
+#
+#   Right:    https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live
+#   Wrong:    https://www.youtube.com/watch?v=gZ6xszyhRYm
+#
 # This value is used when checking if the stream is working, and it is used
 # when ensuring that the stream's DVR functionality stays working.
+#
+# Update this value to point to your live stream.
 #
 youTubeUrl="https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live"
 
@@ -16,6 +20,8 @@ youTubeUrl="https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live"
 # Title of videos within the stream, to clean up at regular intervals. Only
 # videos in the "My Uploads" section of the stream, with titles which match
 # this string exactly, will be deleted.
+#
+# Update this value to be the exact title of your live stream videos.
 #
 titleToDelete="CrowCam"
 
@@ -25,28 +31,31 @@ titleToDelete="CrowCam"
 # $titleToDelete was made 4 days ago, it will not be deleted, but a
 # $titleToDelete video made 5 days ago will be deleted.
 #
+# Set this to the number of days you wish to keep old videos before deletion.
+#
 dateBufferDays=5
 
 
-# Set "location" to your actual location. Can be a zip code, a city name, or
-# something else which might result in a Google search that returns the correct
-# sunrise or sunset time. Special bonus: If you leave the location blank (""),
-# Google will just search on the word "Sunrise" or "Sunset" and automatically
-# attempt to work out your location, based on where the query is originating
-# from. Maybe this will work for your particular situation, feel free to
-# experiment with leaving it blank. The code simply performs a Google search
-# with a search string where the word "Sunrise" or "Sunset" precedes this
-# location string. Examples: 
+# Camera location for using in a Google Search. Can be a zip code, a city name,
+# or something else which might result in a Google search that returns the
+# correct sunrise or sunset time. Special bonus: If you leave the location
+# blank (""), Google will just search on the word "Sunrise" or "Sunset" and
+# automatically attempt to determine your location, based on where the query is
+# originating from. Maybe this will work for your particular situation, feel
+# free to experiment with leaving it blank. The code simply performs a Google
+# search with a search string where the word "Sunrise" or "Sunset" precedes
+# this location string. Examples: 
 #   location="98125"        Google search will be "Sunrise 98125" etc.
 #   location="Seattle,WA"   Google search will be "Sunrise Seattle,WA" etc.
 #   location="Bangladesh"   Google search will be "Sunset Bangladesh" etc.
 #   location=""             Google search will be "Sunset" etc.
 # Note: Must not have any spaces in the location string.
 #
+# Set this value to either blank ("") or your location. No spaces.
 location=""
 
 
-# Default arrays of approximate sunrise/sunset data to use, if the script is
+# Default arrays of approximate sunrise/sunset data, used when the script is
 # unable to connect to Google to obtain accurate data. These values are the
 # "fallback" values which are less accurate than the Google results. These
 # values are only used in cases where Google cannot be contacted or if the
@@ -58,12 +67,14 @@ location=""
 #   - They contain the astronomical data for the 15th of that month.
 #   - They follow the local DST change, jumping an hour in March/November. 
 #   - The values will be even less accurate near the DST change date.
+#   - Default values here are for location: Seattle, WA.
 #
-# Default values here are for location: Seattle, WA. Feel free to change them
-# to your own location's astronomical data. Look up your own location's data
-# at: https://www.timeanddate.com/sun/country/yourcityname and fill in the
-# tables yourself. 
+# Set these values to to your own location's astronomical data. Look up your
+# own location's data at: https://www.timeanddate.com/sun/country/yourcityname
+# and fill in the tables yourself. 
 #
+# You may also leave these values untouched if they look like they are
+# approximately right for your location. These are only fallback values.
 sunriseArray[1]="07:52"
 sunriseArray[2]="07:15"
 sunriseArray[3]="07:22"
@@ -93,17 +104,21 @@ sunsetArray[12]="16:18"
 
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
 # accessing, from the point of view of the script running on the NAS itself
-# (i.e., loopback/localhost). This value most likely does not need to be
-# changed for any reason, unless your NAS is somehow unusual.
+# (i.e., loopback/localhost). This value is used when querying the Synology API
+# to find out if the video stream is turned on or off, and to set the video
+# stream's state.
+# 
+# Do not change this value.
 #
 webApiRootUrl="http://localhost:5000/webapi"
 
 
 # This is an alternate version of the Synology API's base URL, if we are
 # accessing it from a shell prompt on a test computer in test/debug mode,
-# if that computer is located on the same LAN as the Synology NAS. Make sure to
-# update this variable to match the correct address of your Synology NAS on
-# your LAN.
+# if that computer is located on the same LAN as the Synology NAS. This value
+# is used only in test/debug mode.
+# 
+# Update this value to the address of your Synology NAS on your LAN.
 #
 if [[ $debugMode == *"Home"* ]]
 then
@@ -112,20 +127,27 @@ fi
 
 
 # Name of the Synology Surveillance Station service that we are checking, to
-# see if it is up (if the service is not up, we will not do anything). This
-# value should not need to be changed. You can stop and start this service
-# on the Synology NAS either by going to the Package Center GUI, or by
-# connecting to the synology shell via SSH, and issuing commands such as:
+# see if it is up. If the service is not up, it will be assumed that it has
+# been deliberately turned off on the NAS, and these scripts will skip the
+# steps which are not applicable if the service is shut down. To test this
+# behavior, you can stop and start this service on the Synology NAS either by
+# going to the Package Center GUI and disabling the "Surveillance Station"
+# package temporarily, or by connecting to the synology shell via SSH, and
+# issuing commands such as:
 #      synoservicectl --stop pkgctl-SurveillanceStation
 #      synoservicectl --start pkgctl-SurveillanceStation
+#
+# Do not change this value.
 #
 serviceName="pkgctl-SurveillanceStation"
 
 
-# If you are running in test/debug mode on Mac, set this to the name of a
-# program that you can open and close on the Mac. Since the Mac is not running
-# SurveillanceStation, you cannot use that name. You must instead choose a
-# program name that is running and which you can stop and start. I use Chrome.
+# When running these scripts in test/debug mode on Mac, the scripts must check
+# for a different serviceName. Since the Mac is not running the
+# "pkgctl-SurveillanceStation" program, the scripts must check for some other
+# program instead, otherwise they will skip most of their behavior.
+#
+# Set this to a program on your Mac which you can easily stop and start.
 #
 if [[ $debugMode == *"Mac"* ]]
 then
@@ -133,10 +155,14 @@ then
 fi
 
 
-# If you are running in test/debug mode on Windows, set this to the name of a
-# windows service that you can stop or start from the "Services.msc" control
-# panel on Windows. To see all running service names on Windows, type
-# "net start" by itself at a DOS command prompt.
+# When running these scripts in test/debug mode on Windows, the scripts must
+# check for a different serviceName. Since the computer is not running the
+# "pkgctl-SurveillanceStation" program, the scripts must check for some other
+# program instead, otherwise they will skip most of their behavior.
+#
+# Set this to the name of a Windows service which you can easily stop and start
+# from the "Services.msc" control panel on Windows. To see all running service
+# names on Windows, type "net start" by itself at a DOS command prompt.
 #
 if [[ $debugMode == *"Win"* ]]
 then
@@ -145,26 +171,32 @@ fi
 
 
 # Name of the "YouTube Live Broadcast" feature that we are turning on and off.
-# This is only used in log messages. This value does not need to be changed.
+# This is only used in log messages. 
+#
+# Do not change this value.
 #
 featureName="YouTube Live Broadcast"
 
 
 # Some sugar required for Wget to successfully retrieve a search from Google.
 # Without this, Google gives you a "403 forbidden" message when you try to
-# use Wget to perform a Google search. This value does not need to be changed.
+# use Wget to perform a Google search.
+#
+# Do not change this value.
 #
 userAgent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"
 
 
-# Create a variable for the youtube-dl executable. This value should not be
-# changed.
+# Create a variable for the youtube-dl executable.
+#
+# Do not change this value.
 #
 executable="$DIR/youtube-dl"
 
 
-# Slightly different file if testing on Windows PC. This value should not be
-# changed.
+# Slightly different file if testing on Windows PC.
+#
+# Do not change this value.
 #
 if [[ $debugMode == *"Win"* ]]
 then
@@ -172,27 +204,33 @@ then
 fi
 
 
-# Create a variable for the API credentials file. This value should not be
-# changed.
+# Create a variable for the API credentials file, we will read from this file.
+#
+# Do not change this value.
 #
 apicreds="$DIR/api-creds"
 
 
 # Create a variable for the "client_id.json" file, we will read from this file.
-# This value should not be changed.
+#
+# Do not change this value.
 #
 clientIdJson="$DIR/client_id.json"
 
 
 # Create a variable for the "crowcam-tokens" file, we will write to this file.
-# This value should not be changed.
+#
+# Do not change this value.
 #
 crowcamTokens="$DIR/crowcam-tokens"
 
 
 # Temporary file to store the contents of the live stream that we are (for a 
-# short time) downloading during this run. The file will get cleaned up at
-# the end of the run. This value should not be changed.
+# short time) downloading during a "CrowCamKeepAlive" run. The file will get
+# cleaned up at the end of normal runs, but will be left on the hard disk at
+# the end of test/debug runs (for test/debug examination).
+#
+# Do not change this value.
 #
 tempFile="CrowCamTemp.mp4"
 
@@ -200,13 +238,15 @@ tempFile="CrowCamTemp.mp4"
 # Cookie file name that will save the login/auth cookie for the web API. This
 # allows subsequent calls to the Synology API to succeed after the initial
 # authentication has been successful. Subsequent calls simply use the cookie.
-# This value should not be changed.
+#
+# Do not change this value.
 #
 cookieFileName="wgetcookies.txt"
 
 
-# DNS name that we will ping to see if the network is up. This value should not
-# be changed.
+# DNS name that we will ping to see if the network is up.
+#
+# Do not change this value.
 #
 TestSite="google.com"
 

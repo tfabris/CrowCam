@@ -9,11 +9,11 @@ backyard. The scripts automate some important tasks which would otherwise be
 manual and repetitive, and also work around some unfixed bugs in the streaming
 software and in YouTube itself.
 
-This project could be useful to anyone who uses any kind of unattended camera
-(not necessarily for bird watching) who wants to stream it to YouTube, but
-might have encountered the same problems with YouTube that I did. It's also
-a good platform for demonstrating some useful programming techniques. Besides
-learning a lot about Bash and shell scripts in general, I learned:
+This project could be useful to anyone who uses any kind of unattended camera,
+who wants to stream it to YouTube, but might have encountered the same problems
+with YouTube that I did. It's also a good platform for demonstrating some
+useful programming techniques. These scripts include well-documented methods
+for the following things:
 
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
@@ -22,9 +22,9 @@ learning a lot about Bash and shell scripts in general, I learned:
 - How to parse the output of the YouTube API to learn information about the
   videos uploaded to a YouTube channel.
 - How to delete specific videos from a YouTube channel via a shell script.
-- Many complex and subtle tricks required when writing scripts that are meant
-  to run both in a Linux shell and a MacOS shell. Linux and MacOS have just
-  enough in common to get you in trouble when you are moving between them.
+- How to write Bash scripts that are meant to be cross-platform, running in a
+  Linux shell, a MacOS shell, and Windows Subsystem shell. These platforms have
+  just enough in common to get you in trouble when you are moving between them.
 - How to script based on Sunrise and Sunset.
 - How to work around the Synology bug which prevents the YouTube live stream
   from properly resuming after a network outage.
@@ -38,7 +38,7 @@ Table of Contents
 ==============================================================================
 - [Project Information                                                             ](#project-information)
 - [Requirements                                                                    ](#requirements)
-- [Installation                                                                    ](#installation)
+- [Configuration                                                                    ](#configuration)
 - [Usage and Troubleshooting                                                       ](#usage-and-troubleshooting)
 - [What Each Script Does                                                           ](#what-each-script-does)
 - [Resources                                                                       ](#resources)
@@ -75,8 +75,11 @@ feature.
 
 Requirements
 ------------------------------------------------------------------------------
-- A Synology NAS, running its included security camera app, "Synology
-  Surveillance Station".
+- A Synology NAS. I have developed and tested this on my Synology model
+  "DS214play", so your mileage may vary, depending on which NAS model you own
+  and which version of the Synology operating system it's running.
+- The Synology NAS should be running its included security camera app,
+  "Synology Surveillance Station".
 - An IP security camera which is compatible with Synology Surveillance Station.
 - A working YouTube live stream, using the "Live Broadcast" feature of
   Surveillance Station to feed the camera's output to the live stream. 
@@ -95,36 +98,51 @@ Surveillance Station, and "Live Broadcast" features are all working correctly,
 and that you can see the stream on your YouTube channel.
 
 
-Installation
+Configuration
 ------------------------------------------------------------------------------
+####  Obtain and unzip the latest files:
+- Download the latest project file and unzip it to your hard disk:
+  https://github.com/tfabris/CrowCam/archive/master.zip
+- (Alternative) Use Git or GitHub Desktop to clone this repository:
+  https://github.com/tfabris/CrowCam
+
+####  Edit configuration file:
+Edit the file named "crowcam-config" (no file extension), and update the first
+several variables in the file. These are values which are unique to your
+installation. They are clearly documented in the file.
+
 ####  Create API credentials file:
 Create an API credentials file named "api-creds" (no file extension),
 containing a single line of text: A username, a space, and then a password.
 These will be used for connecting to the API of your Synology NAS. Choose an
 account on the Synology NAS which has a level of access high enough to connect
-to the API, and to turn the Synology surveillance Station "Live Broadcast"
-feature on and off. The built-in account "admin" naturally has this level of
-access, but you may choose to create a different user for security reasons.
-Create the "api-creds" file and place it in the same directory as these
-scripts.
+to the Synology API, and which has permission to turn the Synology Surveillance
+Station "Live Broadcast" feature on and off. The built-in account "admin"
+naturally has this level of access, but you may choose to create a different
+user for security reasons. Create the "api-creds" file and place it in the same
+directory as these scripts.
 
 ####  Get YouTube-dl:
 YouTube-dl is a third party program which downloads video streams and other
 information from YouTube. We use it for checking and connecting to the YouTube
 live stream in an automated fashion. It is used for checking whether the stream
 is up, and for making sure that the stream's DVR cache stays functional at all
-times. Obtain the latest version of youtube-dl for Linux, and place it in the
-same folder as these scripts. Youtube-dl is obtained either by grabbing it from
-https://ytdl-org.github.io/youtube-dl/download.html, or by issuing this command
-at the Bash shell prompt:
+times. Obtain the Linux and Windows binary executables of youtube-dl (one file
+each, "youtube-dl" and "youtube-dl.exe") and place them in the same folder as
+these scripts. Youtube-dl is obtained either by grabbing both files from
+[the YouTube-dl web site](https://ytdl-org.github.io/youtube-dl/download.html),
+or by issuing these commands at the Bash shell prompt in the same directory as
+these script files:
 
      wget https://yt-dl.org/downloads/latest/youtube-dl -O ./youtube-dl
+     wget https://yt-dl.org/downloads/latest/youtube-dl.exe -O ./youtube-dl.exe
 
 ####  Obtain OAuth credentials:
 OAuth credentials are used for giving the CrowCamCleanup script permission to
 access the YouTube account, so that it can delete old video stream archives
-from the YouTube account's "uploads" directory. Unless something goes wrong,
-you should only need create these credentials once.
+from the YouTube account's "uploads" directory. You should only need create
+these credentials once, unless something goes wrong or you revoke the
+credentials.
 - Navigate to your Google developer account dashboard at
   https://console.developers.google.com/apis/dashboard
 - Create a new project to hold the auth creds. For instance, I have created a
@@ -150,11 +168,15 @@ you should only need create these credentials once.
 - Rename the file that you downloaded to "client_id.json"
 - Place the file in the same directory as these script files.
 
-####  Run preparation script, to authorize your YouTube account with OAuth:
-Run the CrowCamCleanupPreparation script. You should only need to run this
-script once, or, perhaps later if the tokens get invalidated or if there is
-an unexpected error. Open a Bash shell on your local PC, in the same folder as
-these scripts, set the file permissions, and launch the preparation script:
+####  Run preparation script, to authorize your YouTube account:
+Run the CrowCamCleanupPreparation script. This script will authorize the Google
+developer OAuth credentials (created above) to make changes to the YouTube
+stream, and then will obtain an all-important refresh token which will allow it
+to continue doing it over time, without needing to keep re-authorizing.
+You should only need to run this script once, unless the tokens get invalidated
+or there is an unexpected error. Open a Bash shell on your local PC, in the
+same folder as these scripts, set the file permissions, and launch the
+preparation script, using these commands:
 
      chmod 770 CrowCam*.sh
      chmod 770 crowcam-config
@@ -165,7 +187,7 @@ these scripts, set the file permissions, and launch the preparation script:
   your local PC. The script will launch a web browser for authenticating your
   credentials, but launching a web browser does not work on the Synology. The
   script should be relatively good about cross platform compatibility on common
-  desktop/laptop computers with a Bash shell available, suchs as a Linux
+  desktop/laptop computers with a Bash shell available, such as a Linux
   computer, a MacOS computer, or even a Windows computer if you install the
   [Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
 
@@ -240,12 +262,12 @@ goes wrong. When working correctly, they will not be very chatty there, though
 expect to see messages in the following situations:
 - The Synology log should show a message near sunrise or sunset, when the
   stream is being turned on and off.
-- If your local internet connection goes down, you should see Synology log
-  entries which indicate that the script is bouncing the "Live Broadcast"
-  feature to restart the failed stream.
-- When the midnight cleanup is being performed, you should see a Synology log
-  which lists how many files are being analyzed, and a message for any deleted
-  files.
+- If your local internet connection has a temporary outage, you should see
+  Synology log entries which indicate that the script is bouncing the "Live
+  Broadcast" feature to restart the failed stream.
+- Around midnight, you should see a Synology log entry which lists how many
+  files are in the "My Uploads" folder on your YouTube channel, being analyzed,
+  and a message for any old archived livestream files which are being deleted.
 - If the scripts encounter any major error, the errors should be reported in
   the Synology log.
 
@@ -256,7 +278,8 @@ edit the script, locate its debugMode variable, and set it to:
 
 You can then do one or both of the following:
 - SSH into the Synology NAS and launch the script at the SSH prompt.
-  Note: some of the commands in some scripts might require sudo. Example:
+  Note: some of the commands in some scripts might require elevation, so when
+  testing on the Synology, launch the script with sudo. Example:
 ```
      sudo ./CrowCam.sh
 ```
@@ -265,6 +288,10 @@ You can then do one or both of the following:
 ```
      bash "/volume1/homes/admin/(scriptname).sh" >> "/volume1/homes/admin/(scriptname).log" 2>&1
 ```
+
+You can also configure the script to one of the other debugMode settings to
+test it on a local Windows or Mac computer, and run the script there.
+
 Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
 only log its intentions in debug mode, but won't actually clean up any files.
@@ -309,7 +336,7 @@ Solution:
   - The video name is exactly "CrowCam", i.e., the video has not been renamed.
   - The video is old enough, for example, more than 5 days old.
 - This allows us to save a favorite video by simply renaming it, and it gives
-  us a buffer of a few days to look at recent videos.
+  us a buffer of a few days to look at recent videos before they get deleted.
 
 ####  CrowCamKeepAlive.sh
 Purpose of CrowCamKeepAlive.sh:
