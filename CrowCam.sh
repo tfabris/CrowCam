@@ -11,6 +11,7 @@
 # and follow the instructions.
 #------------------------------------------------------------------------------
 
+
 # ----------------------------------------------------------------------------
 # Workaround to allow exiting a Bash script from inside a function call. See
 # this EmpegBBS post for details of how this works and why it's needed:
@@ -46,8 +47,7 @@ programname="CrowCam Controller"
 
 # Get the directory of the current script so that we can find files in the
 # same folder as this script, regardless of the current working directory. The
-# technique was learned from the following post:
-# https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+# technique was learned here: https://stackoverflow.com/a/246128/3621748
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Load the configuration file "crowcam-config", which contains variables that
@@ -86,7 +86,7 @@ fi
 MaxComebackRetries=30
 
 # Set this global variable to a starting integer value. There is a possible
-# condition in the code if we are in test mode where we might test the value
+# condition in the code if we are in test mode, where we might test the value
 # once before any value has been set for it. The issue is not harmful to the
 # program, but this line will prevent an error message of "integer expression
 # expected" at the wrong moment.
@@ -137,7 +137,8 @@ Test_Stream()
   StreamIsUp=true
 
   # Check the global variable $NetworkIsUp and see if it's true. This function
-  # is only useful if the network is up. 
+  # is only useful if the network is up. If the network is down, then return
+  # false automatically.
   if "$NetworkIsUp" = true
   then
     logMessage "dbg" "Network is up, checking if live stream is up"
@@ -164,6 +165,7 @@ Test_Stream()
   # variable will contain either the valid URL, or the error message. Also
   # the return code from youtube-dl will most likely be nonzero if an error
   # was hit. If either of those things are the case, report a downed stream.
+  # This is the first test, where I am testing if the return code is zero.
   if [[ $errorStatus != 0 ]]
   then
     logMessage "dbg" "$executable finished with exit code $errorStatus, live stream is down"
@@ -172,7 +174,7 @@ Test_Stream()
 
   # I doubt the URL will be empty, I figure it will either be a valid URL
   # or it will be the text of an error message. But if it happens to be
-  # blank, that would also mean the stream is probably down.
+  # blank, that would also mean the stream is probably down. Return false.
   if [ -z "$finalUrl" ]
   then
     logMessage "dbg" "No URL was obtained from $executable, live stream is down"
@@ -213,10 +215,11 @@ Test_Network()
   then
     # In test mode, set a nonexistent web site name to make it fail
     ThisTestSite="aslksdkhskh.com"
+
+    # In test mode, make the real web site come back after a certain number
+    # of retries so that it simulates the network coming back up again.
     if [ "$restoreLoop" -eq "$TestModeComeBackOnRetry" ]
     then
-      # In test mode, make the real web site come back after a certain number
-      # of retries so that it simulates the network coming back up again.
       ThisTestSite="$TestSite"
     fi
   else 
@@ -376,7 +379,7 @@ GetSunriseSunsetTimeFromGoogle()
 # it to base 10.
 #
 # Technique obtained (but is incorrect due to that octal thing) from:
-# https://stackoverflow.com/questions/2181712/simple-way-to-convert-hhmmss-hoursminutesseconds-split-seconds-to-seconds
+# https://stackoverflow.com/a/2181749/3621748
 #------------------------------------------------------------------------------
 TimeToSeconds()
 {
@@ -409,8 +412,7 @@ TimeToSeconds()
 #
 # Returns: Formatted time string in HH:MM format.
 #
-# Technique gleaned from:
-# https://unix.stackexchange.com/questions/27013/displaying-seconds-as-days-hours-mins-seconds
+# Technique gleaned from: https://unix.stackexchange.com/a/27014
 #------------------------------------------------------------------------------
 SecondsToTime()
 {
@@ -504,18 +506,20 @@ ChangeStreamState()
     currentStreamState="false"
   fi
 
+  # Behavior when stream is set to up, at a time when it should be up.
   if [ "$currentStreamState" = true ] && [ $1 = "up" ]
   then
     # Message for local machine test runs.
     logMessage "dbg" "$2. $featureName is up. It should be $1 at this time. Nothing to do"
   fi
 
+  # Behavior when stream is set to down, at a time when it should be up.
   if [ "$currentStreamState" = false ] && [ $1 = "up" ]
   then
     logMessage "info" "$2. $featureName is down. It should be $1 at this time. Starting stream"
 
     # Bring the stream back up. Start it here by using the "Save" method to
-    # set live_on=true. Response is expected to be {"success":true}.    
+    # set live_on=true. Response is expected to be {"success":true}.
     WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
 
     # Insert a deliberate pause after starting the stream, to make sure that
@@ -528,6 +532,7 @@ ChangeStreamState()
     sleep 20
   fi
   
+  # Behavior when stream is set to up, at a time when it should be down.
   if [ "$currentStreamState" = true ] && [ $1 = "down" ]
   then
     logMessage "info" "$2. $featureName is up. It should be $1 at this time. Stopping stream"
@@ -537,6 +542,7 @@ ChangeStreamState()
     WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
   fi
   
+  # Behavior when stream is set to down, and it should be down.
   if [ "$currentStreamState" = false ] && [ $1 = "down" ]
   then
     # Message for local machine test runs.
@@ -588,7 +594,7 @@ fi
 # Note: To test this, you can issue the following commands to make an
 # SSH login into the NAS and stop or start the service at will, like this:
 #
-#    ssh admin@192.168.0.88
+#    ssh admin@your.nas.address
 # 
 #    (the below stuff needs SUDO only if you do it at the
 #     SSH prompt, but SUDO is not needed in Task Scheduler)

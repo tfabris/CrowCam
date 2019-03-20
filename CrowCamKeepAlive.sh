@@ -11,6 +11,7 @@
 # and follow the instructions.
 #------------------------------------------------------------------------------
 
+
 # ----------------------------------------------------------------------------
 # Workaround to allow exiting a Bash script from inside a function call. See
 # this EmpegBBS post for details of how this works and why it's needed:
@@ -46,8 +47,7 @@ programname="CrowCam Keep Alive"
 
 # Get the directory of the current script so that we can find files in the
 # same folder as this script, regardless of the current working directory. The
-# technique was learned from the following post:
-# https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+# technique was learned here: https://stackoverflow.com/a/246128/3621748
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Load the configuration file "crowcam-config", which contains variables that
@@ -132,7 +132,7 @@ sleep $pauseSeconds
 # Note: To test this, you can issue the following commands to make an
 # SSH login into the NAS and stop or start the service at will, like this:
 #
-#    ssh admin@192.168.0.88
+#    ssh admin@your.nas.address
 # 
 #    (the below stuff needs SUDO only if you do it at the
 #     SSH prompt, but SUDO is not needed in Task Scheduler)
@@ -269,7 +269,7 @@ if [[ $debugMode == *"Mac"* ]]
 then
   # MacOs version of running the download (no "timeout" command exists on Mac).
   logMessage "dbg" "wget $finalUrl -q -O $tempFile --timeout=10"
-                     wget $finalUrl -q -O $tempFile --timeout=10
+                    wget $finalUrl -q -O $tempFile --timeout=10
 else
   # Standard way of running the download, using timeout to limit its length.
   logMessage "dbg" "timeout -s 2 -k $secondsToDownload $secondsToDownload wget $finalUrl -q -O $tempFile --timeout=10"
@@ -277,8 +277,7 @@ else
 fi
 
 # Post-clean the temporary downloaded file, including a partial copy, if any.
-# When testing the script, leave the files behind for post-mortem
-# examination.
+# When testing the script, leave the files behind for post-mortem examination.
 if [ -z "$debugMode" ]
 then
   rm -f $tempFile

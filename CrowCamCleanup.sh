@@ -29,8 +29,7 @@ programname="CrowCam Cleanup"
 
 # Get the directory of the current script so that we can find files in the
 # same folder as this script, regardless of the current working directory. The
-# technique was learned from the following post:
-# https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+# technique was learned here: https://stackoverflow.com/a/246128/3621748
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Load the configuration file "crowcam-config", which contains variables that
@@ -242,17 +241,15 @@ uploadsOutput=$( curl -s $curlUrl )
 # here: https://empegbbs.com/ubbthreads.php/topics/371758
 #
 # Initially bufgixed by using one of the other ways to read into an array:
-#    https://stackoverflow.com/questions/9293887/reading-a-delimited-string-into-an-array-in-bash
-#
+#    https://stackoverflow.com/a/9294015/3621748
 # But then that alternate array-read method broke when testing on Windows
 # platform, so now I have to do the read differently depending on platform:
 if [[ $debugMode == *"Win"* ]]
 then
-    # Version which works on Windows, but does not work on MacOS due to readarray
-    # not being available on that platform.
+    # This version works on Windows, but not on Mac - no "readarray" on Mac.
     readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
 else
-    # Version which works on MacOS, Synology, and even works in SH.
+    # This version works on MacOS, Synology, and in SH, but not on Windows.
     textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
     read -a videoIds <<< $textListOfVideoIds
 fi

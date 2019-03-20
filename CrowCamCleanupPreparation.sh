@@ -11,6 +11,7 @@
 # and follow the instructions.
 #------------------------------------------------------------------------------
 
+
 #------------------------------------------------------------------------------
 # Note: This CrowCamCleanupPreparation.sh script only needs to be run once.
 #------------------------------------------------------------------------------
@@ -40,8 +41,7 @@
 
 # Get the directory of the current script so that we can find files in the
 # same folder as this script, regardless of the current working directory. The
-# technique was learned from the following post:
-# https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+# technique was learned here: https://stackoverflow.com/a/246128/3621748
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # Load the configuration file "crowcam-config", which contains variables that

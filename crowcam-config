@@ -1,13 +1,29 @@
 #!/bin/bash
 
+#------------------------------------------------------------------------------
+# crowcam-config - Global variables used in CrowCam scripts.
+#------------------------------------------------------------------------------
+# Please see the accompanying file REAMDE.md for setup instructions. Web Link:
+#        https://github.com/tfabris/CrowCam/blob/master/README.md
+#
+# The scripts in this project don't work "out of the box", they need some
+# configuration. All details are found in README.md, so please look there
+# and follow the instructions.
+#------------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------
+# Startup configuration variables 
+# ----------------------------------------------------------------------------
+
 # This value points to the parent YouTube live stream that these scripts are
 # controlling. It must be the live stream's main parent URL, not the address
 # of an individual video within the channel. For instance, it must not be an
 # archived video, or a link to a particular day's live stream. You can tell
 # whether it is the correct link by looking at the the style of the URL:
 #
-#   Right:    https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live
-#   Wrong:    https://www.youtube.com/watch?v=gZ6xszyhRYm
+#   Right:    https://www.youtube.com/channel/xyzxyzxyzxyzxyzxyzxyzxyz/live
+#   Wrong:    https://www.youtube.com/watch?v=xyzxyzxyzxyz
 #
 # This value is used when checking if the stream is working, and it is used
 # when ensuring that the stream's DVR functionality stays working.
@@ -134,8 +150,9 @@ fi
 # going to the Package Center GUI and disabling the "Surveillance Station"
 # package temporarily, or by connecting to the synology shell via SSH, and
 # issuing commands such as:
-#      synoservicectl --stop pkgctl-SurveillanceStation
-#      synoservicectl --start pkgctl-SurveillanceStation
+#      sudo synoservicectl --stop pkgctl-SurveillanceStation
+#      sudo synoservicectl --start pkgctl-SurveillanceStation
+#      sudo synoservicectl --status pkgctl-SurveillanceStation
 #
 # Do not change this value.
 #

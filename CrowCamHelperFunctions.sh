@@ -28,13 +28,13 @@
 #
 # Global Variable used: $programname - Prefix all log messages with this.
 #
-# NOTE: I'm logging to the STDERR channel (>&2) as a work-around to a
-# problem where there doesn't appear to be a Bash-compatible way to combine
-# console logging and capturing STDOUT from a function call. The only way I
-# can figure out how to return a string from a function call and yet also be
-# able to ECHO any logging from within that function call because if I log
-# to STDOUT then the log becomes the return call from the function and
-# messes everything up.
+# NOTE: I'm logging to the STDERR channel (>&2) as a work-around to a problem
+# where there doesn't appear to be a Bash-compatible way to combine console
+# logging *and* capturing STDOUT from a function call. Because if I log to
+# STDOUT, then if I call logMessage from within any of my functions which
+# return values to the caller, then the log message output becomes the return
+# data, and messes everything up. TO DO: Learn the correct way of doing both at
+# the same time in Bash.
 #------------------------------------------------------------------------------
 logMessage()
 {
@@ -79,14 +79,18 @@ IsServiceUp()
     ReturnCode=$?
   fi
 
-  # Version of service check command for testing on Mac.
+  # Version of service check command for testing on Mac. The $serviceName
+  # variable will be different when running in debug mode on Mac, so that it
+  # is easier to test in that environment.
   if [[ $debugMode == *"Mac"* ]]
   then
     pgrep -xq -- "${serviceName}"
     ReturnCode=$?
   fi
 
-  # Version of service check command for testing on Windows
+  # Version of service check command for testing on Windows.  The $serviceName
+  # variable will be different when running in debug mode on Windows, so that
+  # it is easier to test in that environment.
   if [[ $debugMode == *"Win"* ]]
   then
     # Special handling of windows command needed, in order to make it
@@ -130,8 +134,9 @@ WebApiCall()
   # Use $BASHPID to obtain the Process ID of this function when it's running,
   # so that the child subroutine knows where to send its signal when needed.
   #
-  # NOTE: Issue #6 - $BASHPID is not present on Mac OS X. Attempted fixes
-  # here: https://stackoverflow.com/a/9121753 - did not work. Giving up since
+  # NOTE: Issue #6 - $BASHPID is not present on Mac OS X due to it having been
+  # introduced in Bash v4 while Mac is still on Bash v3. Attempted workaround
+  # here: https://stackoverflow.com/a/9121753 - did not work. Giving up, since
   # the issue only occurs in debug mode on Mac OS X - Perfect kill behavior is
   # not needed in debug mode.
   export WEBAPICALL_PID=$BASHPID
@@ -147,23 +152,20 @@ WebApiCall()
     WebApiAuth
   fi
 
-  # Log to console for local machine test runs.
-  logMessage "dbg" "Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
-
   # Make the web API call.
-  webResult=$( wget -qO- $cookieParametersStandard "$webApiRootUrl/$1" )
-
-  # Log to console for local machine test runs.
+  logMessage "dbg" "Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
+                webResult=$( wget -qO- $cookieParametersStandard "$webApiRootUrl/$1" )
   logMessage "dbg" "Response: $webResult"
 
   # Check to make sure our call to the web API succeeded, if not, perform a
-  # single auth and try again.
+  # single re-auth and try again. This situation can occur if a cookie already
+  # existed but it had expired and thus we needed to re-auth.
   if ! [[ $webResult == *"\"success\":true"* ]]
   then
     logMessage "dbg" "The call to the Synology Web API failed. Attempting to re-authenticate"
     WebApiAuth
     logMessage "dbg" "Re-Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
-    webResult=$( wget -qO- $cookieParametersStandard "$webApiRootUrl/$1" )
+                     webResult=$( wget -qO- $cookieParametersStandard "$webApiRootUrl/$1" )
     logMessage "dbg" "Response: $webResult"
   fi
 
@@ -195,7 +197,8 @@ WebApiAuth()
   # Set up strings
   cookieParametersAuth="--keep-session-cookies --save-cookies $cookieFileName --timeout=10"
 
-  # Create string for authenticating with Synology Web API.
+  # Create string for authenticating with Synology Web API. Note: deliberately
+  # using version=1 in this call because I ran into problems with version=3.
   authWebCall="auth.cgi?api=SYNO.API.Auth&version=1&method=login&account=$username&passwd=$password&session=SurveillanceStation&format=cookie"
 
   # Debugging output for local machine test runs. Do not use this under normal
