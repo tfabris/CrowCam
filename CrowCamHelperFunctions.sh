@@ -129,6 +129,11 @@ WebApiCall()
 
   # Use $BASHPID to obtain the Process ID of this function when it's running,
   # so that the child subroutine knows where to send its signal when needed.
+  #
+  # NOTE: Issue #6 - $BASHPID is not present on Mac OS X. Attempted fixes
+  # here: https://stackoverflow.com/a/9121753 - did not work. Giving up since
+  # the issue only occurs in debug mode on Mac OS X - Perfect kill behavior is
+  # not needed in debug mode.
   export WEBAPICALL_PID=$BASHPID
 
   # Set up some parameters that will be used for calling WGet.
