@@ -33,20 +33,13 @@ programname="CrowCam Cleanup"
 # https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-# Create a variable for the "client_id.json" file.
-clientIdJson="$DIR/client_id.json"
+# Load the configuration file "crowcam-config", which contains variables that
+# are user-specific.
+source "$DIR/crowcam-config"
 
-# Create a variable for the "crowcam-tokens" file.
-crowcamTokens="$DIR/crowcam-tokens"
-
-# Title of videos to clean up. Only uploaded videos with titles which match
-# this string exactly will be deleted.
-titleToDelete="CrowCam"
-
-# The number of days in the past that we will let videos live. For example if
-# this number is 5, and a video named "CrowCam" was made 4 days ago, it
-# will not be deleted, but a "CrowCam" video made 5 days ago will be deleted.
-dateBufferDays=5
+# Load the include file "CrowCamHelperFunctions.sh", which contains shared
+# functions that are used in multiple scripts.
+source "$DIR/CrowCamHelperFunctions.sh"
 
 # When in test mode, reduce the number of days of buffer so that we can see
 # the code actually try to delete an old video. For example, the "real" code
@@ -62,51 +55,6 @@ then
     ((dateBufferDays--)) 
     ((dateBufferDays--)) 
 fi
-
-
-#------------------------------------------------------------------------------
-# Function blocks
-#------------------------------------------------------------------------------
-
-
-#------------------------------------------------------------------------------
-# Function: Log message to console and Synology log both.
-# 
-# Parameters: $1 - "info"  - Log to console stderr and Synology log as info.
-#                  "err"   - Log to console stderr and Synology log as error.
-#                  "dbg"   - Log to console stderr, do not log to Synology.
-#
-#             $2 - The string to log. Do not end with a period, we will add it.
-#
-# Global Variable used: $programname - Prefix all log messages with this.
-#
-# NOTE: I'm logging to the STDERR channel (>&2) as a work-around to a
-# problem where there doesn't appear to be a Bash-compatible way to combine
-# console logging and capturing STDOUT from a function call. The only way I
-# can figure out how to return a string from a function call and yet also be
-# able to ECHO any logging from within that function call because if I log
-# to STDOUT then the log becomes the return call from the function and
-# messes everything up.
-#------------------------------------------------------------------------------
-logMessage()
-{
-  # Log message to shell console under the appropriate circumstances.
-  if [ ! -z "$debugMode" ]
-  then
-    echo "$programname - $2." >&2
-  fi
-
-  # Only log to synology if the log level is not "dbg"
-  if ! [ "$1" = dbg ]
-  then
-    # Only log to Synology system log if we are running on Synology.
-    if [ -z "$debugMode" ] || [[ $debugMode == *"Synology"* ]]
-    then 
-      # Special command on Synology to write to its main log file.
-      synologset1 sys $1 0x11800000 "$programname - $2"
-    fi
-  fi
-}
 
 
 #------------------------------------------------------------------------------
@@ -292,19 +240,20 @@ uploadsOutput=$( curl -s $curlUrl )
 # despite having the BASH "shebang" at the top of the file. details explained
 # here:
 #     https://empegbbs.com/ubbthreads.php/topics/371758
-# Bufgixed by using one of the other ways to read into an array:
+# Initially bufgixed by using one of the other ways to read into an array:
 #    https://stackoverflow.com/questions/9293887/reading-a-delimited-string-into-an-array-in-bash
-# (I also could have fixed it by changing the launcher command to "bash
-# scriptname.sh" but I fixed it this way first and I'm sticking with it.
-# The below syntax works for me in both Bash and Sh so it's good:
-textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-read -a videoIds <<< $textListOfVideoIds
+#    textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+#    read -a videoIds <<< $textListOfVideoIds
+# Re-bugfixed when the alternate array-read method broke when testing on
+# Windows platform, so I'm back to the process-substitution method, but
+# with the "bash" command fixed in the Synology task scheduler:
+readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
 
 # Debugging - Print the array. No need to do this unless you encounter
 # some kind of nasty unexpected bug. Leave this commented out usually.
-#   echo "Video IDs in the uploads directory in the channel:"
-#   printf "%s\n" "${videoIds[@]}"
-#   echo ""
+# echo "Video IDs in the uploads directory in the channel:"
+# printf "%s\n" "${videoIds[@]}"
+# echo ""
 
 #Display number of videos found:
 logMessage "info" "${#videoIds[@]} videos found. Processing"

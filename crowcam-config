@@ -1,0 +1,213 @@
+#!/bin/bash
+
+# Set youTubeUrl to be the parent YouTube live stream that these scripts are
+# controlling. It must be the live stream's main parent URL, not the address
+# of an individual video within the channel. For instance, it must not be an
+# archived video, or a link to a particular day's live stream. You can tell
+# whether it is the correct link by looking at the the style of the URL:
+# Right:  https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live
+# Wrong:  https://www.youtube.com/watch?v=gZ6xszyhRYm
+# This value is used when checking if the stream is working, and it is used
+# when ensuring that the stream's DVR functionality stays working.
+#
+youTubeUrl="https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live"
+
+
+# Title of videos within the stream, to clean up at regular intervals. Only
+# videos in the "My Uploads" section of the stream, with titles which match
+# this string exactly, will be deleted.
+#
+titleToDelete="CrowCam"
+
+
+# The number of days in the past that we will let old videos live before
+# cleaning them up. For example, if this number is 5, and a video named
+# $titleToDelete was made 4 days ago, it will not be deleted, but a
+# $titleToDelete video made 5 days ago will be deleted.
+#
+dateBufferDays=5
+
+
+# Set "location" to your actual location. Can be a zip code, a city name, or
+# something else which might result in a Google search that returns the correct
+# sunrise or sunset time. Special bonus: If you leave the location blank (""),
+# Google will just search on the word "Sunrise" or "Sunset" and automatically
+# attempt to work out your location, based on where the query is originating
+# from. Maybe this will work for your particular situation, feel free to
+# experiment with leaving it blank. The code simply performs a Google search
+# with a search string where the word "Sunrise" or "Sunset" precedes this
+# location string. Examples: 
+#   location="98125"        Google search will be "Sunrise 98125" etc.
+#   location="Seattle,WA"   Google search will be "Sunrise Seattle,WA" etc.
+#   location="Bangladesh"   Google search will be "Sunset Bangladesh" etc.
+#   location=""             Google search will be "Sunset" etc.
+# Note: Must not have any spaces in the location string.
+#
+location=""
+
+
+# Default arrays of approximate sunrise/sunset data to use, if the script is
+# unable to connect to Google to obtain accurate data. These values are the
+# "fallback" values which are less accurate than the Google results. These
+# values are only used in cases where Google cannot be contacted or if the
+# search fails. Please note: These values have the following characteristics:
+#
+#   - These values are very very approximate.
+#   - These are based on monthly data, not daily, to keep the tables small.
+#   - The array position ([1], [2], etc.) is the month number.
+#   - They contain the astronomical data for the 15th of that month.
+#   - They follow the local DST change, jumping an hour in March/November. 
+#   - The values will be even less accurate near the DST change date.
+#
+# Default values here are for location: Seattle, WA. Feel free to change them
+# to your own location's astronomical data. Look up your own location's data
+# at: https://www.timeanddate.com/sun/country/yourcityname and fill in the
+# tables yourself. 
+#
+sunriseArray[1]="07:52"
+sunriseArray[2]="07:15"
+sunriseArray[3]="07:22"
+sunriseArray[4]="06:20"
+sunriseArray[5]="05:32"
+sunriseArray[6]="05:11"
+sunriseArray[7]="05:27"
+sunriseArray[8]="06:05"
+sunriseArray[9]="06:46"
+sunriseArray[10]="07:28"
+sunriseArray[11]="07:14"
+sunriseArray[12]="07:50"
+
+sunsetArray[1]="16:45"
+sunsetArray[2]="17:32"
+sunsetArray[3]="19:14"
+sunsetArray[4]="19:58"
+sunsetArray[5]="20:40"
+sunsetArray[6]="21:08"
+sunsetArray[7]="21:03"
+sunsetArray[8]="20:21"
+sunsetArray[9]="19:21"
+sunsetArray[10]="18:21"
+sunsetArray[11]="16:32"
+sunsetArray[12]="16:18"
+
+
+# The webApiRootUrl is the base URL of the API of the Synology NAS we are
+# accessing, from the point of view of the script running on the NAS itself
+# (i.e., loopback/localhost). This value most likely does not need to be
+# changed for any reason, unless your NAS is somehow unusual.
+#
+webApiRootUrl="http://localhost:5000/webapi"
+
+
+# This is an alternate version of the Synology API's base URL, if we are
+# accessing it from a shell prompt on a test computer in test/debug mode,
+# if that computer is located on the same LAN as the Synology NAS. Make sure to
+# update this variable to match the correct address of your Synology NAS on
+# your LAN.
+#
+if [[ $debugMode == *"Home"* ]]
+then
+  webApiRootUrl="http://192.168.0.88:5000/webapi"
+fi
+
+
+# Name of the Synology Surveillance Station service that we are checking, to
+# see if it is up (if the service is not up, we will not do anything). This
+# value should not need to be changed. You can stop and start this service
+# on the Synology NAS either by going to the Package Center GUI, or by
+# connecting to the synology shell via SSH, and issuing commands such as:
+#      synoservicectl --stop pkgctl-SurveillanceStation
+#      synoservicectl --start pkgctl-SurveillanceStation
+#
+serviceName="pkgctl-SurveillanceStation"
+
+
+# If you are running in test/debug mode on Mac, set this to the name of a
+# program that you can open and close on the Mac. Since the Mac is not running
+# SurveillanceStation, you cannot use that name. You must instead choose a
+# program name that is running and which you can stop and start. I use Chrome.
+#
+if [[ $debugMode == *"Mac"* ]]
+then
+  serviceName="Google Chrome"
+fi
+
+
+# If you are running in test/debug mode on Windows, set this to the name of a
+# windows service that you can stop or start from the "Services.msc" control
+# panel on Windows. To see all running service names on Windows, type
+# "net start" by itself at a DOS command prompt.
+#
+if [[ $debugMode == *"Win"* ]]
+then
+  serviceName="Adobe Acrobat Update Service"
+fi
+
+
+# Name of the "YouTube Live Broadcast" feature that we are turning on and off.
+# This is only used in log messages. This value does not need to be changed.
+#
+featureName="YouTube Live Broadcast"
+
+
+# Some sugar required for Wget to successfully retrieve a search from Google.
+# Without this, Google gives you a "403 forbidden" message when you try to
+# use Wget to perform a Google search. This value does not need to be changed.
+#
+userAgent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"
+
+
+# Create a variable for the youtube-dl executable. This value should not be
+# changed.
+#
+executable="$DIR/youtube-dl"
+
+
+# Slightly different file if testing on Windows PC. This value should not be
+# changed.
+#
+if [[ $debugMode == *"Win"* ]]
+then
+    executable="$DIR/youtube-dl.exe"
+fi
+
+
+# Create a variable for the API credentials file. This value should not be
+# changed.
+#
+apicreds="$DIR/api-creds"
+
+
+# Create a variable for the "client_id.json" file, we will read from this file.
+# This value should not be changed.
+#
+clientIdJson="$DIR/client_id.json"
+
+
+# Create a variable for the "crowcam-tokens" file, we will write to this file.
+# This value should not be changed.
+#
+crowcamTokens="$DIR/crowcam-tokens"
+
+
+# Temporary file to store the contents of the live stream that we are (for a 
+# short time) downloading during this run. The file will get cleaned up at
+# the end of the run. This value should not be changed.
+#
+tempFile="CrowCamTemp.mp4"
+
+
+# Cookie file name that will save the login/auth cookie for the web API. This
+# allows subsequent calls to the Synology API to succeed after the initial
+# authentication has been successful. Subsequent calls simply use the cookie.
+# This value should not be changed.
+#
+cookieFileName="wgetcookies.txt"
+
+
+# DNS name that we will ping to see if the network is up. This value should not
+# be changed.
+#
+TestSite="google.com"
+
+

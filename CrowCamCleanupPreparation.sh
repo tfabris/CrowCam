@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #------------------------------------------------------------------------------
-# CrowCamCleanupPreparation.sh - Prepare auth tokens for CrowCamCleanup.sh
+# CrowCamCleanupPreparation.sh - Prepare auth tokens for CrowCamCleanup.sh.
 #------------------------------------------------------------------------------
 # Please see the accompanying file REAMDE.md for setup instructions. Web Link:
 #        https://github.com/tfabris/CrowCam/blob/master/README.md
@@ -44,12 +44,13 @@
 # https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-# Create a variable for the "client_id.json" file, we will read from this file.
-clientIdJson="$DIR/client_id.json"
+# Load the configuration file "crowcam-config", which contains variables that
+# are user-specific.
+source "$DIR/crowcam-config"
 
-# Create a variable for the "crowcam-tokens" file, we will write to this file.
-crowcamTokens="$DIR/crowcam-tokens"
-
+# Load the include file "CrowCamHelperFunctions.sh", which contains shared
+# functions that are used in multiple scripts.
+source "$DIR/CrowCamHelperFunctions.sh"
 
 #------------------------------------------------------------------------------
 # Main Script Code Body
@@ -221,8 +222,21 @@ echo "PASTE the authentication code here now:"
 
 # Read input from user, and time out if they don't enter it within 360 seconds.
 read -r -t 360 authenticationCode
+
+# Strip leading and trailing whitespace from the variable in case it was pasted
+# clumsily. This is done with one of those "cheap tricks" in Bash. I hope this
+# trick is portable. Trick was obtained from a non-green-checkmark answer here:
+# https://stackoverflow.com/a/12973694/3621748
+authenticationCode=$( echo "$authenticationCode" | xargs )
+
+# Make sure the authentication code looks correct. It should appear
+# as if in a box on the screen without any extra spaces or carriage returns
+# on either side of it.
 echo ""
-echo "Authentication code: $authenticationCode"
+echo "Authentication code:"
+echo "--------------------------------------------------------------------------"
+echo "---------$authenticationCode--------"
+echo "--------------------------------------------------------------------------"
 echo ""
 
 # Make sure the authenticationCode is not empty.
@@ -233,6 +247,7 @@ then
   echo ""
   exit 1
 fi
+
 
 #------------------------------------------------------------------------------
 # Obtain the Refresh token

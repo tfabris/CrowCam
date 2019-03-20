@@ -157,12 +157,17 @@ an unexpected error. Open a Bash shell on your local PC, in the same folder as
 these scripts, set the file permissions, and launch the preparation script:
 
      chmod 770 CrowCam*.sh
+     chmod 770 crowcam-config
      chmod 660 client_id.json
      ./CrowCamCleanupPreparation.sh
 
-Note: Do not run the preparation script on the Synology itself. Run it on your
-local PC. The script will launch a web browser for authenticating your
-credentials, but launching a web browser does not work on the Synology.
+- Note: Do not run the preparation script on the Synology itself. Run it on
+  your local PC. The script will launch a web browser for authenticating your
+  credentials, but launching a web browser does not work on the Synology. The
+  script should be relatively good about cross platform compatibility on common
+  desktop/laptop computers with a Bash shell available, suchs as a Linux
+  computer, a MacOS computer, or even a Windows computer if you install the
+  [Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
 
 The preparation script will display some messages. Follow its prompts on the
 screen, and make sure to follow all instructions and answer all promtps
@@ -177,6 +182,8 @@ account "admin"):
      CrowCam.sh
      CrowCamCleanup.sh
      CrowCamKeepAlive.sh
+     CrowCamHelperFunctions.sh
+     crowcam-config
      youtube-dl
      api-creds
      crowcam-tokens
@@ -189,6 +196,7 @@ Once all these files are copied to the NAS, then SSH into the NAS:
 Set the access permissions on all of the files, using the SSH prompt:
 
      chmod 770 CrowCam*.sh
+     chmod 770 crowcam-config
      chmod 770 youtube-dl
      chmod 660 api-creds
      chmod 660 crowcam-tokens
