@@ -211,7 +211,8 @@ uploadsOutput=$( curl -s $curlUrl )
 # sections of the statements below work as follows:
 #
 # Place the results of the parsing into an array named videoIds (Note: uses
-# process substitution which does not work in SH only in BASH):
+# process substitution which does not work in SH only in BASH, also, readarray
+# is not present on MacOS X... Wow this is tougher than it should be):
 #                 readarray -t videoIds < <(
 # Insert a newline into the output before each occurrence of "videoId".
 # (Special version of command with \'$' allows it to work on Mac OS.)
@@ -238,16 +239,23 @@ uploadsOutput=$( curl -s $curlUrl )
 # (2) I had been unwittingly launching these in Task Scheduler using the
 # command "sh scriptname.sh" which forces it to use SH rather than BASH
 # despite having the BASH "shebang" at the top of the file. details explained
-# here:
-#     https://empegbbs.com/ubbthreads.php/topics/371758
+# here: https://empegbbs.com/ubbthreads.php/topics/371758
+#
 # Initially bufgixed by using one of the other ways to read into an array:
 #    https://stackoverflow.com/questions/9293887/reading-a-delimited-string-into-an-array-in-bash
-#    textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-#    read -a videoIds <<< $textListOfVideoIds
-# Re-bugfixed when the alternate array-read method broke when testing on
-# Windows platform, so I'm back to the process-substitution method, but
-# with the "bash" command fixed in the Synology task scheduler:
-readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+#
+# But then that alternate array-read method broke when testing on Windows
+# platform, so now I have to do the read differently depending on platform:
+if [[ $debugMode == *"Win"* ]]
+then
+    # Version which works on Windows, but does not work on MacOS due to readarray
+    # not being available on that platform.
+    readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+else
+    # Version which works on MacOS, Synology, and even works in SH.
+    textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+    read -a videoIds <<< $textListOfVideoIds
+fi
 
 # Debugging - Print the array. No need to do this unless you encounter
 # some kind of nasty unexpected bug. Leave this commented out usually.
