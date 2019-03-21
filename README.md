@@ -9,9 +9,9 @@ backyard. The scripts automate some important tasks which would otherwise be
 manual and repetitive, and also work around some unfixed bugs in the streaming
 software and in YouTube itself.
 
-This project could be useful to anyone who uses any kind of unattended camera,
-who wants to stream it to YouTube, but might have encountered the same problems
-with YouTube that I did. It's also a good platform for demonstrating some
+This project could be useful to anyone who uses Synology Surveillance Station
+to stream a camera to YouTube, but who might have encountered the same
+problems with it that I did. It's also a good platform for demonstrating some
 useful programming techniques. These scripts include well-documented methods
 for the following things:
 
@@ -22,10 +22,10 @@ for the following things:
 - How to parse the output of the YouTube API to learn information about the
   videos uploaded to a YouTube channel.
 - How to delete specific videos from a YouTube channel via a shell script.
-- How to write Bash scripts that are meant to be cross-platform, running in a
-  Linux shell, a MacOS shell, and Windows Subsystem shell. These platforms have
-  just enough in common to get you in trouble when you are moving between them.
-- How to script based on Sunrise and Sunset.
+- How to write Bash scripts cross-platform, so they can run in a Linux shell,
+  a MacOS shell, and Windows Subsystem shell, and which work around the
+  inherent differences in the platforms.
+- How to script based on sunrise and sunset.
 - How to work around the Synology bug which prevents the YouTube live stream
   from properly resuming after a network outage.
 - How to work around the YouTube bug which prevents users from being able to
@@ -52,9 +52,9 @@ backyard. We like to feed them because they are friendly, intelligent, playful,
 entertaining, and they [recognize faces](https://youtu.be/0fiAoqwsc9g).
 We've even written [songs](https://vixy.dreamwidth.org/794522.html) about them.
 
-It is an IP security camera connected to our Synology NAS, which uses
-the Synology Surveillance Station app to record a live feed of the camera. We
-then use the "Live Broadcast" feature of Surveillance Station to push the video
+It is an IP security camera connected to our Synology NAS, which uses the
+Synology Surveillance Station app to record a live feed of the camera. We then
+use the "Live Broadcast" feature of Surveillance Station to push the video
 stream to our YouTube channel, where anyone can watch.
 
 This project is a suite of related Bash script files:
@@ -300,7 +300,7 @@ only log its intentions in debug mode, but won't actually clean up any files.
 What Each Script Does
 ------------------------------------------------------------------------------
 ####  CrowCam.sh
-CrowCam.sh has two purposes:
+This script has two purposes:
 - Fixes Synology Bug:
   - There is a very specific bug in Synology Surveillance Station: the "Live
     Broadcast" feature does not automatically restart its YouTube live stream
@@ -326,12 +326,10 @@ CrowCam.sh has two purposes:
     of the security camera features.
 
 ####  CrowCamCleanup.sh
-Purpose of CrowCamCleanup.sh: 
+This script cleans up old archives: 
 - Each day, a new CrowCam video is created on our YouTube channel. We don't
   want the channel archives filling up with a bunch of old videos that we're
   not doing anything with.
-
-Solution:
 - This script will delete old CrowCam videos from the channel, provided that:
   - The video name is exactly "CrowCam", i.e., the video has not been renamed.
   - The video is old enough, for example, more than 5 days old.
@@ -339,25 +337,23 @@ Solution:
   us a buffer of a few days to look at recent videos before they get deleted.
 
 ####  CrowCamKeepAlive.sh
-Purpose of CrowCamKeepAlive.sh:
-- To work around a bug in YouTube which prevents users from seeing the history
+This script keeps the live stream alive:
+- It works around a bug in YouTube which prevents users from seeing the history
   of a live video stream. 
-  - YouTube has a bug where, if there is nobody watching the live stream, then
-    the next person who joins the stream will not be able to scroll backwards in
-    the timeline. YouTube calls this feature "DVR functionality", and it should
-    theoretically work all the time, allowing any user to scroll up to four
-    hours backwards into the live stream. But it does not always work, and the
-    reason it doesn't work is not documented by YouTube. I did some experiments,
-    and I discovered that as long as somebody is watching the stream, the DVR
-    functionality works as expected for that user, and for all subsequent users,
-    starting at the moment that the user began watching the stream. But once
-    everyone drops off the stream, then about half an hour later, the DVR
-    functionality stops working, so later joiners will not be able to scroll
-    backwards. Based on these experiments, it looks like YouTube doesn't bother
-    to fill their DVR cache unless someone is using it, with a hysteresis
-    algorithm that's configured for about 30 minutes or so.
-
-Solution:
+- YouTube has a bug where, if there is nobody watching the live stream, then
+  the next person who joins the stream will not be able to scroll backwards in
+  the timeline. YouTube calls this feature "DVR functionality", and it should
+  theoretically work all the time, allowing any user to scroll up to four
+  hours backwards into the live stream. But it does not always work, and the
+  reason it doesn't work is not documented by YouTube. I did some experiments,
+  and I discovered that as long as somebody is watching the stream, the DVR
+  functionality works as expected for that user, and for all subsequent users,
+  starting at the moment that the user began watching the stream. But once
+  everyone drops off the stream, then about half an hour later, the DVR
+  functionality stops working, so later joiners will not be able to scroll
+  backwards. Based on these experiments, it looks like YouTube doesn't bother
+  to fill their DVR cache unless someone is using it, with a hysteresis
+  algorithm that's configured for about 30 minutes or so.
 - This program works around the bug by making it so that "someone" (i.e., the
   CrowCamKeepAlive script) is always watching the stream intermittently.
 
@@ -396,13 +392,14 @@ Ideas for how to parse the Json results from the Curl calls:
 
 Acknowledgments
 ------------------------------------------------------------------------------
-Many thanks to the multiple people on StackOverflow who were invaluable in
-answering many questions, and giving me syntax help with Linux Bash scripts.
-Many thanks to the members of the empegBBS who helped with everything else that
-I couldn't find on StackOverflow. Thanks Mlord, Peter, Roger, Andy and everyone
-else who chimed in. In particular, empegBBS user canuckInOR was the one who
-suggested using the YouTube-dl tool, which turned out to be particularly useful
-for doing the stream checking and keep-alive features.
+Many thanks to the multiple people on StackOverflow, whose posts were
+invaluable in answering many questions, and giving me syntax help with Linux
+Bash scripts. Many thanks to the members of the empegBBS who helped with
+everything else that I couldn't find on StackOverflow. Thanks Mlord, Peter,
+Roger, Andy and everyone else who chimed in. In particular, empegBBS user
+canuckInOR was the one who suggested using the YouTube-dl tool, which turned
+out to be particularly useful for doing the stream checking and keep-alive
+features.
 
 Thanks, all!
 
