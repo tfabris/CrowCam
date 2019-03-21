@@ -58,21 +58,28 @@ source "$DIR/crowcam-config"
 # functions that are used in multiple scripts.
 source "$DIR/CrowCamHelperFunctions.sh"
 
-# Number of times we will loop and retest for network problems or stream
-# problems. Use this, combined with the pause between tests, to determine the
-# approximate length of time this script will run in normal conditions. For
-# instance, you could program it to perform a test every 20 seconds with 3
-# tests, then set the Task Scheduler to run the script every minute. Each run
-# of the script will perform a test at 0sec, 20sec and at 40sec during that
-# minute, and then the next run of the script falling at 0sec of the next
-# minute will start the cycle over again.
+# Number of times we will loop and retest for network problems. Use this,
+# combined with the pause between tests, to determine the approximate length
+# of time this script will run in normal conditions. For instance, you could
+# program it to perform a test every 20 seconds with 3 tests, then set the
+# Task Scheduler to run the script every minute. Each run of the script will
+# perform a test at 0sec, 20sec and at 40sec during that minute, and then the
+# next run of the script falling at 0sec of the next minute will start the
+# cycle over again.
 NumberOfTests=3
 
 # Number of seconds to pause between network-up-check tests.
 PauseBetweenTests=20
 
+# Number of times we will loop and retest for stream problems. This is for a
+# secondary test which will only be run if the network is up. The test
+# attempts to connect to the stream and retrieve the URL, and if an error is
+# received after enough retries, it will be assumed that the stream still
+# needs to be bounced, even if the network hasn't gone down.
+NumberOfStreamTests=5
+
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=5
+PauseBetweenStreamTests=8
 
 # When in test mode, pause for a shorter period between network checks.
 if [ ! -z "$debugMode" ]
@@ -147,7 +154,7 @@ Test_Stream()
   # need to add some hysteresis here. Adding a loop here for testing multiple
   # times quickly and failing only if all of the tests fail. Bail out of the
   # loop on any success.
-  for streamTestLoop in `seq 1 $NumberOfTests`
+  for streamTestLoop in `seq 1 $NumberOfStreamTests`
   do
     # Start by assuming the stream is up, and set the value to true, then set it
     # to false below if any of our failure conditions are hit.
@@ -211,7 +218,7 @@ Test_Stream()
     # hysteresis loop. However, on the last loop, don't pause, just let it
     # drop through since it will bail out the bottom of the loop on the last
     # one.
-    if [ "$streamTestLoop" -lt "$NumberOfTests" ]
+    if [ "$streamTestLoop" -lt "$NumberOfStreamTests" ]
     then
       # Make this message "info" level so that I can get some data on how
       # often GitHub issue #4 occurs. 
@@ -888,6 +895,16 @@ do
 
     # Log that we're done.
     logMessage "info" "Done bouncing YouTube stream"
+
+    # If we had to bounce the stream, wait a little while before allowing the
+    # program to continue to its exit point. This allows the stream to get
+    # spooling up and started before there is an opportunity for the next
+    # Task-scheduled run of this script to get launched. If we don't pause
+    # here, we run the risk of possibly having the next run of this script
+    # start too soon, before the bounced stream is up and running again, and
+    # then detecting a false error at that time.
+    logMessage "dbg" "Pausing, after bringing the stream back up again, before allowing the program to exit."
+    sleep 20
 
     # Because we have bounced the YouTube stream, we no longer need to loop
     # around. Break out of the loop, which will finish the last part of the
