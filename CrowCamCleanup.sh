@@ -337,43 +337,47 @@ do
     # and the Mac's date command doesn't work the same way as the date command
     # on Linux. In addition to the parameters being totally different (the -d
     # parameter means something completely different on Mac than on Linux),
-    # The input string is illegal on Mac OS. Even specifying an input
-    # format on Mac also has a little illegalness in it:
-    #    -j -f "%Y-%m-%dT%H:%M:%S"
-    # 
-    # By the way:
-    #       -j    (I think) don't try to set the system clock with this date
-    #             (required on Mac so you don't mess it up)
-    #       -f    Specify the input format. 
+    # the input string is illegal on Mac OS. Even specifying an input
+    # format on Mac also has a little problem with it:
+    #       -j    Don't try to set the system clock with this date. Required
+    #             on Mac OS, so you don't mess up the system.
+    #       -f    Specify the input format.
     #
+    #                 -j -f "%Y-%m-%dT%H:%M:%S"
+    # 
     # That allows the input to work, but is ignoring the milliseconds, and 
-    # ignoring the Z at the end (which indicates it's a GMT date). It says:
+    # ignoring the Z at the end (which indicates it's a GMT date). With that
+    # input format, it responds with:
     #    "Ignoring 5 extraneous characters in date string (.000Z)"
     #
     # That means it's entirely interpreting it as a local date, but I need it
     # interpreted as a Greenwich date.
     #
-    # I've Googled around and I can't find a documented way to get Mac to
-    # interpret that input string as a GMT date instead of a local date.
-    # (I could install Gnu versions of linux commands, then use GDATE but
-    # I don't want to do that just to use my Mac as a debugging platform.)
+    # I've Googled around, and I can't find a documented way to get Mac to
+    # interpret that input string as a GMT date instead of a local date. I
+    # could install Gnu versions of linux commands, then use GDATE, but I
+    # don't want to force people to do that, I want this to work with as
+    # little system modification as possible. Besides, this is only so that I
+    # can use my Mac as a debugging platform, it's not critical for the final
+    # runtime mode on the Synolgy.
     #
     # So what I'm going to do here, for now, is to just accept the fact that
     # the date is going to be several hours off when debugging on Mac. This
-    # allows for software code flow testing without necessarily cutting off
-    # the files at the wrong time.
+    # allows for software code flow testing and debugging, though one must
+    # keep in mind that the files will be flagged for deletion at a different
+    # cutoff time than in the actual runtime mode.
     if [[ $debugMode == *"Mac"* ]]
     then
-        # Mac version - Inaccurate due to failure to interpret GMT zone.
-        # Also add ".000Z" to avoid the extra error message on Mac:
+        # Mac version - Inaccurate due to failure to interpret GMT zone. Also
+        # add ".000Z" to the format string to avoid the extra error message:
         # "Warning: Ignoring 5 extraneous characters in date string (.000Z)"
         videoDateTimeLocalized=$(date -j -f "%Y-%m-%dT%H:%M:%S.000Z" "$oneVideoDateString")
     else
-        # Linux version - Accurate but only works on Linux
+        # Linux version - Accurate, but only works on Linux.
         videoDateTimeLocalized=$(date -d "$oneVideoDateString")
     fi
 
-    # Validate that we got a localized time.
+    # Validate that we got a localized time by checking for a blank string.
     if [ -z "$videoDateTimeLocalized" ]
     then
         logMessage "err" "Problem retrieving date of video. GMT Date string from web: $oneVideoDateString - Interpreted localized time: $videoDateTimeLocalized"
@@ -391,7 +395,7 @@ do
 
     # Create a date that is an arbitrary distance in the past (our buffer days
     # amount is defined up at the top of the code). Of course the syntax has
-    # to be different for Mac OS...
+    # to be different for Mac OS, because the "date" command is different...
     if [[ $debugMode == *"Mac"* ]]
     then
         # Mac version.
@@ -435,8 +439,9 @@ do
     # running on Mac or Linux.
     if [[ $debugMode == *"Mac"* ]]
     then
-        # Mac version - I can't find a full command line parameter reference,
-        # so I cant find a command to input/interpret the date from a string
+        # Mac version - A full command line parameter reference is found if
+        # you type "man date" in a Mac OS shell, but I'm having trouble with
+        # finding a command to input/interpret the date from a string
         # without ALSO specifying the detailed formatting of that string. So
         # I'm specifying the input string format here and praying that the Mac
         # formats it the same on every system. Of course I know it's not, so
