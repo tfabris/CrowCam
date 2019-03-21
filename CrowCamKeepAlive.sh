@@ -114,7 +114,7 @@ fi
 read username password < "$apicreds"
 if [ -z "$username" ] || [ -z "$password" ]
 then
-  logMessage "err" "problem obtaining API credentials from external file"
+  logMessage "err" "Problem obtaining API credentials from external file"
 fi
 
 # Randomly pause between 0 and X seconds. This is an attempt to prevent this
