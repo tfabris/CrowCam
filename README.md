@@ -272,7 +272,7 @@ expect to see messages in the following situations:
   the Synology log.
 
 To troubleshoot a script, or to see more details about how a script is working,
-edit the script, locate its debugMode variable, and set it to:
+edit the script, locate its debugMode variable, and temporarily set it to:
 
      debugMode="Synology"
 
@@ -289,12 +289,17 @@ You can then do one or both of the following:
      bash "/volume1/homes/admin/(scriptname).sh" >> "/volume1/homes/admin/(scriptname).log" 2>&1
 ```
 
-You can also configure the script to one of the other debugMode settings to
+You can also configure the script to one of the other debugMode settings, to
 test it on a local Windows or Mac computer, and run the script there.
 
 Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
 only log its intentions in debug mode, but won't actually clean up any files.
+
+If you see the error message "synologset1: command not found", it most likely
+means that you are trying to debug one of the scripts on your local PC, but
+you have forgotten to set the debugMode= flag to the appropriate setting in 
+the script.
 
 
 What Each Script Does
