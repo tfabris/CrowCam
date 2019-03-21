@@ -58,22 +58,26 @@ source "$DIR/crowcam-config"
 # functions that are used in multiple scripts.
 source "$DIR/CrowCamHelperFunctions.sh"
 
-# Number of times we will loop and retest for network problems. Use this,
-# combined with the pause between tests, to determine the length of time this
-# script will run in normal conditions. For instance, you could program it to
-# perform a test every 20 seconds with 3 tests, then set the Task Scheduler to
-# run the script every minute. Each run of the script will perform a test at
-# 0sec, 20sec and at 40sec during that minute, and then the next run of the
-# script falling at 0sec of the next minute will start the cycle over again.
+# Number of times we will loop and retest for network problems or stream
+# problems. Use this, combined with the pause between tests, to determine the
+# approximate length of time this script will run in normal conditions. For
+# instance, you could program it to perform a test every 20 seconds with 3
+# tests, then set the Task Scheduler to run the script every minute. Each run
+# of the script will perform a test at 0sec, 20sec and at 40sec during that
+# minute, and then the next run of the script falling at 0sec of the next
+# minute will start the cycle over again.
 NumberOfTests=3
 
 # Number of seconds to pause between network-up-check tests.
 PauseBetweenTests=20
 
+# Number of seconds to pause between stream-up-check tests.
+PauseBetweenStreamTests=5
+
 # When in test mode, pause for a shorter period between network checks.
 if [ ! -z "$debugMode" ]
 then
-  PauseBetweenTests=1
+  PauseBetweenTests=3
 fi
 
 # Number of retries that the script will perform, to wait for the network to
@@ -106,15 +110,6 @@ TestModeFailOnLoop=0
 # affect the program unless you are in test mode.
 TestModeComeBackOnRetry=1
 
-# Difference, in minutes, that you want to perform the startup and shutdown of
-# the video stream during any given day. Negative numbers are preceding the
-# event, and positive numbers are after the event. For instance,
-# startServiceOffset=-30 means that the stream will start 30 minutes before
-# the (approximate) sunrise. stopServiceOffset=60 means that the stream will
-# stop 60 minutes after the (approximate) sunset.
-startServiceOffset=0
-stopServiceOffset=15
-
 
 #------------------------------------------------------------------------------
 # Function blocks
@@ -132,10 +127,6 @@ stopServiceOffset=15
 # ----------------------------------------------------------------------------
 Test_Stream()
 {
-  # Start by assuming the stream is up, and set the value to true, then set it
-  # to false below if any of our failure conditions are hit.
-  StreamIsUp=true
-
   # Check the global variable $NetworkIsUp and see if it's true. This function
   # is only useful if the network is up. If the network is down, then return
   # false automatically.
@@ -150,54 +141,102 @@ Test_Stream()
     return
   fi
 
-  # Use youtube-dl to perform the first step of attempting to download the
-  # live stream, just enough to either get an error message or not. This is
-  # the minimum work needed to find out if the stream is alive or not. It
-  # uses this parameter to youtube-dl to "get" the final URL of the stream.
-  #         -g, --get-url Simulate, quiet but print URL
-  # This will either retrieve a valid URL for the stream, or fail with an
-  # error message.
-  #      logMessage "dbg" "\"$executable\" $youTubeUrl -g"
-                 finalUrl=$("$executable" $youTubeUrl -g  2>&1 )
-                 errorStatus=$?
+  # BUGFIX: Attempt to fix GitHub issue #4. There was a time when the stream
+  # got bounced even though the network is up. My suspicion is that attempting
+  # to download the YouTube stream status with YouTube-DL is flaky, and that I
+  # need to add some hysteresis here. Adding a loop here for testing multiple
+  # times quickly and failing only if all of the tests fail. Bail out of the
+  # loop on any success.
+  for streamTestLoop in `seq 1 $NumberOfTests`
+  do
+    # Start by assuming the stream is up, and set the value to true, then set it
+    # to false below if any of our failure conditions are hit.
+    StreamIsUp=true
 
-  # Because the command above used the "2>&1" construct, then the resulting
-  # variable will contain either the valid URL, or the error message. Also
-  # the return code from youtube-dl will most likely be nonzero if an error
-  # was hit. If either of those things are the case, report a downed stream.
-  # This is the first test, where I am testing if the return code is zero.
-  if [[ $errorStatus != 0 ]]
-  then
-    logMessage "dbg" "$executable finished with exit code $errorStatus, live stream is down"
-    StreamIsUp=false
-  fi
+    # Use youtube-dl to perform the first step of attempting to download the
+    # live stream, just enough to either get an error message or not. This is
+    # the minimum work needed to find out if the stream is alive or not. It
+    # uses this parameter to youtube-dl to "get" the final URL of the stream.
+    #         -g, --get-url Simulate, quiet but print URL
+    # This will either retrieve a valid URL for the stream, or fail with an
+    # error message.
+    #      logMessage "dbg" "\"$executable\" $youTubeUrl -g"
+                   finalUrl=$("$executable" $youTubeUrl -g  2>&1 )
+                   errorStatus=$?
 
-  # I doubt the URL will be empty, I figure it will either be a valid URL
-  # or it will be the text of an error message. But if it happens to be
-  # blank, that would also mean the stream is probably down. Return false.
-  if [ -z "$finalUrl" ]
-  then
-    logMessage "dbg" "No URL was obtained from $executable, live stream is down"
-    StreamIsUp=false
-  fi
+    # Because the command above used the "2>&1" construct, then the resulting
+    # variable will contain either the valid URL, or the error message. Also
+    # the return code from youtube-dl will most likely be nonzero if an error
+    # was hit. If either of those things are the case, report a downed stream.
+    # This is the first test, where I am testing if the return code is zero.
+    if [[ $errorStatus != 0 ]]
+    then
+      logMessage "dbg" "$executable finished with exit code $errorStatus, live stream is down"
+      StreamIsUp=false
+    fi
 
-  # If the URL variable contains the word "error" anywhere in it, then an
-  # error message was returned into the variable instead of a URL, stream is
-  # probably down. The most likely error message would be "ERROR: This video
-  # is unavailable." but there could be others. 
-  if [[ $finalUrl == *"ERROR"* ]] || [[ $finalUrl == *"error"* ]] || [[ $finalUrl == *"Error"* ]]
-  then
-    logMessage "dbg" "$executable returned an error, live stream is down"
-    StreamIsUp=false
-  fi
+    # I doubt the URL will be empty, I figure it will either be a valid URL
+    # or it will be the text of an error message. But if it happens to be
+    # blank, that would also mean the stream is probably down. Return false.
+    if [ -z "$finalUrl" ]
+    then
+      logMessage "dbg" "No URL was obtained from $executable, live stream is down"
+      StreamIsUp=false
+    fi
 
-  # Debugging only, print the results of the $finalUrl variable:
-  #   logMessage "dbg" "Variable finalUrl was: $finalUrl"
+    # If the URL variable contains the word "error" anywhere in it, then an
+    # error message was returned into the variable instead of a URL, stream is
+    # probably down. The most likely error message would be "ERROR: This video
+    # is unavailable." but there could be others. 
+    if [[ $finalUrl == *"ERROR"* ]] || [[ $finalUrl == *"error"* ]] || [[ $finalUrl == *"Error"* ]]
+    then
+      logMessage "dbg" "$executable returned an error, live stream is down"
+      StreamIsUp=false
+    fi
+
+    # Debugging only, print the results of the $finalUrl variable:
+    #   logMessage "dbg" "Variable finalUrl was: $finalUrl"
+
+    # Attempted Issue #4 bugfixing - Controlling the pass/fail state of the
+    # hysteresis loop here. If we reach this point and get "true", then that
+    # is the "good" state and we can bail out. If we get "false" then we have
+    # to try again.
+    if "$StreamIsUp" = true
+    then
+      # Break out of the hysteresis loop if the stream is OK.
+      break
+    fi
+
+    # If we have reached this point then we need to pause and try another
+    # hysteresis loop. However, on the last loop, don't pause, just let it
+    # drop through since it will bail out the bottom of the loop on the last
+    # one.
+    if [ "$streamTestLoop" -lt "$NumberOfTests" ]
+    then
+      # Make this message "info" level so that I can get some data on how
+      # often GitHub issue #4 occurs. 
+      logMessage "info" "The YouTube stream was down. Pausing to give it a chance to come up. Retry number $streamTestLoop. Sleeping $PauseBetweenStreamTests seconds before trying again"
+
+      # Sleep between stream tests.
+      sleep $PauseBetweenStreamTests
+    fi    
+  done
 
   # If we haven't hit one of our failure modes, the stream is likely up.
   if "$StreamIsUp" = true
   then
-    logMessage "dbg" "Live stream is up"
+    # This message is normally a debug message (i.e., doesn't go into the
+    # Synology log), unless we have been encountering stream problems, and
+    # have had to hit our hysteresis loop above. If we came out of that loop
+    # with any number greater than one, then, I want a "stream up" message to
+    # appear in the Synology Log that corresponds with the "stream down"
+    # message from our hysteresis loop above.
+    if [ "$streamTestLoop" -gt "1" ]
+    then
+      logMessage "info" "Live stream came back up"
+    else
+      logMessage "dbg" "Live stream is up"
+    fi
   fi
 }
 
@@ -767,12 +806,14 @@ do
     do
       # Pause before trying to check if the network is back up. In this case,
       # we pause every time because the pause is before the network check.
+      logMessage "info" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
       logMessage "err" "Network or stream problem. Pausing to give them a chance to come up. Retry number $restoreLoop. Sleeping $PauseBetweenTests seconds before trying again"
 
       # Pause before every network test when waiting for it to come back. 
       sleep $PauseBetweenTests
 
       # Test the network and stream again.
+      logMessage "info" "Testing network again."
       Test_Network
       Test_Stream
       logMessage "info" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
@@ -832,6 +873,7 @@ do
     # in testing, where, if I set this number too small, that I would not get
     # a successful stream reset. Now using a nice long chunk of time here to
     # make absolutely sure. This seems to work long-term.
+    logMessage "info" "Pausing, after bringing down the stream, before bringing it up again"
     sleep 95
     
     # Bring the stream back up. Start it here by using the "Save" method to

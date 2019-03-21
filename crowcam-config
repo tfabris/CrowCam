@@ -68,7 +68,23 @@ dateBufferDays=5
 # Note: Must not have any spaces in the location string.
 #
 # Set this value to either blank ("") or your location. No spaces.
+#
 location=""
+
+
+# Difference, in minutes, that you want to perform the startup and shutdown of
+# the video stream during any given day. A value of zero would mean exactly on
+# time, negative numbers are preceding sunrise or sunset, and positive numbers
+# are after sunrise or sunset. For instance, setting startServiceOffset=0
+# would mean that the stream will start exactly at sunrise, setting
+# startServiceOffset=-30 would mean that the stream will start 30 minutes
+# before sunrise, and stopServiceOffset=60 would mean that the stream will
+# stop 60 minutes after sunset.
+#
+# Set these to your desired start and stop offset values.
+# 
+startServiceOffset=15
+stopServiceOffset=15
 
 
 # Default arrays of approximate sunrise/sunset data, used when the script is
