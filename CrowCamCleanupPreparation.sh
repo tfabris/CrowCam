@@ -203,7 +203,7 @@ then
       if [[ $? != 0 ]]
       then
         # If none of the various attempts to launch the browser, above,
-        # suceeded, then I give up, I don't know what to do. Throw an error.
+        # succeeded, then I give up, I don't know what to do. Throw an error.
         echo ""
         echo "Unable to launch web browser. There has been an unknown error."
         echo "You many be running this on a system which cannot use any of the"
