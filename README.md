@@ -11,6 +11,7 @@ software and in YouTube itself. Including:
 - Camera on/off times based on local sunrise/sunset.
 - Work around bugs in Synology streaming software causing the stream to drop.
 - Work around bugs in YouTube causing the DVR functionality to fail.
+- Automatically clean up old YouTube stream archives.
 
 This project could be useful to anyone who uses Synology Surveillance Station
 to stream a camera to YouTube, but who might have encountered the same
