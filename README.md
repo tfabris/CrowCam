@@ -7,7 +7,10 @@ https://github.com/tfabris/CrowCam
 CrowCam is a set of Bash scripts which control and maintain a webcam in my
 backyard. The scripts automate some important tasks which would otherwise be
 manual and repetitive, and also work around some unfixed bugs in the streaming
-software and in YouTube itself.
+software and in YouTube itself. Including:
+- Camera on/off times based on local sunrise/sunset.
+- Work around bugs in Synology streaming software causing the stream to drop.
+- Work around bugs in YouTube causing the DVR functionality to fail.
 
 This project could be useful to anyone who uses Synology Surveillance Station
 to stream a camera to YouTube, but who might have encountered the same
@@ -15,6 +18,12 @@ problems with it that I did. It's also a good platform for demonstrating some
 useful programming techniques. These scripts include well-documented methods
 for the following things:
 
+- How to script based on sunrise and sunset.
+- How to work around the Synology bug which prevents the YouTube live stream
+  from properly resuming after a network outage.
+- How to work around the YouTube bug which prevents users from being able to
+  use the live stream's DVR functionality.
+- How to clean out old YouTube stream archives.
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
 - How to access and use the Synology API.
@@ -25,11 +34,6 @@ for the following things:
 - How to write Bash scripts cross-platform, so they can run in a Linux shell,
   a MacOS shell, and Windows Subsystem shell, and which work around the
   inherent differences in the platforms.
-- How to script based on sunrise and sunset.
-- How to work around the Synology bug which prevents the YouTube live stream
-  from properly resuming after a network outage.
-- How to work around the YouTube bug which prevents users from being able to
-  use the live stream's DVR functionality.
 
 ------------------------------------------------------------------------------
 
