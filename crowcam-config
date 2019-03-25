@@ -83,7 +83,7 @@ location=""
 #
 # Set these to your desired start and stop offset values.
 # 
-startServiceOffset=15
+startServiceOffset=-15
 stopServiceOffset=15
 
 
