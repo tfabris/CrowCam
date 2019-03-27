@@ -38,9 +38,11 @@
 #------------------------------------------------------------------------------
 logMessage()
 {
-  # Log message to shell console under the appropriate circumstances.
+  # Log message to shell console, only when we are in debug mode.
   if [ ! -z "$debugMode" ]
   then
+    # Echo to STDERR on purpose, and add the period on purpose, to mimic the 
+    # behavior of the Synology log entry, below.
     echo "$programname - $2." >&2
   fi
 
@@ -50,7 +52,10 @@ logMessage()
     # Only log to Synology system log if we are running on Synology.
     if [ -z "$debugMode" ] || [[ $debugMode == *"Synology"* ]]
     then 
-      # Special command on Synology to write to its main log file.
+      # Special command on Synology to write to its main log file. This uses
+      # an existing log entry in the Synology log message table which allows
+      # us to insert any message we want. The message in the Synology table
+      # has a period appended to it, so we don't add a period here.
       synologset1 sys $1 0x11800000 "$programname - $2"
     fi
   fi
@@ -88,7 +93,7 @@ IsServiceUp()
     ReturnCode=$?
   fi
 
-  # Version of service check command for testing on Windows.  The $serviceName
+  # Version of service check command for testing on Windows. The $serviceName
   # variable will be different when running in debug mode on Windows, so that
   # it is easier to test in that environment.
   if [[ $debugMode == *"Win"* ]]
