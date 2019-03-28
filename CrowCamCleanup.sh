@@ -192,10 +192,19 @@ fi
 # Log the uploads playlist ID to the output.
 logMessage "dbg" "My Uploads playlist ID: $uploadsId"
 
-# Get a list of videos in the "My Uploads" playlist, which includes unlisted
-# videos such as all the old CrowCam videos. NOTE: Must use maxResults=50
-# parameter because the default number of search results is only 5 items. The
-# playlist is always longer than 5 items so we'll always want to process 50.
+# Get a list of videos in the "My Uploads" playlist, which includes both
+# public videos as well as unlisted videos (all my archived CrowCam videos are
+# unlisted, but this should work either way). NOTE: Must use maxResults=50
+# parameter because the default number of search results is only 5 items. My
+# playlist is always longer than 5 items so I'll always want to process 50.
+# The maximum allowed number per page is 50, and I don't know what will happen
+# if the playlist exceeds 50 items total. My hope is that the most recent
+# videos will be on the first page of retrieved items. That way, if we only
+# care about videos which are about 5 days old or so, we'll likely see them on
+# the first page of the results. If that's the case, then we can always work
+# with the first 50 results returned and we won't need to implement
+# pagination. If pagination ends up being needed, there are instructions in
+# YouTube API docs for how to implement it.
 curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$uploadsId&maxResults=50&part=contentDetails&mine=true&access_token=$accessToken"
 uploadsOutput=""
 uploadsOutput=$( curl -s $curlUrl )
