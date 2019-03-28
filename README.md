@@ -201,10 +201,23 @@ screen, and make sure to follow all instructions and answer all promtps
 correctly. If done correctly, a file should now be created in the same
 directory as these scripts, named "crowcam-tokens" (no file extension).
 
-Copy the following files to the Synology NAS into /volume1/homes/admin/
-(which, if you're connecting to the Synology's SMB share across the network,
-is just the volume "home" if you've connected to the fileshare using the
-account "admin"):
+####  Copy script and configuration files to the NAS
+Once the preparation script has run successfully, then create a folder named
+"CrowCam" on your the Synology NAS, in the folder /volume1/homes/admin/ by
+doing the following:
+
+- Make sure SMB network sharing is turned on for your Synology on your local
+  network.
+- Connect to the SMB network share of your Synology NAS of the volume "home",
+  for example, on MacOS, select the Finder and select Go, Connect to Server,
+  and connect to smb://192.168.0.222/home (or whatever your NAS address is).
+  On Windows, you would press Windows+R and enter \\192.168.0.222\home
+- When prompted, enter the admin credentials for the NAS.
+- This should place you in the "home" folder for the "admin" user. The full
+  path of this folder on the NAS is actually /volume1/homes/admin/.
+- Create a new folder in this location called "CrowCam".
+
+Copy the following files from your local PC into the folder on the NAS:
 
      CrowCam.sh
      CrowCamCleanup.sh
@@ -220,8 +233,10 @@ Once all these files are copied to the NAS, then SSH into the NAS:
 
      ssh admin@192.168.0.222       (update the address to be your NAS address)
 
-Set the access permissions on all of the files, using the SSH prompt:
+Set the access permissions on the folder and its files, using the SSH prompt:
 
+     chmod 770 CrowCam
+     cd CrowCam
      chmod 770 CrowCam*.sh
      chmod 770 crowcam-config
      chmod 770 youtube-dl
@@ -229,6 +244,7 @@ Set the access permissions on all of the files, using the SSH prompt:
      chmod 660 crowcam-tokens
      chmod 660 client_id.json
 
+####  Create automated tasks in the Synology Task Scheduler
 In the Synology Control Panel, open the Task Scheduler, and create three tasks:
 - Type of tasks: "Scheduled Task", "User-defined script"
 - General, General Settings: Run all three tasks under User: "root"
@@ -246,14 +262,14 @@ In the Synology Control Panel, open the Task Scheduler, and create three tasks:
     - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
-  for a task that runs every minute, the last run time available will be
+  for a task that runs every minute, the highest run time available will be
   "23:59", a task that runs every 20 minutes will be "23:40", etc.
 - Task Settings, Run Command, User-defined script: create a command in each
   task to run each of the the corresponding scripts, for example:
 ```
-     CrowCam Controller:        bash "/volume1/homes/admin/CrowCam.sh"
-     CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCamCleanup.sh"
-     CrowCam Keep Alive:        bash "/volume1/homes/admin/CrowCamKeepAlive.sh"
+     CrowCam Controller:        bash "/volume1/homes/admin/CrowCam/CrowCam.sh"
+     CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCam/CrowCamCleanup.sh"
+     CrowCam Keep Alive:        bash "/volume1/homes/admin/CrowCam/CrowCamKeepAlive.sh"
 ```
 
 
@@ -261,10 +277,11 @@ Usage and Troubleshooting
 ------------------------------------------------------------------------------
 All three scripts should now be running via the Synology Task Manager.
 
-You can look at the Synology Log Center to see if the scripts are running OK.
-The scripts will not put much information into the Log Center unless something
-goes wrong. When working correctly, they will not be very chatty there, though
-expect to see messages in the following situations:
+You can monitor the Synology Log Center, over a long period of time to see if
+the scripts are running OK. The scripts will not put much information into the
+Log Center unless something goes wrong. When working correctly, they will not
+be very chatty there, though expect to see messages in the following
+situations:
 - The Synology log should show a message near sunrise or sunset, when the
   stream is being turned on and off.
 - If your local internet connection has a temporary outage, you should see
