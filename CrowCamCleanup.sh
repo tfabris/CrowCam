@@ -89,8 +89,9 @@ fi
 # Place contents of file into a variable.
 clientIdOutput=$(< "$clientIdJson")
 
-# Parse the Client ID and Client Secret out of the results. The commands work
-# like this:
+# Parse the Client ID and Client Secret out of the results. Some systems that I
+# developed this on didn't have "jq" installed in them, so I am using commands
+# which are more cross-platform compatible. The commands work like this:
 #
 # Insert a newline into the output before each occurrence of "client_id".
 # (Special version of command with \'$' allows it to work on Mac OS.)
@@ -142,7 +143,9 @@ fi
 accessTokenOutput=""
 accessTokenOutput=$( curl -s --request POST --data "client_id=$clientId&client_secret=$clientSecret&refresh_token=$refreshToken&grant_type=refresh_token" https://accounts.google.com/o/oauth2/token )
 
-# Parse the Access Token out of the results. The commands work like this:
+# Parse the Access Token out of the results. Some systems that I developed this
+# on didn't have "jq" installed in them, so I am using commands which are more
+# cross-platform compatible. The commands work like this:
 #
 # Insert a newline into the output before each occurrence of "access_token".
 # (Special version of command with \'$' allows it to work on Mac OS.)
@@ -177,7 +180,9 @@ channelsOutput=$( curl -s $curlUrl )
 
 # This outputs some JSON data which includes the line that looks like this:
 #    "uploads": "UUqPZGFtBau8rm7wnScxdA3g",
-# Parse out the uploads playlist ID string from that line.
+# Parse out the uploads playlist ID string from that line. Some systems that I
+# developed this on didn't have "jq" installed in them, so I am using commands
+# which are more cross-platform compatible.
 uploadsId=""
 uploadsId=$(echo $channelsOutput | sed 's/"uploads"/\'$'\n&/g' | grep -m 1 "uploads" | cut -d '"' -f4)
 
@@ -228,7 +233,9 @@ uploadsOutput=$( curl -s $curlUrl )
 # Use only the lines containing "videoId" (for example, not the first line).
 #                 grep "videoId"
 # The remainder of the line is the parsing of the output. All of these could
-# work and produce more or less the same array. I've chosen sed-grep-cut.
+# work and produce more or less the same array. I've chosen sed-grep-cut. Some
+# systems that I developed this on didn't have "jq" installed in them, so I am
+# using commands which are more cross-platform compatible.
 #
 # Example: Use awk to locate the fourth field using a field delimiter of quote.
 #      readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | awk -F\" 'NF>=3 {print $4}' )

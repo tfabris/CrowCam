@@ -82,8 +82,9 @@ fi
 # Place contents of file into a variable.
 clientIdOutput=$(< "$clientIdJson")
 
-# Parse the Client ID and Client Secret out of the results. The commands work
-# like this:
+# Parse the Client ID and Client Secret out of the results. Some systems that I
+# developed this on didn't have "jq" installed in them, so I am using commands
+# which are more cross-platform compatible. The commands work like this:
 #
 # Insert a newline into the output before each occurrence of "client_id".
 # (Special version of command with \'$' allows it to work on Mac OS.)

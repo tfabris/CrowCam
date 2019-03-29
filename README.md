@@ -37,9 +37,9 @@ include well-documented methods for the following things:
 - How to write Bash scripts cross-platform, so they can run in a Linux shell,
   a MacOS shell, and Windows Subsystem shell, and which work around the
   inherent differences in the platforms.
-- Some techniques for quickly parsing known variables out of JSON data, which
-  work on multiple Bash shell implementations cross-platform, including ones
-  which do not have "jq" installed.
+- Some techniques for quickly parsing known variables out of HTML or JSON data,
+  which work on multiple Bash shell implementations cross-platform, including
+  ones which do not have "jq" or other parsers installed.
 
 ------------------------------------------------------------------------------
 
