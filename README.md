@@ -9,21 +9,23 @@ backyard. The scripts automate some important tasks which would otherwise be
 manual and repetitive, and also work around some unfixed bugs in the streaming
 software and in YouTube itself. Including:
 - Camera on/off times based on local sunrise/sunset.
-- Work around bugs in Synology streaming software causing the stream to drop.
-- Work around bugs in YouTube causing the DVR functionality to fail.
+- Work around bugs in Synology streaming software which sometimes cause the
+  stream to stop working unexpectedly.
+- Work around bugs in YouTube's stream caching which sometimes cause the live
+  stream's DVR functionality to fail.
 - Automatically clean up old YouTube stream archives.
 
-This project could be useful to anyone who uses Synology Surveillance Station
-to stream a camera to YouTube, but who might have encountered the same
-problems with it that I did. It's also a good platform for demonstrating some
-useful programming techniques. These scripts include well-documented methods
-for the following things:
+This project could be useful to anyone who uses a Synology NAS, running the
+Synology Surveillance Station app, to stream a camera to YouTube, but who might
+have encountered the same problems with it that I did. It's also a good
+platform for demonstrating some useful programming techniques. These scripts
+include well-documented methods for the following things:
 
 - How to script based on sunrise and sunset.
 - How to work around the Synology bug which prevents the YouTube live stream
   from properly resuming after a network outage.
-- How to work around the YouTube bug which prevents users from being able to
-  use the live stream's DVR functionality.
+- How to work around the YouTube bug which prevents some users from being able
+  to use the live stream's DVR functionality.
 - How to clean out old YouTube stream archives.
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
@@ -35,6 +37,9 @@ for the following things:
 - How to write Bash scripts cross-platform, so they can run in a Linux shell,
   a MacOS shell, and Windows Subsystem shell, and which work around the
   inherent differences in the platforms.
+- Some techniques for quickly parsing known variables out of JSON data, which
+  work on multiple Bash shell implementations cross-platform, including ones
+  which do not have "jq" installed.
 
 ------------------------------------------------------------------------------
 
@@ -64,8 +69,8 @@ stream to our YouTube channel, where anyone can watch.
 
 This project is a suite of related Bash script files:
 - [CrowCam.sh - CrowCam Controller                                                 ](#crowcam-sh)
-  - Starts and stops the YouTube stream at Sunrise/Sunset, and works
-    around a bug in the Synology NAS which is caused by network outages.
+  - Starts and stops the YouTube stream at Sunrise/Sunset, and detects network
+    outages, restarting the stream after an outage if needed.
 - [CrowCamCleanup.sh - CrowCam Cleanup tool                                        ](#crowcamcleanup-sh)
   - Cleans out old YouTube stream archives after a certain number of days.
 - [CrowCamKeepAlive.sh - CrowCam Keep Alive tool                                   ](#crowcamkeepalive-sh)
@@ -118,14 +123,14 @@ installation. They are clearly documented in the file.
 
 ####  Create API credentials file:
 Create an API credentials file named "api-creds" (no file extension),
-containing a single line of text: A username, a space, and then a password.
-These will be used for connecting to the API of your Synology NAS. Choose an
-account on the Synology NAS which has a level of access high enough to connect
-to the Synology API, and which has permission to turn the Synology Surveillance
-Station "Live Broadcast" feature on and off. The built-in account "admin"
-naturally has this level of access, but you may choose to create a different
-user for security reasons. Create the "api-creds" file and place it in the same
-directory as these scripts.
+containing a single line of ASCII text: A username, a space, and then a
+password. These will be used for connecting to the API of your Synology NAS.
+Choose an account on the Synology NAS which has a level of access high enough
+to connect to the Synology API, and which has permission to turn the Synology
+Surveillance Station "Live Broadcast" feature on and off. The built-in account
+"admin" naturally has this level of access, but you may choose to create a
+different user for security reasons. Create the "api-creds" file and place it
+in the same directory as these scripts.
 
 ####  Get YouTube-dl:
 YouTube-dl is a third party program which downloads video streams and other
@@ -157,7 +162,7 @@ credentials.
 - It may tell you that you must "Configure consent screen" before you can
   create credentials. If it does this, then configure the consent screen as
   follows:
-  - Application Name: CrowCam
+  - Application Name: CrowCam  (or whatever application name you want)
   - Press "Save", you don't need to fill anything else out here unless you
     want to.
 - Now select "Create Credentials" again and choose "OAuth Client ID".
@@ -210,11 +215,11 @@ doing the following:
   network.
 - Connect to the SMB network share of your Synology NAS of the volume "home",
   for example, on MacOS, select the Finder and select Go, Connect to Server,
-  and connect to smb://192.168.0.222/home (or whatever your NAS address is).
-  On Windows, you would press Windows+R and enter \\192.168.0.222\home
+  and connect to ```smb://192.168.0.222/home``` (or whatever your NAS address
+  is). On Windows, you would press Windows+R and enter ```\\192.168.0.222\home```
 - When prompted, enter the admin credentials for the NAS.
 - This should place you in the "home" folder for the "admin" user. The full
-  path of this folder on the NAS is actually /volume1/homes/admin/.
+  path of this folder on the NAS is actually ```/volume1/homes/admin/```.
 - Create a new folder in this location called "CrowCam".
 
 Copy the following files from your local PC into the folder on the NAS:
@@ -231,7 +236,7 @@ Copy the following files from your local PC into the folder on the NAS:
 
 Once all these files are copied to the NAS, then SSH into the NAS:
 
-     ssh admin@192.168.0.222       (update the address to be your NAS address)
+     ssh admin@192.168.0.222      # (update the address to be your NAS address)
 
 Set the access permissions on the folder and its files, using the SSH prompt:
 
@@ -277,7 +282,7 @@ Usage and Troubleshooting
 ------------------------------------------------------------------------------
 All three scripts should now be running via the Synology Task Manager.
 
-You can monitor the Synology Log Center, over a long period of time to see if
+You can monitor the Synology Log Center, over a long period of time, to see if
 the scripts are running OK. The scripts will not put much information into the
 Log Center unless something goes wrong. When working correctly, they will not
 be very chatty there, though expect to see messages in the following
@@ -308,7 +313,7 @@ You can then do one or both of the following:
 - Edit the "Run Command" for the script in the Synology Task Scheduler, and set
   its stdout/stderr output to a file which you can download and analyze later:
 ```
-     bash "/volume1/homes/admin/(scriptname).sh" >> "/volume1/homes/admin/(scriptname).log" 2>&1
+     bash "/volume1/homes/admin/CrowCam/(scriptname).sh" >> "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
 ```
 
 You can also configure the script to one of the other debugMode settings, to
@@ -335,7 +340,7 @@ This script has two purposes:
     the tool to create an unattended live webcam, then you will lose your
     stream if your network has a brief glitch. This script will bounce the
     Live Broadcast feature if the network blips, automatically restoring the
-    stream to functionality, and working around Synology's bug.
+    stream, and working around Synology's bug.
 - Sunrise/Sunset Scheduling:
   - Turns the YouTube live stream on and off based on the approximate sunrise
     and sunset for the camera's location and timezone. Because crows are
@@ -348,20 +353,24 @@ This script has two purposes:
     crows follow. Since sunrise/sunset isn't built-in to Surveillance Station,
     we must code this ourselves. Additionally, this leaves Surveillance Station
     (and all attached cameras) still running 24/7, so that it can still be used
-    for its intended security-camera features; the scheduling feature only
+    for its intended security camera features; the scheduling feature only
     stops and starts the YouTube "Live Broadcast", without touching the rest
     of the security camera features.
 
 ####  CrowCamCleanup.sh
 This script cleans up old archives: 
-- Each day, a new CrowCam video is created on our YouTube channel. We don't
-  want the channel archives filling up with a bunch of old videos that we're
-  not doing anything with.
-- This script will delete old CrowCam videos from the channel, provided that:
-  - The video name is exactly "CrowCam", i.e., the video has not been renamed.
-  - The video is old enough, for example, more than 5 days old.
-- This allows us to save a favorite video by simply renaming it, and it gives
-  us a buffer of a few days to look at recent videos before they get deleted.
+- Each day, a new CrowCam video is created on our YouTube channel. Every video
+  has a default title, in our case, that default title is always "CrowCam".
+- We don't want the channel archives filling up with a bunch of old videos
+  that we're not using.
+- This script will delete old videos from the channel, provided that:
+  - The video name is exactly "CrowCam" (or whatever name you configure), and
+    the video has not been renamed.
+  - The video is old enough, for example, more than 5 days old. This is also
+    configurable.
+- This allows us to save a favorite video by simply renaming it from the
+  default name, and it gives us a buffer of a few days to look at recent videos
+  before they get deleted.
 
 ####  CrowCamKeepAlive.sh
 This script keeps the live stream alive:
