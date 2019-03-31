@@ -20,7 +20,7 @@
 # ----------------------------------------------------------------------------
 # Set a trap to receive a TERM signal from a function, and execute the code
 # block "exit 1", in the context of the top-level of this Bash script, as soon
-# as it receives it the TERM signal.
+# as it receives the TERM signal.
 trap "exit 1" TERM
 
 # Create an exported environment variable named "TOP_PID" and populate it with
