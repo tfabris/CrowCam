@@ -66,25 +66,25 @@ source "$DIR/CrowCamHelperFunctions.sh"
 # perform a test at 0sec, 20sec and at 40sec during that minute, and then the
 # next run of the script falling at 0sec of the next minute will start the
 # cycle over again.
-NumberOfTests=3
+NumberOfTests=5
 
 # Number of seconds to pause between network-up-check tests.
-PauseBetweenTests=20
+PauseBetweenTests=10
 
 # Number of times we will loop and retest for stream problems. This is for a
 # secondary test which will only be run if the network is up. The test
 # attempts to connect to the stream and retrieve the URL, and if an error is
 # received after enough retries, it will be assumed that the stream still
 # needs to be bounced, even if the network hasn't gone down.
-NumberOfStreamTests=5
+NumberOfStreamTests=4
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=8
+PauseBetweenStreamTests=7
 
 # When in test mode, pause for a shorter period between network checks.
 if [ ! -z "$debugMode" ]
 then
-  PauseBetweenTests=3
+  PauseBetweenTests=2
 fi
 
 # Number of retries that the script will perform, to wait for the network to
@@ -94,7 +94,7 @@ fi
 # 20 seconds, and then set this value to 30, it will continue to retry and look
 # for the network to come back up for about ten minutes before giving up and
 # bouncing the network stream anyway.
-MaxComebackRetries=30
+MaxComebackRetries=20
 
 # Set this global variable to a starting integer value. There is a possible
 # condition in the code if we are in test mode, where we might test the value
@@ -149,11 +149,12 @@ Test_Stream()
   fi
 
   # BUGFIX: Attempt to fix GitHub issue #4. There was a time when the stream
-  # got bounced even though the network is up. My suspicion is that attempting
-  # to download the YouTube stream status with YouTube-DL is flaky, and that I
-  # need to add some hysteresis here. Adding a loop here for testing multiple
-  # times quickly and failing only if all of the tests fail. Bail out of the
-  # loop on any success.
+  # got bounced unnecessarily even though everything was actually up and
+  # working correctly. My suspicion is that attempting to download the YouTube
+  # stream status with YouTube-DL is flaky, and that I need to add some
+  # hysteresis here. Adding an inner "Stream testing" loop here, for testing
+  # multiple retries to see if the live stream is up, and failing only if all
+  # of the tests fail. Bail out of the loop on any success.
   for streamTestLoop in `seq 1 $NumberOfStreamTests`
   do
     # Start by assuming the stream is up, and set the value to true, then set it
@@ -197,7 +198,7 @@ Test_Stream()
     # is unavailable." but there could be others. 
     if [[ $finalUrl == *"ERROR"* ]] || [[ $finalUrl == *"error"* ]] || [[ $finalUrl == *"Error"* ]]
     then
-      logMessage "dbg" "$executable returned an error, live stream is down"
+      logMessage "dbg" "$executable returned an error message string, live stream is down"
       StreamIsUp=false
     fi
 
@@ -222,7 +223,7 @@ Test_Stream()
     then
       # Make this message "info" level so that I can get some data on how
       # often GitHub issue #4 occurs. 
-      logMessage "info" "The YouTube stream was down. Pausing to give it a chance to come up. Retry number $streamTestLoop. Sleeping $PauseBetweenStreamTests seconds before trying again"
+      logMessage "info" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
 
       # Sleep between stream tests.
       sleep $PauseBetweenStreamTests
@@ -253,6 +254,12 @@ Test_Stream()
 # 
 # Performs a single check to see if the network is up and sets the global
 # variable $NetworkIsUp to either "true" or "false".
+#
+# Parameters:  None.
+#              Uses global variables $mainLoop and $restoreLoop among others.
+#
+# Returns:     Nothing.
+#              Sets the global variable $NetworkIsUp
 # ----------------------------------------------------------------------------
 Test_Network()
 {
@@ -274,7 +281,7 @@ Test_Network()
   fi
 
   # Message for local test runs.
-  logMessage "dbg" "Testing $ThisTestSite on loop number $mainLoop"
+  logMessage "dbg" "Testing $ThisTestSite - outer network test attempt $mainLoop of $NumberOfTests"
 
   # Preset the global variable $NetworkIsUp to assume "true" unless proven
   # otherwise by the tests below.
@@ -312,7 +319,7 @@ Test_Network()
     # Note that there is a more serious message which appears in the log,
     # triggered elsewhere in the code, when the network is down, so a log
     # message for network failure is not needed here, only for success.
-    logMessage "dbg" "Network is up on loop number $mainLoop"
+    logMessage "dbg" "Network is up, outer network test attempt $mainLoop of $NumberOfTests"
   fi
 }
 
@@ -529,7 +536,7 @@ ChangeStreamState()
   then
     logMessage "dbg" "Checking status of $featureName feature"
   else
-    logMessage "dbg" "$2. But we're in test mode, and not in a position to check or change the stream state"
+    logMessage "dbg" "$2. But we're not in a position where we can control the stream up/down state"
     return
   fi
 
@@ -574,8 +581,8 @@ ChangeStreamState()
     # the risk of starting up the stream but then immediately checking if the
     # stream is up (in the network test section), and discovering the wheels
     # weren't quite turning yet, and then raising a false alarm.
-    logMessage "dbg" "Sleeping 20 seconds, to allow for stream startup"
-    sleep 20
+    logMessage "dbg" "Sleeping briefly, to allow for stream startup"
+    sleep 30
   fi
   
   # Behavior when stream is set to up, at a time when it should be down.
@@ -689,7 +696,7 @@ googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
 # Make sure the Google responses were non-null and non-empty.
 if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
 then
-  logMessage "dbg" "problem obtaining sunrise/sunset from Google. Falling back to hard-coded table"
+  logMessage "err" "problem obtaining sunrise/sunset from Google. Falling back to hard-coded table"
 else
   # If the Google responses were non-empty, use them in place of the fallbacks.
   logMessage "dbg" "Using Google-obtained times for sunrise/sunset"
@@ -760,7 +767,7 @@ if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Syn
 then
   logMessage "dbg" "Checking status of $featureName feature"
 else
-  logMessage "dbg" "We're in test mode, and not in a position to check or change the stream state, so no network testing will be performed"
+  logMessage "dbg" "We are currently not in a position to check the $featureName feature state, so no network testing will be performed"
 
   # If we can't check the stream state, then exit the program, the
   # same as if the stream was already supposed to be down anyway.
@@ -780,13 +787,21 @@ fi
 # Checks the network and stream a specified number of times at intervals. If
 # either is down, log this fact and then wait for the network to come back up.
 # Once it comes back up, bounce the YouTube stream if it didn't also come
-# back up itself.
+# back up by itself.
 # ----------------------------------------------------------------------------
 for mainLoop in `seq 1 $NumberOfTests`
 do
   # Test if the Internet is up and if our YouTube live stream is up.
   Test_Network
   Test_Stream
+  
+  # Bugfix for issue #9 - create a flag which tells us if the problem was due
+  # specifically to network downage during this outer network test loop (as
+  # opposed to just a stream downage with the network still up). If it was a
+  # network downage, we will (later) want to bounce the stream even if it looks
+  # like the stream is still up. Start this variable in the "assumed good"
+  # state at the top of each outer network test loop, until a problem gets hit.
+  networkWasFineInThisLoop=true
 
   # Check our initial results
   if [ "$NetworkIsUp" = true ] && [ "$StreamIsUp" = true ]
@@ -801,7 +816,7 @@ do
     if [ "$mainLoop" -lt "$NumberOfTests" ]
     then
       # Message for local machine test runs.
-      logMessage "dbg" "Sleeping $PauseBetweenTests seconds"
+      logMessage "dbg" "Outer netwok test loop $mainLoop of $NumberOfTests - Sleeping $PauseBetweenTests seconds"
 
       # Sleep between network tests.
       sleep $PauseBetweenTests
@@ -811,10 +826,20 @@ do
     # the network to come back up so that we can restart the YouTube stream.
     for restoreLoop in `seq 1 $MaxComebackRetries`
     do
+      # Bugfix for issue #9 - if the problem was due specifically to network
+      # downage during this outer network test loop (as opposed to just a
+      # stream downage) then set the flag so that we will (later) bounce the
+      # stream even if it looks like the stream is still up.
+      if [ "$NetworkIsUp" = false ]
+      then
+        networkWasFineInThisLoop=false
+      fi
+      
       # Pause before trying to check if the network is back up. In this case,
       # we pause every time because the pause is before the network check.
-      logMessage "info" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
-      logMessage "err" "Network or stream problem. Pausing to give them a chance to come up. Retry number $restoreLoop. Sleeping $PauseBetweenTests seconds before trying again"
+      logMessage "err" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
+      logMessage "err" "Network or stream problem during outer network test loop $mainLoop of $NumberOfTests"
+      logMessage "info" "Pausing to give them a chance to restore on their own. Restore attempt $restoreLoop of $MaxComebackRetries. Sleeping $PauseBetweenTests seconds before trying again"
 
       # Pause before every network test when waiting for it to come back. 
       sleep $PauseBetweenTests
@@ -828,7 +853,7 @@ do
       # Check if the network has come back up (or maybe it was already up and
       # the stream was the thing that was down) and break out of the retry
       # loop if the network is now up.
-      if "$NetworkIsUp" = true
+      if [ "$NetworkIsUp" = true ]
       then
         # Since the network is up, we can break out of our loop of retrying if
         # the network is up. Note that, at this point in the code, we already
@@ -841,11 +866,25 @@ do
       fi
     done
 
-    # If the stream was up after the network came up, then don't bother bouncing it.
-    if "$StreamIsUp" = true
+    # If the stream was up after the network came up, then don't bother
+    # bouncing it. 
+    if [ "$StreamIsUp" = true ]
     then
-      logMessage "info" "YouTube stream appears to be up, no further action needed"
-      break
+      # BUGFIX: Github Issue #9 - actually there can be times where and even if
+      # the stream seems like it's up, it's actually a hung stream. So what
+      # we'll do here is as follows:
+      # - If the original downage was due to Network failure (as opposed to
+      #   just stream failure), then always bounce the stream.
+      # - If the original downage was due to just stream failure (i.e., the
+      #   network was up but the stream was down), then don't bother to bounce
+      #   the stream.
+      if [ "$networkWasFineInThisLoop" = true ]
+      then
+        logMessage "info" "YouTube stream appears to be up, no further action needed"
+        break
+      else
+        logMessage "info" "YouTube stream appears to be up, however, the initial downage was network-specific, so we're going to bounce the stream anyway. See GitHub issue #9 for details"
+      fi
     fi
 
     # If we have reached this line without hitting a "break" above, it means
@@ -855,7 +894,7 @@ do
     # we waited as long as we could and then decided to give up. We need to
     # deliver a different log message depending on whether the network is up,
     # or we just gave up on waiting for it to come back up.
-    if "$NetworkIsUp" = true
+    if [ "$NetworkIsUp" = true ]
     then
       # Inform the user that we're bouncing the stream because the network is up.
       logMessage "info" "Bouncing the YouTube stream since the network is up"
