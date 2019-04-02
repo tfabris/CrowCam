@@ -650,6 +650,8 @@ then
 fi
 
 # Get API creds out of the external file, assert values are non-blank.
+# TO DO: Learn the correct linux-supported method for storing and retrieving a
+# username and password in an encrypted way.
 read username password < "$apicreds"
 if [ -z "$username" ] || [ -z "$password" ]
 then
