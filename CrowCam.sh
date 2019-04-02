@@ -123,7 +123,7 @@ TestModeComeBackOnRetry=1
 #------------------------------------------------------------------------------
 
 
-# ----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Function: Test_Stream
 # 
 # Performs a single check to see if the YouTube live stream is up, and sets
@@ -131,7 +131,19 @@ TestModeComeBackOnRetry=1
 #
 # Recommend only calling this function shortly after having called
 # Test_Network, since it's only useful if the network is up.
-# ----------------------------------------------------------------------------
+#
+# Parameters:  None.
+#              Uses some global configuration variables during its run.
+#
+# Returns:     Nothing.
+#              Sets the global variable $StreamIsUp.
+#
+# This test contains an "inner loop" of hysteresis to prevent false alarms
+# about the YouTube stream potentially being down. The process of checking the
+# YouTube stream with youtube-dl has proven to be a little bit flaky. Sometimes
+# it is unreliable and returns a false alarm. So this will retry a few times
+# before officially flagging an issue.
+# -----------------------------------------------------------------------------
 Test_Stream()
 {
   # Check the global variable $NetworkIsUp and see if it's true. This function
@@ -254,6 +266,13 @@ Test_Stream()
 # 
 # Performs a single check to see if the network is up and sets the global
 # variable $NetworkIsUp to either "true" or "false".
+#
+# This test is hairtrigger sensitive, and contains no hysteresis algorithm.
+# I have found that its method of pinging the DNS name of our reliable ping
+# destination is a very good indicator of whether the network has any problems.
+# And if the network had any problems at all, even slight ones, my experience
+# tells me that the YouTube stream is at high risk of being hung. So we want
+# this test to be very hairtrigger.
 #
 # Parameters:  None.
 #              Uses global variables $mainLoop and $restoreLoop among others.
@@ -789,21 +808,25 @@ fi
 # Once it comes back up, bounce the YouTube stream if it didn't also come
 # back up by itself.
 # ----------------------------------------------------------------------------
+
+# Main "outer loop" of tests. There is also an "inner loop" inside the
+# Test_Stream function to handle hysteresis for the flaky youtube-dl query of
+# the YouTube Stream.
 for mainLoop in `seq 1 $NumberOfTests`
 do
-  # Test if the Internet is up and if our YouTube live stream is up.
+  # Test if the Internet is up and if our YouTube live stream is up.  
   Test_Network
   Test_Stream
   
-  # Bugfix for issue #9 - create a flag which tells us if the problem was due
-  # specifically to network downage during this outer network test loop (as
-  # opposed to just a stream downage with the network still up). If it was a
+  # Bugfix for issue #9 - create a flag which will tell us if the problem was
+  # due specifically to network downage during this outer network test loop, as
+  # opposed to just a stream downage with the network still up. If it was a
   # network downage, we will (later) want to bounce the stream even if it looks
   # like the stream is still up. Start this variable in the "assumed good"
   # state at the top of each outer network test loop, until a problem gets hit.
   networkWasFineInThisLoop=true
 
-  # Check our initial results
+  # Check our initial results from the network tests and behave accordingly.
   if [ "$NetworkIsUp" = true ] && [ "$StreamIsUp" = true ]
   then
     # The network and stream are working in this case. Pause before doing the
@@ -828,15 +851,15 @@ do
     do
       # Bugfix for issue #9 - if the problem was due specifically to network
       # downage during this outer network test loop (as opposed to just a
-      # stream downage) then set the flag so that we will (later) bounce the
-      # stream even if it looks like the stream is still up.
+      # stream downage), then set the flag so that we will (later) bounce the
+      # stream, even if it looks like the stream is still up.
       if [ "$NetworkIsUp" = false ]
       then
         networkWasFineInThisLoop=false
       fi
       
       # Pause before trying to check if the network is back up. In this case,
-      # we pause every time because the pause is before the network check.
+      # we pause every time, because the pause is before the network check.
       logMessage "err" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
       logMessage "err" "Network or stream problem during outer network test loop $mainLoop of $NumberOfTests"
       logMessage "info" "Pausing to give them a chance to restore on their own. Restore attempt $restoreLoop of $MaxComebackRetries. Sleeping $PauseBetweenTests seconds before trying again"
@@ -859,9 +882,7 @@ do
         # the network is up. Note that, at this point in the code, we already
         # confirmed something went wrong in either the network or the stream
         # earlier, so at this point we want to fall down into the next section
-        # where we might bounce the stream even if the network is now up.
-        # Heck, even the stream might have come back up too, but we'll check
-        # that below.
+        # where we will bounce the stream.
         break
       fi
     done
@@ -870,14 +891,23 @@ do
     # bouncing it. 
     if [ "$StreamIsUp" = true ]
     then
-      # BUGFIX: Github Issue #9 - actually there can be times where and even if
-      # the stream seems like it's up, it's actually a hung stream. So what
-      # we'll do here is as follows:
+      # BUGFIX: Github Issue #9 - actually there can be times where, even if
+      # the stream seems like it's up, it's actually a hung stream. In an
+      # attempt to fix this issue (it might not fix the issue), what we'll do
+      # here is as follows:
+      # - Increase the frequency of the network checks to hopefully detect
+      #   brief network glitches more reliably.
       # - If the original downage was due to Network failure (as opposed to
       #   just stream failure), then always bounce the stream.
       # - If the original downage was due to just stream failure (i.e., the
       #   network was up but the stream was down), then don't bother to bounce
-      #   the stream.
+      #   the stream, since the stream seems to be up again.
+      # If we still get a recurrence of issue #9, then we should remove this
+      # whole section of code and bounce the stream every time anyway,
+      # regardless of whether the stream is up or not. This might cause some
+      # false positives where the stream gets bounced even though the root
+      # cause was a flaky youtube-dl query. We'll need to tweak things
+      # carefully including the hysteresis of the Test_Stream function.
       if [ "$networkWasFineInThisLoop" = true ]
       then
         logMessage "info" "YouTube stream appears to be up, no further action needed"
@@ -887,13 +917,18 @@ do
       fi
     fi
 
+    # ----------------------------------------------------------------------------
+    # Bounce the stream
+    # ----------------------------------------------------------------------------
     # If we have reached this line without hitting a "break" above, it means
-    # either the stream or network are still down, thus we are now at the
-    # point where we are ready to bounce the stream. It is possible that we
-    # either got a success result if the network really did come back up, or,
-    # we waited as long as we could and then decided to give up. We need to
-    # deliver a different log message depending on whether the network is up,
-    # or we just gave up on waiting for it to come back up.
+    # we have satisfied all criteria for needing a stream bounce, and we are
+    # now intending to actually bounce the stream.
+    
+    # Log our intention to bounce the stream. It is possible that the network
+    # really did come back up, or, we waited as long as we could and then
+    # decided to give up and bounce the stream anyway. We need to deliver a
+    # different log message depending on whether the network is up, or we just
+    # gave up on waiting for it to come back up.
     if [ "$NetworkIsUp" = true ]
     then
       # Inform the user that we're bouncing the stream because the network is up.
@@ -903,13 +938,16 @@ do
       logMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway"
     fi
 
-    # Two possible ways to fix the YouTube stream if the network has gone
-    # down: Either bring the stream down and back up again (with a pause in
-    # the middle), or restart the Surveillance Station service.
+    # Two possible ways to fix the YouTube stream: Either bring the stream down
+    # and back up again using the Synology API, or restart the Surveillance
+    # Station service.
 
-    # Method 1: Bring the YouTube stream down and back up again. This is the
-    # more desirable method because it allows the Surveillance Station service
-    # to keep running, in case we are using actual security cameras on it.
+    # Method 1: Bring the YouTube stream down and back up again using the API.
+    # This is the more desirable method because it allows the Surveillance
+    # Station Service to keep running, in case we are using actual security
+    # cameras on it. This method allows all cameras to continue working and
+    # recording to the NAS, while bouncing the YouTube Stream portion of the
+    # system.
 
     # Bounce the stream. Stop it here by using the "Save" method to set
     # live_on=false. Response is expected to be {"success":true}.
