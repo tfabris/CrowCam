@@ -870,7 +870,7 @@ do
       sleep $PauseBetweenTests
 
       # Test the network and stream again.
-      logMessage "info" "Testing network again."
+      logMessage "info" "Testing network again"
       Test_Network
       Test_Stream
       logMessage "info" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
