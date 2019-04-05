@@ -185,8 +185,8 @@ stream, and then will obtain an all-important refresh token which will allow it
 to continue doing it over time, without needing to keep re-authorizing.
 You should only need to run this script once, unless the tokens get invalidated
 or there is an unexpected error. Open a Bash shell on your local PC, in the
-same folder as these scripts, set the file permissions, and launch the
-preparation script, using these commands:
+same folder as these scripts. Then set the file permissions and launch the
+preparation script using these commands:
 
      chmod 770 CrowCam*.sh
      chmod 770 crowcam-config
@@ -247,6 +247,8 @@ Set the access permissions on the folder and its files, using the SSH prompt:
      chmod 770 youtube-dl
      chmod 660 api-creds
      chmod 660 crowcam-tokens
+     chmod 660 crowcam-sunrise
+     chmod 660 crowcam-sunset
      chmod 660 client_id.json
 
 ####  Create automated tasks in the Synology Task Scheduler

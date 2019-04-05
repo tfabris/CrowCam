@@ -699,16 +699,9 @@ fi
 # This code is deliberately not accurate down to the second.
 currentTime="`date +%H:%M`"
 
-# Get the current month so that we can use it to look up our data in the array.
-# IMPORTANT TRICK: The dash before the "m" means "do not pad with zeros". This
-# is necessary for the index lookup to work and to retrieve the value correctly
-# since items preceded with a 0 will be interpreted by Bash as being Octal and
-# so values of 08 and 09 will cause an error if we don't put the dash there.
-currentMonth="`date +%-m`"
-
-# Obtain the (very approximate) fallback astronomical times from the tables.
-sunrise=${sunriseArray[$currentMonth]}
-sunset=${sunsetArray[$currentMonth]}
+# Read our fallback values of the sunrise and sunset files from the hard disk.
+sunrise=$(< "$crowcamSunrise")
+sunset=$(< "$crowcamSunset")
 
 # Get more accurate sunrise/sunset results from Google if available.
 googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
@@ -717,15 +710,31 @@ googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
 # Make sure the Google responses were non-null and non-empty.
 if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
 then
-  logMessage "err" "problem obtaining sunrise/sunset from Google. Falling back to hard-coded table"
+  logMessage "info" "Problem obtaining sunrise/sunset from Google. Falling back to previously saved values: $sunrise/$sunset"
 else
   # If the Google responses were non-empty, use them in place of the fallbacks.
   logMessage "dbg" "Using Google-obtained times for sunrise/sunset"
-  logMessage "dbg" "   Sunrise: $googleSunriseString   (Fallback table value:  $sunrise)"
-  logMessage "dbg" "   Sunset:  $googleSunsetString   (Fallback table value:  $sunset)"
+  logMessage "dbg" "   Sunrise: $googleSunriseString   (Fallback value:  $sunrise)"
+  logMessage "dbg" "   Sunset:  $googleSunsetString   (Fallback value:  $sunset)"
   logMessage "dbg" ""
   sunrise=$googleSunriseString
   sunset=$googleSunsetString
+  
+  # If the Google responses were not empty, then write them into our fallback
+  # files. Use "-n" to ensure they do not write a trailing newline character.
+  echo -n "$sunrise" > "$crowcamSunrise"
+  echo -n "$sunset" > "$crowcamSunset"
+fi
+
+# Check to make sure that the sunrise and sunset values are not empty. This
+# can occur in certain situations, for instance if there is a problem with
+# Google during the very first run of the program. In that case, the fallback
+# files won't yet exist, the Google search will fail, and there will be no
+# sunrise or sunset times in these variables.
+if [ -z "$sunrise" ] || [ -z "$sunset" ]
+then
+  logMessage "err" "Problem obtaining sunrise/sunset values. Unable to obtain values from Google, and also unable to use fallback values"
+  exit 1
 fi
 
 # Convert our times into seconds.
@@ -742,7 +751,7 @@ startServiceSeconds=$(($sunriseSeconds + $startServiceOffset*60 ))
 stopServiceSeconds=$(($sunsetSeconds + $stopServiceOffset*60 ))
 
 # Output - print the results of our calculations to the screen.
-logMessage "dbg" "Current time:    $currentTime  ($currentTimeSeconds seconds) in month number $currentMonth"
+logMessage "dbg" "Current time:    $currentTime    ($currentTimeSeconds seconds)"
 logMessage "dbg" "Approx Sunrise:  $sunrise  ($sunriseSeconds seconds, difference is $sunriseDifferenceSeconds)"
 logMessage "dbg" "Approx Sunset:   $sunset  ($sunsetSeconds seconds, difference is $sunsetDifferenceSeconds)"
 logMessage "dbg" ""

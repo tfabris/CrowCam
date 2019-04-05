@@ -87,53 +87,6 @@ startServiceOffset=-15
 stopServiceOffset=15
 
 
-# Default arrays of approximate sunrise/sunset data, used when the script is
-# unable to connect to Google to obtain accurate data. These values are the
-# "fallback" values which are less accurate than the Google results. These
-# values are only used in cases where Google cannot be contacted or if the
-# search fails. Please note: These values have the following characteristics:
-#
-#   - These values are very very approximate.
-#   - These are based on monthly data, not daily, to keep the tables small.
-#   - The array position ([1], [2], etc.) is the month number.
-#   - They contain the astronomical data for the 15th of that month.
-#   - They follow the local DST change, jumping an hour in March/November. 
-#   - The values will be even less accurate near the DST change date.
-#   - Default values here are for location: Seattle, WA.
-#
-# Set these values to to your own location's astronomical data. Look up your
-# own location's data at: https://www.timeanddate.com/sun/country/yourcityname
-# and fill in the tables yourself. 
-#
-# You may also leave these values untouched if they look like they are
-# approximately right for your location. These are only fallback values.
-sunriseArray[1]="07:52"
-sunriseArray[2]="07:15"
-sunriseArray[3]="07:22"
-sunriseArray[4]="06:20"
-sunriseArray[5]="05:32"
-sunriseArray[6]="05:11"
-sunriseArray[7]="05:27"
-sunriseArray[8]="06:05"
-sunriseArray[9]="06:46"
-sunriseArray[10]="07:28"
-sunriseArray[11]="07:14"
-sunriseArray[12]="07:50"
-
-sunsetArray[1]="16:45"
-sunsetArray[2]="17:32"
-sunsetArray[3]="19:14"
-sunsetArray[4]="19:58"
-sunsetArray[5]="20:40"
-sunsetArray[6]="21:08"
-sunsetArray[7]="21:03"
-sunsetArray[8]="20:21"
-sunsetArray[9]="19:21"
-sunsetArray[10]="18:21"
-sunsetArray[11]="16:32"
-sunsetArray[12]="16:18"
-
-
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
 # accessing, from the point of view of the script running on the NAS itself
 # (i.e., loopback/localhost). This value is used when querying the Synology API
@@ -257,6 +210,17 @@ clientIdJson="$DIR/client_id.json"
 #
 crowcamTokens="$DIR/crowcam-tokens"
 
+# Create a variable for the "crowcam-sunrise" file, we will write to this file.
+#
+# Do not change this value.
+#
+crowcamSunrise="$DIR/crowcam-sunrise"
+
+# Create a variable for the "crowcam-sunset" file, we will write to this file.
+#
+# Do not change this value.
+#
+crowcamSunset="$DIR/crowcam-sunset"
 
 # Temporary file to store the contents of the live stream that we are (for a 
 # short time) downloading during a "CrowCamKeepAlive" run. The file will get

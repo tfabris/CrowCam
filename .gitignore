@@ -2,6 +2,8 @@
 api-creds
 client_id.json
 crowcam-tokens
+crowcam-sunrise
+crowcam-sunset
 youtube-dl
 youtube-dl.exe
 ffmpeg
