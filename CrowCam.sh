@@ -65,17 +65,25 @@ source "$DIR/CrowCamHelperFunctions.sh"
 # Task Scheduler to run the script every minute. Each run of the script will
 # perform a test at 0sec, 20sec and at 40sec during that minute, and then the
 # next run of the script falling at 0sec of the next minute will start the
-# cycle over again.
-NumberOfTests=5
+# cycle over again. If, during any of these tests, a problem with the network
+# is detected, it will bounce the YouTube stream to make the stream start
+# working again. Note: This test has no hysteresis - a network problem will
+# always trigger a stream bounce. In my experience, all network blips will
+# cause the stream to hang, unless I bounce it.
+NumberOfTests=6
 
 # Number of seconds to pause between network-up-check tests.
 PauseBetweenTests=10
 
-# Number of times we will loop and retest for stream problems. This is for a
-# secondary test which will only be run if the network is up. The test
-# attempts to connect to the stream and retrieve the URL, and if an error is
-# received after enough retries, it will be assumed that the stream still
-# needs to be bounced, even if the network hasn't gone down.
+# Number of times we will loop and retest for stream problems if it detects
+# that the stream is down. This is a secondary test which will only be run if
+# the network is up. This attempts to connect to the stream and retrieve its
+# URL. If an error is received, it will perform a small amount of hysteresis
+# (repeated tests, controlled by these variables). This hysteresis is needed on
+# the stream test, but not the network test, because the stream test has proven
+# to be flaky, sometimes reporting a problem when there is actually no problem.
+# If, after the hysteresis retries, there is still a problem reported in the
+# stream, then we will bounce the stream, even if the network hasn't gone down.
 NumberOfStreamTests=4
 
 # Number of seconds to pause between stream-up-check tests.
@@ -88,19 +96,25 @@ then
 fi
 
 # Number of retries that the script will perform, to wait for the network to
-# come back up, before giving up and bouncing the stream anyway. These retries
-# will be performed at the same interval as the main network test (it uses the
-# same pause between tests). For instance, if you set the PauseBetweenTests to
-# 20 seconds, and then set this value to 30, it will continue to retry and look
-# for the network to come back up for about ten minutes before giving up and
-# bouncing the network stream anyway.
+# come back up, after the network went down. Here's how it works: If the
+# network went down, and we detected that it went down, then we want to bounce
+# the YouTube stream. However, we don't want to bounce it instantly. We want to
+# wait until the network is back up again, and then bounce the stream. If the
+# network is taking an unexpectedly long time to come back up, then at some
+# point we need to decide to just give up and bounce the stream anyway. That
+# last part is what this variable controls. It controls how many loops the
+# program waits for the network to come back. These loops will be performed at
+# the same interval as the main network test (it uses the same PauseBetweenTests
+# variable). For instance, if you set PauseBetweenTests to 20 seconds, and then
+# set this value to 30, it will continue to retry and look for the network to
+# come back up for about ten minutes before bouncing the network stream anyway.
 MaxComebackRetries=20
 
 # Set this global variable to a starting integer value. There is a possible
 # condition in the code if we are in test mode, where we might test the value
 # once before any value has been set for it. The issue is not harmful to the
 # program, but this line will prevent an error message of "integer expression
-# expected" at the wrong moment.
+# expected" appearing on the console at the wrong moment.
 restoreLoop=0
 
 # This is the normal default value for this variable.
