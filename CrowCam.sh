@@ -92,7 +92,7 @@ PauseBetweenStreamTests=7
 # When in test mode, pause for a shorter period between network checks.
 if [ ! -z "$debugMode" ]
 then
-  PauseBetweenTests=2
+  PauseBetweenTests=1
 fi
 
 # Number of retries that the script will perform, to wait for the network to
@@ -160,6 +160,9 @@ TestModeComeBackOnRetry=1
 # -----------------------------------------------------------------------------
 Test_Stream()
 {
+  # Debugging message, leave commented out usually.
+  # logMessage "info" "Begin Test_Stream"
+
   # Check the global variable $NetworkIsUp and see if it's true. This function
   # is only useful if the network is up. If the network is down, then return
   # false automatically.
@@ -272,6 +275,9 @@ Test_Stream()
       logMessage "dbg" "Live stream is up"
     fi
   fi
+
+  # Debugging message, leave commented out usually.
+  # logMessage "info" "Done with Test_Stream" 
 }
 
 
@@ -296,6 +302,9 @@ Test_Stream()
 # ----------------------------------------------------------------------------
 Test_Network()
 {
+  # Debugging message, leave commented out usually.
+  # logMessage "info" "Beginning Test_Network" 
+
   # Special code for test mode to induce a fake network problem.
   if [ "$mainLoop" -eq "$TestModeFailOnLoop" ]
   then
@@ -354,6 +363,9 @@ Test_Network()
     # message for network failure is not needed here, only for success.
     logMessage "dbg" "Network is up, outer network test attempt $mainLoop of $NumberOfTests"
   fi
+
+  # Debugging message, leave commented out usually.
+  # logMessage "info" "Done with Test_Network"
 }
 
 
@@ -377,6 +389,9 @@ Test_Network()
 # -----------------------------------------------------------------------------
 GetSunriseSunsetTimeFromGoogle()
 {
+    # Debugging message, leave commented out usually.
+    # logMessage "info" "Beginning GetSunriseSunsetTimeFromGoogle" 
+
     # Create the query URL that we will use for Google.
     googleQueryUrl="http://www.google.com/search?q=$1%20$location"
 
@@ -431,6 +446,9 @@ GetSunriseSunsetTimeFromGoogle()
 
     # Linux Version:
     # echo $googleQueryResult | sed 's/w-answer-desktop/\n&/g' | grep -m 1 w-answer-desktop | grep -o -P '\d+:\d+ [AP]M'
+
+    # Debugging message, leave commented out usually.
+    # logMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
 
     # MacOs Version - Also works on Linux:
     echo $googleQueryResult | sed 's/w-answer-desktop/\'$'\n&/g' | grep -m 1 w-answer-desktop | grep -o '[0-9][0-9]*:[0-9][0-9] [AP]M'
@@ -644,8 +662,11 @@ ChangeStreamState()
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
-  logMessage "err" "---------------------- Script is running in debug mode: $debugMode ----------------------"
+  logMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
+
+# Debugging message for logging script start/stop times. Leave commented out.
+# logMessage "info" "-------------------------- Starting script: $programname -------------------------"
 
 # Log current script location and working directory.
 logMessage "dbg" "Script exists in directory: $DIR"
@@ -1015,3 +1036,5 @@ do
   fi
 done
 
+# Debugging message for logging script start/stop times. Leave commented out.
+# logMessage "info" "-------------------------- Ending script: $programname -------------------------"

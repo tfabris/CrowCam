@@ -63,7 +63,7 @@ fi
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
-  logMessage "err" "---------------------- Script is running in debug mode: $debugMode ----------------------"
+  logMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
 
 # Log current script location and working directory.
