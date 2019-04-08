@@ -87,12 +87,13 @@ PauseBetweenTests=10
 NumberOfStreamTests=4
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=7
+PauseBetweenStreamTests=15
 
-# When in test mode, pause for a shorter period between network checks.
+# When in test mode, pause for a shorter period between tests.
 if [ ! -z "$debugMode" ]
 then
   PauseBetweenTests=1
+  PauseBetweenStreamTests=1
 fi
 
 # Number of retries that the script will perform, to wait for the network to
@@ -108,7 +109,7 @@ fi
 # variable). For instance, if you set PauseBetweenTests to 20 seconds, and then
 # set this value to 30, it will continue to retry and look for the network to
 # come back up for about ten minutes before bouncing the network stream anyway.
-MaxComebackRetries=20
+MaxComebackRetries=40
 
 # Set this global variable to a starting integer value. There is a possible
 # condition in the code if we are in test mode, where we might test the value
@@ -656,6 +657,76 @@ ChangeStreamState()
 
 
 #------------------------------------------------------------------------------
+# Function: Bounce the YouTube stream.
+# 
+# Brings the YouTube stream down, waits a bit, and then brings it up again, by
+# using the Synology API to turn the Synology Surveillance Station's "Live
+# Broadcast" feature off then on again.
+#
+# This always fixes any problems where the YouTube stream has stopped working,
+# for whatever reason.
+#
+# It would also be possible to fix stream issues by restarting the Synology
+# Surveillance Station service itself, with a command similar to this:
+#
+#                synoservicectl --restart $serviceName
+#
+# However that method is not desirable because it would stop all security
+# camera recordings, if more than one camera were installed in the system.
+# Bouncing the "Live Broadcast" feature is the more desirable method because
+# it allows the Surveillance Station Service to keep running, in case we are
+# using other security cameras on it. This method allows all cameras to
+# continue working and recording to the NAS, while bouncing the YouTube Stream
+# portion of the system.
+#
+# Parameters: None.
+# Returns: Nothing.
+#------------------------------------------------------------------------------
+BounceTheStream()
+{
+  # Stop the YouTube stream feature here by using the "Save" method to set
+  # live_on=false. Response is expected to be {"success":true}.
+  WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
+  
+  # Wait a while to make sure it is really turned off. I had some troubles
+  # in testing, where, if I set this number too small, that I would not get
+  # a successful stream reset. Now using a nice long chunk of time here to
+  # make absolutely sure. This seems to work long-term.
+  logMessage "info" "Pausing, after bringing down the stream, before bringing it up again"
+  sleep 95
+  
+  # Bring the stream back up. Start it here by using the "Save" method to
+  # set live_on=true. Response is expected to be {"success":true}.
+  WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
+
+  # Log that we're done.
+  logMessage "info" "Done bouncing YouTube stream"
+
+  # If we had to bounce the stream, wait a little while before allowing the
+  # program to continue to its exit point. This allows the stream to get
+  # spooling up and started, before there is an opportunity for the next
+  # Task-scheduled run of this script to get launched. If we don't pause
+  # here, we run the risk of possibly having the next run of this script
+  # start too soon, before the bounced stream is up and running again, and
+  # then detecting a false error at that time.
+  #
+  # UPDATE: Post-bounce pause should not be needed, for the following reasons:
+  # - In the new code flow, the program exits after bouncing the stream.
+  # - The next run of the program will occur in the Synology Task Scheduler.
+  # - In the new code flow, the program starts out by checking the network
+  #   all by itself, without checking the stream, for approximately a minute
+  #   or so, before checking the stream status. So the "pause" I would normally
+  #   be trying to do here, is actually built in to the next run of the program.
+  # - There is also hysteresis built-in to the stream check, so that even after
+  #   the "natural pause" described above, there is still some hysteresis for
+  #   allowing the stream to come back up and register upness before it panics.
+  #
+  #      logMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
+  #      sleep 40
+}
+
+
+#------------------------------------------------------------------------------
 # Main program code body.
 #------------------------------------------------------------------------------
 
@@ -772,7 +843,7 @@ then
   exit 1
 fi
 
-# Convert our times into seconds.
+# Convert our times into seconds-since-midnight.
 currentTimeSeconds=$(TimeToSeconds $currentTime)
 sunriseSeconds=$(TimeToSeconds $sunrise)
 sunsetSeconds=$(TimeToSeconds $sunset)
@@ -823,6 +894,8 @@ fi
 # section, should only trigger if the Surveillance Station's Live Broadcast
 # feature is already turned on. If it's not on, then we don't care because the
 # stream wasn't supposed to be up in the first place.
+#
+# Note: Only perform this test after the sunrise/sunset decision has been made.
 # ----------------------------------------------------------------------------
 # In order to check the status of the Synology Surveillance Station "Live
 # Broadcast" feature, we must either not be in debug mode, or if we are,
@@ -849,33 +922,21 @@ fi
 # ----------------------------------------------------------------------------
 # Network Test section.
 # 
-# Checks the network and stream a specified number of times at intervals. If
-# either is down, log this fact and then wait for the network to come back up.
-# Once it comes back up, bounce the YouTube stream if it didn't also come
-# back up by itself.
+# Checks the network a specified number of times at intervals. If it is down,
+# log this fact and then wait for the network to come back up. Once it comes
+# back up, bounce the YouTube stream.
 # ----------------------------------------------------------------------------
 
-# Main "outer loop" of tests. There is also an "inner loop" inside the
-# Test_Stream function to handle hysteresis for the flaky youtube-dl query of
-# the YouTube Stream.
+# Main "outer loop" of network tests. 
 for mainLoop in `seq 1 $NumberOfTests`
 do
   # Test if the Internet is up and if our YouTube live stream is up.  
   Test_Network
-  Test_Stream
-  
-  # Bugfix for issue #9 - create a flag which will tell us if the problem was
-  # due specifically to network downage during this outer network test loop, as
-  # opposed to just a stream downage with the network still up. If it was a
-  # network downage, we will (later) want to bounce the stream even if it looks
-  # like the stream is still up. Start this variable in the "assumed good"
-  # state at the top of each outer network test loop, until a problem gets hit.
-  networkWasFineInThisLoop=true
 
-  # Check our initial results from the network tests and behave accordingly.
-  if [ "$NetworkIsUp" = true ] && [ "$StreamIsUp" = true ]
+  # Check our initial results from the network test and behave accordingly.
+  if [ "$NetworkIsUp" = true ] 
   then
-    # The network and stream are working in this case. Pause before doing the
+    # The network is working in this case. Pause before doing the
     # next check.
 
     # However, do not pause between test runs on the last test of the group.
@@ -885,7 +946,7 @@ do
     if [ "$mainLoop" -lt "$NumberOfTests" ]
     then
       # Message for local machine test runs.
-      logMessage "dbg" "Outer netwok test loop $mainLoop of $NumberOfTests - Sleeping $PauseBetweenTests seconds"
+      logMessage "dbg" "Outer network test loop $mainLoop of $NumberOfTests - Sleeping $PauseBetweenTests seconds"
 
       # Sleep between network tests.
       sleep $PauseBetweenTests
@@ -895,20 +956,10 @@ do
     # the network to come back up so that we can restart the YouTube stream.
     for restoreLoop in `seq 1 $MaxComebackRetries`
     do
-      # Bugfix for issue #9 - if the problem was due specifically to network
-      # downage during this outer network test loop (as opposed to just a
-      # stream downage), then set the flag so that we will (later) bounce the
-      # stream, even if it looks like the stream is still up.
-      if [ "$NetworkIsUp" = false ]
-      then
-        networkWasFineInThisLoop=false
-      fi
-      
       # Pause before trying to check if the network is back up. In this case,
       # we pause every time, because the pause is before the network check.
-      logMessage "err" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
-      logMessage "err" "Network or stream problem during outer network test loop $mainLoop of $NumberOfTests"
-      logMessage "info" "Pausing to give them a chance to restore on their own. Restore attempt $restoreLoop of $MaxComebackRetries. Sleeping $PauseBetweenTests seconds before trying again"
+      logMessage "err" "Status - Network up: $NetworkIsUp - Network problem during outer network test loop $mainLoop of $NumberOfTests"
+      logMessage "info" "Pausing $PauseBetweenTests seconds to wait for network to come back up. Inner restore attempt loop $restoreLoop of $MaxComebackRetries"
 
       # Pause before every network test when waiting for it to come back. 
       sleep $PauseBetweenTests
@@ -916,12 +967,10 @@ do
       # Test the network and stream again.
       logMessage "info" "Testing network again"
       Test_Network
-      Test_Stream
-      logMessage "info" "Status - Network up: $NetworkIsUp  Stream up: $StreamIsUp"
+      logMessage "info" "Status - Network up: $NetworkIsUp"
 
-      # Check if the network has come back up (or maybe it was already up and
-      # the stream was the thing that was down) and break out of the retry
-      # loop if the network is now up.
+      # Check if the network has come back up and break out of the retry loop
+      # if the network is now up.
       if [ "$NetworkIsUp" = true ]
       then
         # Since the network is up, we can break out of our loop of retrying if
@@ -933,43 +982,13 @@ do
       fi
     done
 
-    # If the stream was up after the network came up, then don't bother
-    # bouncing it. 
-    if [ "$StreamIsUp" = true ]
-    then
-      # BUGFIX: Github Issue #9 - actually there can be times where, even if
-      # the stream seems like it's up, it's actually a hung stream. In an
-      # attempt to fix this issue (it might not fix the issue), what we'll do
-      # here is as follows:
-      # - Increase the frequency of the network checks to hopefully detect
-      #   brief network glitches more reliably.
-      # - If the original downage was due to Network failure (as opposed to
-      #   just stream failure), then always bounce the stream.
-      # - If the original downage was due to just stream failure (i.e., the
-      #   network was up but the stream was down), then don't bother to bounce
-      #   the stream, since the stream seems to be up again.
-      # If we still get a recurrence of issue #9, then we should remove this
-      # whole section of code and bounce the stream every time anyway,
-      # regardless of whether the stream is up or not. This might cause some
-      # false positives where the stream gets bounced even though the root
-      # cause was a flaky youtube-dl query. We'll need to tweak things
-      # carefully including the hysteresis of the Test_Stream function.
-      if [ "$networkWasFineInThisLoop" = true ]
-      then
-        logMessage "info" "YouTube stream appears to be up, no further action needed"
-        break
-      else
-        logMessage "info" "YouTube stream appears to be up, however, the initial downage was network-specific, so we're going to bounce the stream anyway. See GitHub issue #9 for details"
-      fi
-    fi
-
     # ----------------------------------------------------------------------------
     # Bounce the stream
     # ----------------------------------------------------------------------------
     # If we have reached this line without hitting a "break" above, it means
     # we have satisfied all criteria for needing a stream bounce, and we are
     # now intending to actually bounce the stream.
-    
+
     # Log our intention to bounce the stream. It is possible that the network
     # really did come back up, or, we waited as long as we could and then
     # decided to give up and bounce the stream anyway. We need to deliver a
@@ -983,58 +1002,109 @@ do
       # Inform the user that we gave up trying.
       logMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway"
     fi
-
-    # Two possible ways to fix the YouTube stream: Either bring the stream down
-    # and back up again using the Synology API, or restart the Surveillance
-    # Station service.
-
-    # Method 1: Bring the YouTube stream down and back up again using the API.
-    # This is the more desirable method because it allows the Surveillance
-    # Station Service to keep running, in case we are using actual security
-    # cameras on it. This method allows all cameras to continue working and
-    # recording to the NAS, while bouncing the YouTube Stream portion of the
-    # system.
-
-    # Bounce the stream. Stop it here by using the "Save" method to set
-    # live_on=false. Response is expected to be {"success":true}.
-    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
     
-    # Wait a while to make sure it is really turned off. I had some troubles
-    # in testing, where, if I set this number too small, that I would not get
-    # a successful stream reset. Now using a nice long chunk of time here to
-    # make absolutely sure. This seems to work long-term.
-    logMessage "info" "Pausing, after bringing down the stream, before bringing it up again"
-    sleep 95
+    # Actually bounce the stream.
+    BounceTheStream
     
-    # Bring the stream back up. Start it here by using the "Save" method to
-    # set live_on=true. Response is expected to be {"success":true}.
-    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
-
-    # Method 2: Restart the Surveillance Station service. This is the less
-    # desirable method, because it stops all security camera recording as
-    # well. We are not using this method. Keeping it here for posterity so
-    # that we remember the syntax.
-    #      synoservicectl --restart $serviceName
-
-    # Log that we're done.
-    logMessage "info" "Done bouncing YouTube stream"
-
-    # If we had to bounce the stream, wait a little while before allowing the
-    # program to continue to its exit point. This allows the stream to get
-    # spooling up and started before there is an opportunity for the next
-    # Task-scheduled run of this script to get launched. If we don't pause
-    # here, we run the risk of possibly having the next run of this script
-    # start too soon, before the bounced stream is up and running again, and
-    # then detecting a false error at that time.
-    logMessage "dbg" "Pausing, after bringing the stream back up again, before allowing the program to exit."
-    sleep 20
+    # Exit the program because we should only need to bounce the stream once
+    # per run of the program. After bouncing the stream, we can exit this
+    # program and let its next timed run (controlled in the Synology Task
+    # Scheduler) handle any remaining tests.
+    exit 0
 
     # Because we have bounced the YouTube stream, we no longer need to loop
-    # around. Break out of the loop, which will finish the last part of the
-    # program.
+    # around. Break out of the network test loop. NOTE: With the new code flow,
+    # This line should not be hit because the program should have exited by
+    # now. Adding an error message at this point to validate that assumption.
+    logMessage "err" "Unexpected program behavior. This program was expected to have exited before this line was reached"
+    exit 1
     break
   fi
 done
 
+# ----------------------------------------------------------------------------
+# Stream Test section.
+# 
+# Checks the YouTube stream, and bounces it if the stream isn't up.
+#
+# Intended to fix issues where the network tests above weren't sufficient to
+# detect a problem with the stream. Imagine a situation where the network blips
+# very briefly, for example, and the tests above do not catch that blip. In
+# that case, the stream would still go bad (based on my experience) and it
+# still needs to be fixed by a stream bounce. In most of these cases, it will
+# be detectable because an attempt to download the stream will result in an
+# error.
+#
+# Note: Originally the code tested the stream repeatedly alongside each network
+# test. During the investigation of GitHub Issue #9, after some experiments, I
+# discovered that the stream tests sometimes took up to 20 seconds to return.
+# This slowed down the overall network testing loop, causing the frequency of
+# the test loop to be less frequent than I intended.
+#
+# Now, instead, the YouTube stream will only be checked once per run of this
+# program, only once at the end of the run, and only if the network tests were
+# good to begin with.
+# ----------------------------------------------------------------------------
+
+# Validate the state of $NetworkIsUp at this point in the program. I expect
+# the variable $NetworkIsUp to be "true" at this moment, because if it were
+# "false" at any point above, then the program should have bounced the stream
+# and exited.
+#
+# Additionally, I expect the results of Test_Network to be a fresh result at
+# this point in time. Any place where there would have been a "pause" in the
+# code after a network test, we shouldn't have reached this line after the
+# pause. Cases where there could have been a pause are:
+# - We've bounced the network and paused during or after the bounce. This can't
+#   be the case at this point in the code because we exit the program after
+#   bouncing and we would never have reached this line.
+# - The network tests were all good and there were pauses after each test. This
+#   can't be the case here, because if all the tests were good, then it would
+#   have completed its testing loop, and the pause is deliberately disabled
+#   during the final loop after the final test, so it would have fallen through
+#   to this line immediately after the last good test.
+# - The network tests were bad and there were pauses as it waited for the
+#   network to come back up. This can't be the case because all failed network
+#   tests cause a stream bounce, which also exits the program.
+if [ "$NetworkIsUp" = false ] 
+then
+    logMessage "err" "Unexpected program behavior. Reached a point in the code where the NetworkIsUp variable was expected to be true, but it was false"
+    exit 1
+fi
+
+# Test the stream. Note that the Test_Stream function contains its own inner
+# hysteresis loop because the test method might intermittently cry wolf.
+Test_Stream
+
+# Log the status of network and stream.
+logMessage "dbg" "Status - Network up: $NetworkIsUp - Stream up: $StreamIsUp"
+
+# If the stream is down, then bounce the stream.
+if [ "$StreamIsUp" = false ] 
+then
+  # Inform the user that we're bouncing the stream.
+  logMessage "err" "Bouncing the YouTube stream, because it was unexpectedly down"
+  
+  # Bounce the stream.
+  BounceTheStream
+  
+  # Exit the program because we should only need to bounce the stream once
+  # per run of the program. After bouncing the stream, we can exit this
+  # program and let its next timed run (controlled in the Synology Task
+  # Scheduler) handle any remaining tests.
+  #
+  # (At the time this was written, there wasn't anything else in the code after
+  # this line, so it would have exited anyway, but I'm putting this in here so
+  # that, if I add other tests below, the code still works as intended.)
+  exit 0
+fi
+    
 # Debugging message for logging script start/stop times. Leave commented out.
 # logMessage "info" "-------------------------- Ending script: $programname -------------------------"
+
+
+
+
+
+
+
