@@ -84,7 +84,7 @@ PauseBetweenTests=10
 # to be flaky, sometimes reporting a problem when there is actually no problem.
 # If, after the hysteresis retries, there is still a problem reported in the
 # stream, then we will bounce the stream, even if the network hasn't gone down.
-NumberOfStreamTests=4
+NumberOfStreamTests=6
 
 # Number of seconds to pause between stream-up-check tests.
 PauseBetweenStreamTests=15
@@ -721,8 +721,10 @@ BounceTheStream()
   #   the "natural pause" described above, there is still some hysteresis for
   #   allowing the stream to come back up and register upness before it panics.
   #
-  #      logMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
-  #      sleep 40
+  # UP-UPDATE: Experimentation indicates that we still need a pause. See
+  # GitHub Issue #17.
+  logMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
+  sleep 40
 }
 
 
@@ -958,8 +960,7 @@ do
     do
       # Pause before trying to check if the network is back up. In this case,
       # we pause every time, because the pause is before the network check.
-      logMessage "err" "Status - Network up: $NetworkIsUp - Network problem during outer network test loop $mainLoop of $NumberOfTests"
-      logMessage "info" "Pausing $PauseBetweenTests seconds to wait for network to come back up. Inner restore attempt loop $restoreLoop of $MaxComebackRetries"
+      logMessage "err" "Status - Network up: $NetworkIsUp - Network problem during outer network test loop $mainLoop of $NumberOfTests - Pausing $PauseBetweenTests seconds to wait for network to come back up. Inner restore attempt loop $restoreLoop of $MaxComebackRetries"
 
       # Pause before every network test when waiting for it to come back. 
       sleep $PauseBetweenTests
