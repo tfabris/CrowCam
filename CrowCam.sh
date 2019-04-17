@@ -141,7 +141,7 @@ TestModeComeBackOnRetry=1
 # -----------------------------------------------------------------------------
 # Function: Test_Stream
 # 
-# Performs a single check to see if the YouTube live stream is up, and sets
+# Performs a check to see if the YouTube live stream is up, and sets
 # the global variable $StreamIsUp to either "true" or "false".
 #
 # Recommend only calling this function shortly after having called
@@ -448,11 +448,11 @@ GetSunriseSunsetTimeFromGoogle()
     # Linux Version:
     # echo $googleQueryResult | sed 's/w-answer-desktop/\n&/g' | grep -m 1 w-answer-desktop | grep -o -P '\d+:\d+ [AP]M'
 
-    # Debugging message, leave commented out usually.
-    # logMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
-
     # MacOs Version - Also works on Linux:
     echo $googleQueryResult | sed 's/w-answer-desktop/\'$'\n&/g' | grep -m 1 w-answer-desktop | grep -o '[0-9][0-9]*:[0-9][0-9] [AP]M'
+
+    # Debugging message, leave commented out usually.
+    # logMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
 }
 
 
@@ -932,7 +932,7 @@ fi
 # Main "outer loop" of network tests. 
 for mainLoop in `seq 1 $NumberOfTests`
 do
-  # Test if the Internet is up and if our YouTube live stream is up.  
+  # Test if the Internet is up.  
   Test_Network
 
   # Check our initial results from the network test and behave accordingly.
