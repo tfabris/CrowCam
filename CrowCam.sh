@@ -807,31 +807,91 @@ fi
 # This code is deliberately not accurate down to the second.
 currentTime="`date +%H:%M`"
 
+# Convert our current time into seconds-since-midnight.
+currentTimeSeconds=$(TimeToSeconds $currentTime)
+
 # Read our fallback values of the sunrise and sunset files from the hard disk.
 sunrise=$(< "$crowcamSunrise")
 sunset=$(< "$crowcamSunset")
 
-# Get more accurate sunrise/sunset results from Google if available.
-googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
-googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
+# Address GitHub issue #18 - Reduce the frequency of error messages from the
+# Google sunrise/sunset time queries. Here's the concept of how/when the Google
+# search query will be done:
+#
+# - We want to query the sunrise/sunset from Google and write the new values to
+#   our fallback files. But we don't want to do this every single time we run
+#   the program. We only want to do this approximately once per day.
+# 
+# - I could just program it to happen every 24 hours, in a whole separate
+#   script, run under the Task Scheduler. But I didn't want to write a whole
+#   other script. Instead, I'll do a scheme where the repeated nature of *this*
+#   script allows for a sort of built-in retry feature, allowing this to work
+#   even if the network was during its normal query window.
+# 
+# - We'll do this by checking the timestamps of the fallback files that we've
+#   written. If the files are clearly from yesterday or older, then, query
+#   Google for some new values and write the values to the files.
+#
+# - But don't simply check for "look if the file is >24hrs old", because then
+#   you would get a slow drift each day, where the file gets written a few
+#   seconds later each day until finally it wraps around and hits our 3:30am
+#   router health-reboot window. The 
+# 
+# - Scheme: Only perform the query this if we're post-2pm - This ensures a nice
+#   middle-of-the-afternoon check which works for most timezones and latitudes
+#   most of the time. This will also ensure we're looking at the upcoming
+#   sunrise time (tomorrow AM) as opposed to the sunrise from earlier today.
+#
+# - If the file is older than, say, 18 hours, (when the check is made, i.e.,
+#   during the post-2pm window), then we know it's yesterday's file but not a
+#   drifted version of a file from the same day.
+#
+# - Also, always perform the query when we are in debug mode, so that we can
+#   see if the query works.
 
-# Make sure the Google responses were non-null and non-empty.
-if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
+if [ $currentTimeSeconds -gt 50400 ] || [ ! -z "$debugMode" ]  # 50400 sec is 14hr since midnight.
 then
-  logMessage "info" "Problem obtaining sunrise/sunset from Google. Falling back to previously saved values: $sunrise/$sunset"
-else
-  # If the Google responses were non-empty, use them in place of the fallbacks.
-  logMessage "dbg" "Using Google-obtained times for sunrise/sunset"
-  logMessage "dbg" "   Sunrise: $googleSunriseString   (Fallback value:  $sunrise)"
-  logMessage "dbg" "   Sunset:  $googleSunsetString   (Fallback value:  $sunset)"
-  logMessage "dbg" ""
-  sunrise=$googleSunriseString
-  sunset=$googleSunsetString
-  
-  # If the Google responses were not empty, then write them into our fallback
-  # files. Use "-n" to ensure they do not write a trailing newline character.
-  echo -n "$sunrise" > "$crowcamSunrise"
-  echo -n "$sunset" > "$crowcamSunset"
+  # Set the file age limit in minutes. If a sunrise/sunset file is older than
+  # this many minutes, will be considered eligible for a refresh query. I'm using
+  # minutes for the value instead of seconds because the "find" command accepts
+  # a parameter of minutes for this particular kind of file search.
+  ageLimit=1080 # 1080 min is 18 hours of age.
+
+  # Check the file date/time stamps on the sunrise/sunset files. If they are
+  # recent enough, don't bother to check with Google. These statements return
+  # use the Bash "find" statement with the "-mmin" parameter (search based on
+  # the file age in minutes). The "+" symbol before the ageLimit indicates
+  # that the statement should return "true" if the file is *older* than the
+  # indicated age.
+  #
+  # Also perform the query if the files do not exist. This ensures that the
+  # program's first-run will write the necessary files if they have not been
+  # created yet.
+  if [ ! -f $crowcamSunrise ] || [ ! -f $crowcamSunset ] || [ $(find $crowcamSunrise -mmin +$ageLimit) ] || [ $(find $crowcamSunset -mmin +$ageLimit) ]
+  then
+    # Get more accurate sunrise/sunset results from Google if available.
+    logMessage "info" "Retrieving sunrise/sunset times from Google"
+    googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
+    googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
+
+    # Make sure the Google responses were non-null and non-empty.
+    if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
+    then
+      # Failure condition, did not retrieve values.
+      logMessage "err" "Problem obtaining sunrise/sunset from Google. Falling back to previously saved values: $sunrise/$sunset"
+    else
+      # Success condition. If the Google responses were non-empty, use them
+      # in place of the fallback values and write them to the fallback files.
+      sunrise=$googleSunriseString
+      sunset=$googleSunsetString
+      logMessage "info" "Retrieved sunrise/sunset times from Google: $sunrise/$sunset"
+      
+      # If the Google responses were not empty, then write them into our fallback
+      # files. Use "-n" to ensure they do not write a trailing newline character.
+      echo -n "$sunrise" > "$crowcamSunrise"
+      echo -n "$sunset" > "$crowcamSunset"
+    fi
+  fi
 fi
 
 # Check to make sure that the sunrise and sunset values are not empty. This
@@ -845,8 +905,7 @@ then
   exit 1
 fi
 
-# Convert our times into seconds-since-midnight.
-currentTimeSeconds=$(TimeToSeconds $currentTime)
+# Convert our sunrise/sunset times into seconds-since-midnight.
 sunriseSeconds=$(TimeToSeconds $sunrise)
 sunsetSeconds=$(TimeToSeconds $sunset)
 
@@ -906,18 +965,17 @@ fi
 if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
 then
   logMessage "dbg" "Checking status of $featureName feature"
-else
-  logMessage "dbg" "We are currently not in a position to check the $featureName feature state, so no network testing will be performed"
 
-  # If we can't check the stream state, then exit the program, the
-  # same as if the stream was already supposed to be down anyway.
-  exit 0
-fi
-streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
-if ! [[ $streamStatus == *"\"live_on\":true"* ]]
-then
-  logMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
-  exit 0
+  # in this mode it should be safe to perform the web api call.
+  streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
+  if ! [[ $streamStatus == *"\"live_on\":true"* ]]
+  then
+    logMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
+    exit 0
+  fi
+  
+else
+  logMessage "dbg" "Performing network tests in debug mode, since we cannot check the status of $featureName feature"
 fi
 
 
