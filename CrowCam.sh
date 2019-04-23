@@ -858,16 +858,41 @@ then
   ageLimit=1080 # 1080 min is 18 hours of age.
 
   # Check the file date/time stamps on the sunrise/sunset files. If they are
-  # recent enough, don't bother to check with Google. These statements return
+  # recent enough, don't bother to check with Google. To look up the file age,
   # use the Bash "find" statement with the "-mmin" parameter (search based on
   # the file age in minutes). The "+" symbol before the ageLimit indicates
   # that the statement should return "true" if the file is *older* than the
-  # indicated age.
+  # indicated age. This was obtained from this StackOverflow answer:
+  # https://stackoverflow.com/a/552750/3621748
   #
-  # Also perform the query if the files do not exist. This ensures that the
-  # program's first-run will write the necessary files if they have not been
-  # created yet.
-  if [ ! -f $crowcamSunrise ] || [ ! -f $crowcamSunset ] || [ $(find $crowcamSunrise -mmin +$ageLimit) ] || [ $(find $crowcamSunset -mmin +$ageLimit) ]
+  # However, that StackOverflow answer contains a fatal flaw which is not
+  # discussed there. There is a problem where the listed answer will not work
+  # if the path of the file contains a space. Instead, we must deviate from the
+  # StackOverflow answer a little bit. Here's why: When it fails to find a file
+  # of the appropriate age, it will return a null string, i.e., "false", and
+  # when it finds a file of the appropriate age, it will return a string of the
+  # file name including the path. This is usually OK for a true/false test,
+  # since a nonblank string is considered "true" by the "if" statement, EXCEPT
+  # if the path contains a space. In that case, it returns two unquoted strings
+  # separated by a space, which would cause a "Unary Operator Expected" error
+  # message if you don't put quotes in the right places. In this case, the
+  # quotes have to be around the call to the "find" command, because what we
+  # are quoting is the RETURN VALUE that the find command returns, as well as
+  # quoting the filename we're passing into it, like this:
+  #        "$( find "$filename" params )"
+  # I don't know why the double-nested double-quotes works there, but they do.
+  #
+  # Also, the test can no longer be a straight true/false, it must now be a
+  # test for a null string comparison in order to work correctly:
+  #        [ "$( find "$filename" params )" != "" ]
+  #
+  # Thanks to Shonky from the EmpegBBS for understanding and explaining this
+  # tricky issue: https://empegbbs.com/ubbthreads.php/topics/371885
+  #
+  # Finally: Also perform the Google Search if the files do not exist. This
+  # ensures that the program's first-run will write the necessary files if they
+  # have not been created yet.
+  if [ ! -f "$crowcamSunrise" ] || [ ! -f "$crowcamSunset" ] || [ "$( find "$crowcamSunrise" -mmin +$ageLimit )" != "" ] || [ "$( find "$crowcamSunset" -mmin +$ageLimit )" != "" ]
   then
     # Get more accurate sunrise/sunset results from Google if available.
     logMessage "info" "Retrieving sunrise/sunset times from Google"
