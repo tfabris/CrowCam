@@ -173,11 +173,11 @@ featureName="YouTube Live Broadcast"
 userAgent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"
 
 
-# Create a variable for the youtube-dl executable.
+# Create variables for the youtube-dl executable.
 #
 # Do not change this value.
 #
-executable="$DIR/youtube-dl"
+executableFilenameOnly="youtube-dl"
 
 
 # Slightly different file if testing on Windows PC.
@@ -186,8 +186,14 @@ executable="$DIR/youtube-dl"
 #
 if [[ $debugMode == *"Win"* ]]
 then
-    executable="$DIR/youtube-dl.exe"
+    executableFilenameOnly="youtube-dl.exe"
 fi
+
+# Create final variable of the path and filename of the youtube-dl executable.
+#
+# Do not change this value.
+#
+executable="$DIR/$executableFilenameOnly"
 
 
 # Create a variable for the API credentials file, we will read from this file.

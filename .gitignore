@@ -11,3 +11,4 @@ ffmpeg.exe
 wgetcookies.txt
 wget-log*
 CrowCamTemp*
+*.temp

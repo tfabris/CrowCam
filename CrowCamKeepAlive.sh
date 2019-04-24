@@ -176,7 +176,62 @@ then
     logMessage "dbg" "Live stream is not currently turned on. Will not perform the Keep Alive operation on the stream"
     exit 0
   fi
+else
+  logMessage "dbg" "We are not in a position to check the live stream status. Performing the Keep Alive operation on the stream in debug/test mode"
 fi
+
+# -----------------------------------------------------------------------------
+# Update the youtube-dl executable from the internet site.
+# -----------------------------------------------------------------------------
+executableUpdateUrl="https://yt-dl.org/downloads/latest/$executableFilenameOnly"
+
+# Pre-clean the temporary download file.
+rm -f "$executable.temp"
+
+# Download the update file. It is simply the actual loose executable file.
+logMessage "dbg" "wget $executableUpdateUrl -q -O $executable.temp"
+                  wget $executableUpdateUrl -q -O "$executable.temp"
+
+# Check to make sure that some file was downloaded at all.
+if [ ! -f "$executable.temp" ]
+then
+  logMessage "err" "Error: Unable to download $executableFilenameOnly. File did not exist after download. Will not update the file"
+else
+  # Check to make sure the file is nonzero and it is not an HTML error.
+  # File size if the file is successful will be either about 1758665 bytes on
+  # Linux or 8045118 bytes on Windows, whereas, if the file is an HTML error
+  # message then the file will be more like 85440 bytes of HTML text. So check
+  # to see if the file is large enough.
+  minimumsize=1000000
+  actualsize=$(wc -c <"$executable.temp")
+  logMessage "dbg" "Downloaded file was $actualsize bytes"
+  if [ $actualsize -ge $minimumsize ]; then
+    # Log download success.
+    logMessage "dbg" "File $executableFilenameOnly was successfully downloaded, copying into place"
+    
+    # Copy the file into its final resting place. The "\" before "cp" unaliases the
+    # command and forces it to work without prompting for an overwrite. More info
+    # can be found in these locations:
+    # https://www.rapidtables.com/code/linux/cp/cp-overwrite.html
+    # https://stackoverflow.com/a/8488292/3621748
+    \cp "$executable.temp" "$executable"
+
+    # Set the file permissions on the copied file.
+    logMessage "dbg" "chmod 770 $executable"
+                      chmod 770 "$executable"
+
+    # Post-clean the temporary download file, but only in the success case.
+    # In the failure case, leave the file behind for forensics.
+    rm -f "$executable.temp"
+  else
+    logMessage "err" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file"
+  fi
+fi
+
+
+# -----------------------------------------------------------------------------
+# Perform the keep-alive operation.
+# -----------------------------------------------------------------------------
 
 # Pre-clean the temporary downloaded file, including a partial copy if any.
 rm -f $tempFile
