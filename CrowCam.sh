@@ -511,41 +511,6 @@ TimeToSeconds()
 
 
 #------------------------------------------------------------------------------
-# Function: Convert a number of seconds duration into HH:MM format.
-# 
-# Parameters: $1 = integer of the number of seconds since midnight
-#
-# Returns: Formatted time string in HH:MM format.
-#
-# Technique gleaned from: https://unix.stackexchange.com/a/27014
-#------------------------------------------------------------------------------
-SecondsToTime()
-{
-  # If the number of seconds is a negative number, then the event is in the
-  # past, so flip the number to positive so that we can show the HH:MM time
-  # without a bunch of ugly "-" signs in the output. If the number is 0 or
-  # positive, then use the number as-is.
-  if [ $1 -ge 0 ]
-  then
-    # Use the number as-is if it's 0 or positive.
-    T=$1
-  else
-    # If the number is negative, flip it to positive by multiplying by -1.
-    T=$((-1*$1))
-  fi
-  
-  # Perform the calculations and formatting based on the code example.
-  local D=$((T/60/60/24))
-  local H=$((T/60/60%24))
-  local M=$((T/60%60))
-  local S=$((T%60))
-  
-  # Return the resulting string to the code that called us.
-  printf "%02d:%02d\n" $H $M
-}
-
-
-#------------------------------------------------------------------------------
 # Function: Output Time Difference.
 # 
 # Parameters: $1 = Integer seconds difference such as $sunriseDifferenceSeconds
