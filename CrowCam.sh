@@ -1164,14 +1164,17 @@ then
   then
     logMessage "dbg" "Local Synology stream key matches YouTube stream name/key"
   else
-    # Log an error message if they do not match.
-    logMessage "err" "Local Synology stream key does not match YouTube stream name/key. Stream was last edited $differencePrettyString ago, at $lastUpdatePrettyString local time"
+    # Log a set of error messages if they do not match.
+    logMessage "err" "Local Synology stream key does not match YouTube stream name/key"
+    logMessage "err" "Local Key:   $streamKey"
+    logMessage "err" "YouTube Key: $streamName"
+    logMessage "err" "Stream was last edited $differencePrettyString ago, at $lastUpdatePrettyString local time"
 
     # Write the new key to the Synology configuration automatically. Use the
     # Synology API's "Save" method to set "key=(the new key)". Response is
     # expected to be {"success":true} and will error out of the script if it
     # fails.
-    logMessage "info" "Updating local Synology stream key to be $streamName"
+    logMessage "info" "Updating local Synology stream name/key to be $streamName"
     WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
   fi
 else
