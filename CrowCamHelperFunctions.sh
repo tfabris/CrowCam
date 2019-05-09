@@ -273,4 +273,119 @@ SecondsToTime()
 }
 
 
+#------------------------------------------------------------------------------
+# Function: Authenticate with the YouTube API.
+# 
+# Parameters: None - uses global variables for its inputs.
+#
+# Returns: None - sets the global variable $accessToken
+#
+# Note: Requires detailed setup steps before this function will work. Must
+# follow the instructions in README.md and execute the file
+# "CrowCamCleanupPreparation.sh" as instructed there (after setting up the
+# account correctly first).
+#------------------------------------------------------------------------------
+YouTubeApiAuth()
+{
+  # First, read client ID and client secret from the client_id.json file
+
+  # Place contents of file into a variable.
+  clientIdOutput=$(< "$clientIdJson")
+
+  # Parse the Client ID and Client Secret out of the results. Some systems that I
+  # developed this on didn't have "jq" installed in them, so I am using commands
+  # which are more cross-platform compatible. The commands work like this:
+  #
+  # Insert a newline into the output before each occurrence of "client_id".
+  # (Special version of command with \'$' allows it to work on Mac OS.)
+  #                 sed 's/"client_id"/\'$'\n&/g'
+  # Use only lines containing "client_id" and return only the first result.
+  #                 grep -m 1 "client_id"
+  # Cut on quotes and return the fourth field only.
+  #                 cut -d '"' -f4
+
+  clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "client_id" | cut -d '"' -f4)
+  clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "client_secret" | cut -d '"' -f4)
+
+  # Make sure the clientId is not empty.
+  if test -z "$clientId" 
+  then
+      logMessage "err" "The variable clientId came up empty. Error parsing json file. Exiting program"
+      logMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
+
+      # Work-around to problem of being unable to exit the script from within
+      # this function. Send kill signal to top level PID and then exit
+      # the function to prevent additional commands from being executed.
+      kill -s TERM $TOP_PID
+      exit 1
+  fi
+
+  # Make sure the clientSecret is not empty.
+  if test -z "$clientSecret" 
+  then
+      logMessage "err" "The variable clientSecret came up empty. Error parsing json file. Exiting program"
+      logMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
+
+      # Work-around to problem of being unable to exit the script from within
+      # this function. Send kill signal to top level PID and then exit
+      # the function to prevent additional commands from being executed.
+      kill -s TERM $TOP_PID
+      exit 1
+  fi
+
+  # Next, read refresh token from the crowcam-tokens file. Place contents of
+  # file into a variable. Note that the refresh token file is expected to have
+  # no newline or carriage return characters within it, not even at the end of
+  # the file.
+  refreshToken=$(< "$crowcamTokens")
+
+  # Make sure the refreshToken is not empty.
+  if test -z "$refreshToken" 
+  then
+      logMessage "err" "The variable refreshToken came up empty. Error parsing tokens file. Exiting program"
+
+      # Work-around to problem of being unable to exit the script from within
+      # this function. Send kill signal to top level PID and then exit
+      # the function to prevent additional commands from being executed.
+      kill -s TERM $TOP_PID
+      exit 1
+  fi
+
+  # Use the refresh token to get a new access token each time we run the script.
+  # The refresh token has a long life, but the access token expires quickly,
+  # probably in an hour or so, so we'll get a new one each time we run the
+  # script.
+  accessTokenOutput=""
+  accessTokenOutput=$( curl -s --request POST --data "client_id=$clientId&client_secret=$clientSecret&refresh_token=$refreshToken&grant_type=refresh_token" https://accounts.google.com/o/oauth2/token )
+
+  # Parse the Access Token out of the results. Some systems that I developed this
+  # on didn't have "jq" installed in them, so I am using commands which are more
+  # cross-platform compatible. The commands work like this:
+  #
+  # Insert a newline into the output before each occurrence of "access_token".
+  # (Special version of command with \'$' allows it to work on Mac OS.)
+  #                 sed 's/"access_token"/\'$'\n&/g'
+  # Use only lines containing "access_token" and return only the first result.
+  #                 grep -m 1 "access_token"
+  # Cut on quotes and return the fourth field only.
+  #                 cut -d '"' -f4
+  accessToken=""
+  accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep -m 1 "access_token" | cut -d '"' -f4)
+
+  # Make sure the Access Token is not empty.
+  if test -z "$accessToken" 
+  then
+      logMessage "err" "The variable accessToken came up empty. Error accessing API. Exiting program"
+      logMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
+
+      # Work-around to problem of being unable to exit the script from within
+      # this function. Send kill signal to top level PID and then exit
+      # the function to prevent additional commands from being executed.
+      kill -s TERM $TOP_PID
+      exit 1
+  fi
+
+  # Log the access token to the output.
+  logMessage "dbg" "Access Token: $accessToken"
+}
 

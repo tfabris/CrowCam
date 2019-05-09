@@ -26,6 +26,8 @@ include well-documented methods for the following things:
   from properly resuming after a network outage.
 - How to work around the YouTube bug which prevents some users from being able
   to use the live stream's DVR functionality.
+- How to work around the YouTube bug which randomly resets your live stream's
+  secret name/key with no warning.
 - How to clean out old YouTube stream archives.
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
@@ -343,6 +345,15 @@ This script has two purposes:
     stream if your network has a brief glitch. This script will bounce the
     Live Broadcast feature if the network blips, automatically restoring the
     stream, and working around Synology's bug.
+- Fixes YouTube Bug:
+  - There is a bug in YouTube where it randomly clobbers your live stream's
+    secret name/key variable, which causes your YouTube stream to unexpectedly
+    stop working, because the variable no longer matches the one that you
+    plugged into the Synology Surveillance Station "Live Broadcast" dialog box.
+    This script will query the YouTube API, obtain the secret key, and make
+    sure that the one plugged into the Synology NAS matches the one on YouTube.
+    If not, it logs an error message and then automatically updates it, thus
+    keeping your stream alive, and working around YouTube's bug.
 - Sunrise/Sunset Scheduling:
   - Turns the YouTube live stream on and off based on the approximate sunrise
     and sunset for the camera's location and timezone. Because crows are

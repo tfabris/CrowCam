@@ -12,6 +12,24 @@
 #------------------------------------------------------------------------------
 
 
+# ----------------------------------------------------------------------------
+# Workaround to allow exiting a Bash script from inside a function call. See
+# this EmpegBBS post for details of how this works and why it's needed:
+# https://empegbbs.com/ubbthreads.php/topics/371554
+# Note: the functions which call these traps are in CrowCamHelperFunctions.sh
+# ----------------------------------------------------------------------------
+# Set a trap to receive a TERM signal from a function, and execute the code
+# block "exit 1", in the context of the top-level of this Bash script, as soon
+# as it receives the TERM signal.
+trap "exit 1" TERM
+
+# Create an exported environment variable named "TOP_PID" and populate it with
+# the PID of this top-level Bash script. Use "$$" to identify the top level
+# PID of this script. The function will use "$TOP_PID" to identify which PID to
+# send the TERM signal to, once a program exit is desired.
+export TOP_PID=$$
+
+
 #------------------------------------------------------------------------------
 # Startup configuration variables 
 #------------------------------------------------------------------------------
@@ -82,91 +100,9 @@ then
   exit 1
 fi
 
-#------------------------------------------------------------------------------
-# Read client ID and client secret from the client_id.json file
-#------------------------------------------------------------------------------
-
-# Place contents of file into a variable.
-clientIdOutput=$(< "$clientIdJson")
-
-# Parse the Client ID and Client Secret out of the results. Some systems that I
-# developed this on didn't have "jq" installed in them, so I am using commands
-# which are more cross-platform compatible. The commands work like this:
-#
-# Insert a newline into the output before each occurrence of "client_id".
-# (Special version of command with \'$' allows it to work on Mac OS.)
-#                 sed 's/"client_id"/\'$'\n&/g'
-# Use only lines containing "client_id" and return only the first result.
-#                 grep -m 1 "client_id"
-# Cut on quotes and return the fourth field only.
-#                 cut -d '"' -f4
-
-clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "client_id" | cut -d '"' -f4)
-clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "client_secret" | cut -d '"' -f4)
-
-# Make sure the clientId is not empty.
-if test -z "$clientId" 
-then
-    logMessage "err" "The variable clientId came up empty. Error parsing json file. Exiting program"
-    logMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
-    exit 1
-fi
-
-# Make sure the clientSecret is not empty.
-if test -z "$clientSecret" 
-then
-    logMessage "err" "The variable clientSecret came up empty. Error parsing json file. Exiting program"
-    logMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
-    exit 1
-fi
-
-#------------------------------------------------------------------------------
-# Read refresh token from the crowcam-tokens file
-#------------------------------------------------------------------------------
-
-# Place contents of file into a variable. Note that the refresh token file is
-# expected to have no newline or carriage return characters within it, not even
-# at the end of the file.
-refreshToken=$(< "$crowcamTokens")
-
-# Make sure the refreshToken is not empty.
-if test -z "$refreshToken" 
-then
-    logMessage "err" "The variable refreshToken came up empty. Error parsing tokens file. Exiting program"
-    exit 1
-fi
-
-# Use the refresh token to get a new access token each time we run the script.
-# The refresh token has a long life, but the access token expires quickly,
-# probably in an hour or so, so we'll get a new one each time we run the
-# script.
-accessTokenOutput=""
-accessTokenOutput=$( curl -s --request POST --data "client_id=$clientId&client_secret=$clientSecret&refresh_token=$refreshToken&grant_type=refresh_token" https://accounts.google.com/o/oauth2/token )
-
-# Parse the Access Token out of the results. Some systems that I developed this
-# on didn't have "jq" installed in them, so I am using commands which are more
-# cross-platform compatible. The commands work like this:
-#
-# Insert a newline into the output before each occurrence of "access_token".
-# (Special version of command with \'$' allows it to work on Mac OS.)
-#                 sed 's/"access_token"/\'$'\n&/g'
-# Use only lines containing "access_token" and return only the first result.
-#                 grep -m 1 "access_token"
-# Cut on quotes and return the fourth field only.
-#                 cut -d '"' -f4
-accessToken=""
-accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep -m 1 "access_token" | cut -d '"' -f4)
-
-# Make sure the Access Token is not empty.
-if test -z "$accessToken" 
-then
-    logMessage "err" "The variable accessToken came up empty. Error accessing API. Exiting program"
-    logMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
-    exit 1
-fi
-
-# Log the access token to the output.
-logMessage "dbg" "Access Token: $accessToken"
+# Authenticate with the YouTube API and receive the Access Token which allows
+# us to make YouTube API calls. Retrieves the $accessToken variable.
+YouTubeApiAuth
 
 # Get the channel information so that I can find the ID of the playlist of
 # "My Uploads".

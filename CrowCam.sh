@@ -710,7 +710,18 @@ fi
 logMessage "dbg" "Script exists in directory: $DIR"
 logMessage "dbg" "Current working directory:  $(pwd)"
 
+
 # Verify that the necessary external files exist.
+if [ ! -e "$clientIdJson" ]
+then
+  logMessage "err" "Missing file $clientIdJson"
+  exit 1
+fi
+if [ ! -e "$crowcamTokens" ]
+then
+  logMessage "err" "Missing file $crowcamTokens"
+  exit 1
+fi
 if [ ! -e "$apicreds" ]
 then
   logMessage "err" "Missing file $apicreds"
@@ -966,6 +977,205 @@ then
   
 else
   logMessage "dbg" "Performing network tests in debug mode, since we cannot check the status of $featureName feature"
+fi
+
+
+#------------------------------------------------------------------------------
+# Make sure the YouTube Stream Key is updated. Workaround for GitHub issue #24.
+#
+# YouTube bug: Sometimes YouTube changes my Stream Key out from under me. This
+# makes the stream simply stop working unexpectedly, with no warnings.
+#
+# Workaround their bug: Periodically check to see if the Stream Key (also
+# known as the "Stream Name/Key" even though it's not a "name" per se),
+# matches the value we have plugged into the Synology NAS for the "Live
+# Broadcast" feature.
+#
+# Choosing to do this in "CrowCam.sh" even though there is a chance for a
+# slight race condition with "CrowCamCleanup.sh" regarding the YouTube API
+# access token. I'm not certain if only one access token can be alive at once
+# or not. If more than one can be alive at a time, then no problem, both
+# scripts will work simultaneously. If not, then one of the scripts might die
+# if they both run at exactly the same time. I've tested running them both at
+# the same time and I haven't seen an error, so we might be OK.
+#------------------------------------------------------------------------------
+
+# Authenticate with the YouTube API and receive the Access Token which allows
+# us to make YouTube API calls. Retrieves the $accessToken variable.
+YouTubeApiAuth
+
+# Get the current live broadcast information details as a prelude to obtaining
+# the live stream's current/active "Secret Key" for the default live broadcast
+# video on my YouTube channel.
+# Some help here: https://stackoverflow.com/a/35329439/3621748
+# Best help was here: https://stackoverflow.com/a/40422459/3621748
+# Requesting the "part=contentDetails" gets us some variables including
+# "boundStreamId". The boundStreamId is needed for obtaining the stream's
+# secret key. Note that you could also request things like "part=snippet"
+# instead of the "part=contendDetails" to get more info, such as the video
+# description text, if you wanted. You can request a bunch of pieces of text
+# simultaneously by requesting them all together separated by commas, like
+# this: part=id,snippet,contentDetails,status
+curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+liveBroadcastOutput=""
+liveBroadcastOutput=$( curl -s $curlUrl )
+
+# Debugging output. Only needed if you run into a nasty bug here.
+# Leave deactivated most of the time.
+# logMessage "dbg" "Live Broadcast output information: $liveBroadcastOutput"
+
+# Extract the boundStreamId which is needed in order to find the secret key.
+boundStreamId=""
+boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+logMessage "dbg" "boundStreamId: $boundStreamId"
+
+# Make sure the boundStreamId is not empty.
+if test -z "$boundStreamId" 
+then
+    logMessage "err" "The variable boundStreamId came up empty. Error accessing API. Exiting program"
+    logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+    exit 1
+fi
+
+# While we're here, extract the UTC timestamp of the last change in the
+# stream. Note: Originally intended to help detect hung streams, this does not
+# actually help because it only describes when the stream's details changed,
+# such as the text description, not when the video stream itself last got
+# valid data. Still, this will be useful for the logs to (hopefully) figure
+# out exactly when YouTube yanked my stream key from me. I am hoping that if
+# YouTube wipes my stream key, they'll at least have the courtesy to mark it
+# as a "change" to the stream configuration, and I'll see the timestamp in the
+# log.
+boundStreamLastUpdateTimeMs=""
+boundStreamLastUpdateTimeMs=$(echo $liveBroadcastOutput | sed 's/"boundStreamLastUpdateTimeMs"/\'$'\n&/g' | grep -m 1 "boundStreamLastUpdateTimeMs" | cut -d '"' -f4)
+logMessage "dbg" "boundStreamLastUpdateTimeMs: $boundStreamLastUpdateTimeMs"
+
+# Make sure the boundStreamLastUpdateTimeMs is not empty.
+if test -z "$boundStreamLastUpdateTimeMs" 
+then
+    logMessage "err" "The variable boundStreamLastUpdateTimeMs came up empty. Error accessing API. Exiting program"
+    logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+    exit 1
+fi
+
+# Calculate difference between system current date and the date that was given
+# by the API query of the last update time. The date commands below will
+# convert the UTC string that the YouTube API returns, into local time
+# automatically, when running on Linux. Alas, not with Mac. For instance if
+# YouTube responds with boundStreamLastUpdateTimeMs="2019-05-08T15:26:11.276Z"
+# (which is 3:26pm UTC) then I get 8:26am output on Linux, but I get 3:26pm on
+# Mac. Fortunately, the final target run destination for this script will by
+# Linux on Synology, and Mac is only used for test/debug/development, so it's
+# OK if it's inaccurate during debug runs. For debugging purposes, we will
+# obtain the last update time two different ways, depending on if you're on
+# Mac or Linux.
+if [[ $debugMode == *"Mac"* ]]
+then
+    # Mac version - Note: Mac version is inaccurate due to failure to
+    # interpret GMT zone. Also Note: This line will also print the warming
+    # message "Warning: Ignoring 5 extraneous characters in date string
+    # (.xxxZ)" due to Mac not supporting the milliseconds (%f) formatting
+    # parameter. Basically, Mac's date commands suck compared to Linux.
+    lastUpdatePrettyString=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$boundStreamLastUpdateTimeMs")
+    lastUpdateDateTimeSeconds=$( date -j -f "%Y-%m-%dT%H:%M:%S" "$boundStreamLastUpdateTimeMs" +%s )
+else
+    # Linux version - Accurate, but only works on Linux.
+    lastUpdatePrettyString=$( date -d "$boundStreamLastUpdateTimeMs" )
+    lastUpdateDateTimeSeconds=$( date -d "$boundStreamLastUpdateTimeMs" +%s )
+fi
+
+# Use local time for your local side of the calculations. At least "date +%s"
+# works the same on Mac as on Linux.
+currentDateTimePrettyString=$( date )
+currentDateTimeSeconds=$( date +%s )
+
+# Get the difference between the two times.
+differenceDateTimeSeconds=$(( $currentDateTimeSeconds - $lastUpdateDateTimeSeconds ))
+differencePrettyString=$( SecondsToTime $differenceDateTimeSeconds )
+
+logMessage "dbg" "Date/Time of last YouTube Stream update:  $lastUpdateDateTimeSeconds seconds, $lastUpdatePrettyString"
+logMessage "dbg" "Date/Time of current system:              $currentDateTimeSeconds seconds, $currentDateTimePrettyString"
+logMessage "dbg" "Stream was last edited:                   $differenceDateTimeSeconds seconds ago, aka $differencePrettyString ago"
+
+# Obtain the stream key from the live stream details, now that we have the 
+# variable "boundStreamId" which is the thing that's required to get the key.
+# We can query for part=id,snippet,cdn,contentDetails,status, but "cdn" is the
+# one we really want, which contains the special key that we're looking for.
+# Note: if querying for a specific stream id, you have to remove "mine=true",
+# you can only query for "id=xxxxx" or query for "mine=true", not both.
+curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=cdn&id=$boundStreamId&access_token=$accessToken"
+liveStreamsOutput=""
+liveStreamsOutput=$( curl -s $curlUrl )
+
+# Debugging output. Only needed if you run into a nasty bug here.
+# Leave deactivated most of the time.
+# logMessage "dbg" "Live Streams output information: $liveStreamsOutput"
+
+# Obtain the secret stream key that is currently being used by my broadcast.
+# Note: This variable is named a bit confusingly. It is called "streamName" in
+# the YouTube API, and identified as "Stream Name/Key" on the YouTube stream
+# management web page. But it's not really a "name" per se, it's really a
+# secret key. We need this key, but we're using the same name as the YouTube
+# API variable name to identify it.
+streamName=""
+streamName=$(echo $liveStreamsOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "streamName" | cut -d '"' -f4)
+logMessage "dbg" "Secret YouTube stream name/key for this broadcast (aka streamName): $streamName"
+
+# Make sure the streamName is not empty.
+if test -z "$streamName" 
+then
+    logMessage "err" "The variable streamName came up empty. Error accessing API. Exiting program"
+    logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+    exit 1
+fi
+
+# Obtain the local Synology stream key that is currently plugged into the
+# "Live Broadcast" feature of Surveillance Station.
+
+# In order to check the Stream Key of the Synology Surveillance Station "Live
+# Broadcast" feature, we must either not be in debug mode, or if we are, we
+# must at least be running either on the Synology or at home where we can
+# access the API on the local LAN.
+if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+then
+  # Query the Synology API for the YouTube Live Broadcast details.
+  streamKeyQuery=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
+  
+  # Extract the "key" from the Synology response which is needed in order to find the secret key.
+  streamKey=""
+  streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "key" | cut -d '"' -f4)
+  logMessage "dbg" "Local Synology stream key (needs to match YouTube stream name/key): $streamKey"
+
+  # Make sure the streamKey is not empty.
+  if test -z "$streamKey" 
+  then
+      logMessage "err" "The variable streamKey came up empty. Error accessing API. Exiting program"
+      logMessage "err" "The streamKeyQuery was $( echo $streamKeyQuery | tr '\n' ' ' )"
+      exit 1
+  fi
+
+  # Compare the YouTube stream name/key to our local Synology stream key.
+  # Note: This is a case-sensitive comparison, but I think we can get away
+  # with that here. Reasons: When setting up the stream, odds are that the
+  # user used copy and paste to put the key into the box in the Live Broadcast
+  # dialog box. So they should be the same case. Also, if the case was
+  # different, then this step would immediately fix it anyway.
+  if [[ "$streamKey" == "$streamName" ]]
+  then
+    logMessage "dbg" "Local Synology stream key matches YouTube stream name/key"
+  else
+    # Log an error message if they do not match.
+    logMessage "err" "Local Synology stream key does not match YouTube stream name/key. Stream was last edited $differencePrettyString ago, at $lastUpdatePrettyString local time"
+
+    # Write the new key to the Synology configuration automatically. Use the
+    # Synology API's "Save" method to set "key=(the new key)". Response is
+    # expected to be {"success":true} and will error out of the script if it
+    # fails.
+    logMessage "info" "Updating local Synology stream key to be $streamName"
+    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
+  fi
+else
+  logMessage "dbg" "Not in a position to obtain the Stream Key of $featureName feature - Will not attempt the Stream Key fix procedure"
 fi
 
 
