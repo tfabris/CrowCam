@@ -37,7 +37,10 @@ youTubeUrl="https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live"
 # videos in the "My Uploads" section of the stream, with titles which match
 # this string exactly, will be deleted.
 #
-# Update this value to be the exact title of your live stream videos.
+# Note: Will also be used for checking that it's OK to work with the stream
+# key of this stream name, as part of the fix for GitHub issue #27.
+#
+# Update this value to be the exact same title as your live stream.
 #
 titleToDelete="CrowCam"
 
@@ -189,6 +192,7 @@ then
     executableFilenameOnly="youtube-dl.exe"
 fi
 
+
 # Create final variable of the path and filename of the youtube-dl executable.
 #
 # Do not change this value.
@@ -216,17 +220,20 @@ clientIdJson="$DIR/client_id.json"
 #
 crowcamTokens="$DIR/crowcam-tokens"
 
+
 # Create a variable for the "crowcam-sunrise" file, we will write to this file.
 #
 # Do not change this value.
 #
 crowcamSunrise="$DIR/crowcam-sunrise"
 
+
 # Create a variable for the "crowcam-sunset" file, we will write to this file.
 #
 # Do not change this value.
 #
 crowcamSunset="$DIR/crowcam-sunset"
+
 
 # Temporary file to store the contents of the live stream that we are (for a 
 # short time) downloading during a "CrowCamKeepAlive" run. The file will get

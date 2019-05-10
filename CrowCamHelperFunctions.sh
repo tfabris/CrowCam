@@ -375,17 +375,17 @@ YouTubeApiAuth()
   # Make sure the Access Token is not empty.
   if test -z "$accessToken" 
   then
-      logMessage "err" "The variable accessToken came up empty. Error accessing API. Exiting program"
+      logMessage "err" "The variable accessToken came up empty. Error accessing YouTube API"
       logMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
-
-      # Work-around to problem of being unable to exit the script from within
-      # this function. Send kill signal to top level PID and then exit
-      # the function to prevent additional commands from being executed.
-      kill -s TERM $TOP_PID
-      exit 1
+  
+      # Fix GitHub issue #28 - Do not crash out of the program if we can't
+      # retrieve the access token. Just print an error and let the calling
+      # program decide whether or not to fail if the access token is empty. 
+        # kill -s TERM $TOP_PID
+        # exit 1
+  else
+      # Log the access token to the output.
+      logMessage "dbg" "Access Token: $accessToken"
   fi
-
-  # Log the access token to the output.
-  logMessage "dbg" "Access Token: $accessToken"
 }
 

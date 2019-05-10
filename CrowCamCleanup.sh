@@ -104,6 +104,14 @@ fi
 # us to make YouTube API calls. Retrieves the $accessToken variable.
 YouTubeApiAuth
 
+# If the access Token is empty, crash out of the program. An error message
+# will have already been printed if this is the case, so we can just bail
+# out without saying anything to the console here.
+if test -z "$accessToken" 
+then
+    exit 1
+fi
+
 # Get the channel information so that I can find the ID of the playlist of
 # "My Uploads".
 curlUrl="https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true&access_token=$accessToken"
