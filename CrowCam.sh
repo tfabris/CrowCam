@@ -1033,6 +1033,8 @@ fi
 #     Best help was here: https://stackoverflow.com/a/40422459/3621748
 # Note: We are querying "liveBroadcasts" in the URL here, not "liveStreams",
 # they are two different things (and I'm not clear on the exact difference).
+# For more details of the items found in the response, look here:
+# https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
 # Also, we must request "broadcastType=persistent&mine=true" in order to get
 # the correct details of our live stream's default/main live broadcast stream.
 # Requesting the "part=contentDetails" gets us some variables including
@@ -1066,6 +1068,8 @@ else
   # variable "boundStreamId" which is the thing that's required to get the key.
   # Note: We are querying "liveStreams" in the URL here, not "liveBroadcasts",
   # they are two different things (and I'm not clear on the exact difference).
+  # More details of the various items in the response are found here:
+  # https://developers.google.com/youtube/v3/live/docs/liveStreams#resource
   # We can query for part=id,snippet,cdn,contentDetails,status, but "cdn" is the
   # one we really want, which contains the special key that we're looking for.
   # Note: if querying for a specific stream id, you have to remove "mine=true",
