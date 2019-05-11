@@ -81,16 +81,7 @@ then
   logMessage "err" "Missing file $crowcamTokens"
   exit 1
 fi
-if [ ! -e "$apicreds" ]
-then
-  logMessage "err" "Missing file $apicreds"
-  exit 1
-fi
-if [ ! -e "$executable" ]
-then
-  logMessage "err" "Missing file $executable"
-  exit 1
-fi
+
 
 
 
@@ -201,9 +192,9 @@ else
     logMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
     streamIsWorkingCorrectly=false
   else
-    # Stream status should be "active" if the stream is up and working. Any
-    # other value means the stream is down at the current time.
-    if [ "$healthStatus" == "bad" ] || [ "$healthStatus" == "noData" ]
+    # Health status should be "good" or "ok" if the stream is up and working.
+    # Any other value means the stream is down at the current time.
+    if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ]
     then
         logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
         streamIsWorkingCorrectly=false
