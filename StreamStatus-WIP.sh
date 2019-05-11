@@ -96,7 +96,7 @@ fi
 
 #------------------------------------------------------------------------------
 # Experimental code to see if we can get useful stream status information.
-# Attempting to work on issues #23 and #24.
+# Attempting to work on issues #23 and #26.
 #------------------------------------------------------------------------------
 
 # Global variable for keeping track of whether the stream is working correctly.
