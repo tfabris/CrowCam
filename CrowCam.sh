@@ -310,9 +310,15 @@ Test_Stream()
         logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
         StreamIsUp=false
       else
-        # Health status should be "good" or "ok" if the stream is up and working.
-        # Any other value means the stream is down at the current time.
-        if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ]
+        # Health status should be "good" or "ok" if the stream is up and
+        # working. I have discovered that the stream can also be reported as
+        # "bad" if there is low bandwidth, even though the stream is working
+        # fine, so we actually must consider "bad" to be good, even though
+        # it's the exact opposite of what you might expect. Receiving "noData"
+        # or other values mean the stream is down at the current time, and
+        # that's the thing we're truly looking for here: A genuinely dead
+        # stream, not just a low-bandwidth stream.
+        if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ] && [ "$healthStatus" != "bad" ]
         then
             logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
             StreamIsUp=false
