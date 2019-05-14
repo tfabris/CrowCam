@@ -70,7 +70,12 @@ source "$DIR/CrowCamHelperFunctions.sh"
 # working again. Note: This test has no hysteresis - a network problem will
 # always trigger a stream bounce. In my experience, all network blips will
 # cause the stream to hang, unless I bounce it.
-NumberOfTests=6
+#
+# Note: Attempting to address issue #29 - Do not call the YouTube API as often.
+# Try to prevent busting the quota by running this script every two minutes
+# instead of every one minute. This requires 12 network tests spaced at 10
+# seconds apart, instead of 6 calls at 10 seconds apart.
+NumberOfTests=12
 
 # Number of seconds to pause between network-up-check tests.
 PauseBetweenTests=10
@@ -78,16 +83,20 @@ PauseBetweenTests=10
 # Number of times we will loop and retest for stream problems if it detects
 # that the stream is down. This is a secondary test which will only be run if
 # the network is up. This attempts to connect to the stream and retrieve its
-# URL. If an error is received, it will perform a small amount of hysteresis
+# info. If an error is received, it will perform a small amount of hysteresis
 # (repeated tests, controlled by these variables). This hysteresis is needed on
 # the stream test, but not the network test, because the stream test has proven
 # to be flaky, sometimes reporting a problem when there is actually no problem.
 # If, after the hysteresis retries, there is still a problem reported in the
 # stream, then we will bounce the stream, even if the network hasn't gone down.
-NumberOfStreamTests=6
+#
+# Note: Attempting to address issue #29 - Do not call the YouTube API as often.
+# Try to prevent busting the quota by only re-querying 2 times over 1.5mins
+# rather than 6 times over 1.5mins.
+NumberOfStreamTests=2
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=15
+PauseBetweenStreamTests=45
 
 # When in test mode, pause for a shorter period between tests.
 if [ ! -z "$debugMode" ]
@@ -191,145 +200,140 @@ Test_Stream()
     # to false below if any of our failure conditions are hit.
     StreamIsUp=true
 
-    # Temporary Bugfix: Disable the API version of the stream check. Turns out
-    # it causes a "Quota Exceeded" error after having run for a number of
-    # times. For now, commenting out the code while leaving it in place until
-    # I figure out what to do.
+    # Attempting to address issues #23 and #26: Alternate method of testing
+    # the live stream. Instead of using YouTube-DL, use the YouTube API
+    # instead.
+    #
+    # Note: For now I'm using this in parallel with YouTube-DL. If the results
+    # prove to be equally as good as YouTube-DL over time, I will remove the
+    # YouTube-DL code from CrowCam.sh (though I'll leave it in
+    # CrowCamKeepAlive.sh).
 
-    # # Attempting to address issues #23 and #26: Alternate method of testing
-    # # the live stream. Instead of using YouTube-DL, use the YouTube API
-    # # instead.
-    # #
-    # # Note: For now I'm using this in parallel with YouTube-DL. If the results
-    # # prove to be equally as good as YouTube-DL over time, I will remove the
-    # # YouTube-DL code from CrowCam.sh (though I'll leave it in
-    # # CrowCamKeepAlive.sh).
+    # Authenticate with the YouTube API and receive the Access Token which allows
+    # us to make YouTube API calls. Retrieves the $accessToken variable.
+    #
+    # Note: at this point in the code we have already called YouTubeApiAuth
+    # once, when we checked the Stream Key. However, we should do it again
+    # here, because we are inside our hysteresis loop. There is a chance that
+    # a brief blip in the availability of the YouTube API would cause too many
+    # false-positives and make us bounce our stream. We want to truly perform
+    # a genuine re-try to check the stream status, and to do that, we must
+    # also re-try the authentication process, because that's one of the things
+    # that the hysteresis is protecting against.
+    YouTubeApiAuth
 
-    # # Authenticate with the YouTube API and receive the Access Token which allows
-    # # us to make YouTube API calls. Retrieves the $accessToken variable.
-    # #
-    # # Note: at this point in the code we have already called YouTubeApiAuth
-    # # once, when we checked the Stream Key. However, we should do it again
-    # # here, because we are inside our hysteresis loop. There is a chance that
-    # # a brief blip in the availability of the YouTube API would cause too many
-    # # false-positives and make us bounce our stream. We want to truly perform
-    # # a genuine re-try to check the stream status, and to do that, we must
-    # # also re-try the authentication process, because that's one of the things
-    # # that the hysteresis is protecting against.
-    # YouTubeApiAuth
+    # Make sure the Access Token is not empty. Part of the fix for issue #28, do
+    # not exit the program if the access token fails, just keep rolling.
+    if test -z "$accessToken" 
+    then
+      # An error message will have already been printed about the access token at
+      # this point, so we only need to flag the issue for later processing.
+      StreamIsUp=false
+    else
+      # Get the current live broadcast information details as a prelude to obtaining
+      # the live stream details. Details of the items in the response are found here:
+      # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+      liveBroadcastOutput=""
+      liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
+    
+      # Extract the boundStreamId which is needed in order to find other information.
+      boundStreamId=""
+      boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+      logMessage "dbg" "boundStreamId: $boundStreamId"
+    fi
+    
+    # Make sure the boundStreamId is not empty.
+    if test -z "$boundStreamId"
+    then
+      logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API. Test_Stream failed"
+      logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+      StreamIsUp=false
+    else
+      # Obtain the liveStreams status details and look at the resource results in
+      # the response. Details of the various items in the response are found here:
+      # https://developers.google.com/youtube/v3/live/docs/liveStreams#resource
+      curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=status&id=$boundStreamId&access_token=$accessToken"
+      liveStreamsOutput=""
+      liveStreamsOutput=$( curl -s -m 20 $curlUrl )
 
-    # # Make sure the Access Token is not empty. Part of the fix for issue #28, do
-    # # not exit the program if the access token fails, just keep rolling.
-    # if test -z "$accessToken" 
-    # then
-    #   # An error message will have already been printed about the access token at
-    #   # this point, no need to do anything other than flag the issue for later.
-    #   StreamIsUp=false
-    # fi
+      # Debugging output. Leave disabled most of the time.
+      #   logMessage "dbg" "Live Streams output response:"
+      #   logMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
+      #   logMessage "dbg" "----------------------------------------------------------"
 
-    # # Get the current live broadcast information details as a prelude to obtaining
-    # # the live stream details. Details of the items in the response are found here:
-    # # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-    # curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
-    # liveBroadcastOutput=""
-    # liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
+      # Get "streamStatus" from the results. Looking for the field "active" in
+      # these results:
+      #           "status": {
+      #            "streamStatus": "active",
+      #            "healthStatus": {
+      #             "status": "ok",
+      # Possible expected values should be:
+      #     active – The stream is in active state which means the user is receiving data via the stream.
+      #     created – The stream has been created but does not have valid CDN settings.
+      #     error – An error condition exists on the stream.
+      #     inactive – The stream is in inactive state which means the user is not receiving data via the stream.
+      #     ready – The stream has valid CDN settings.
+      streamStatus=""
+      streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+      logMessage "dbg" "streamStatus: $streamStatus"
+    
+      # Make sure the streamStatus is not empty.
+      if test -z "$streamStatus"
+      then
+        logMessage "err" "The variable streamStatus came up empty. Error accessing YouTube API"
+        logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+        StreamIsUp=false
+      else
+        # Stream status should be "active" if the stream is up and working. Any
+        # other value means the stream is down at the current time.
+        if [ "$streamStatus" != "active" ]
+        then
+            logMessage "err" "The streamStatus is not active. Value retrieved was: $streamStatus"
+            StreamIsUp=false
+        fi
+      fi
 
-    # # Extract the boundStreamId which is needed in order to find other information.
-    # boundStreamId=""
-    # boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
-    # logMessage "dbg" "boundStreamId: $boundStreamId"
+      # Extract the "status" field of the  "healthStatus" object, but that means
+      # we're parsing for the second occurrence of the variable "status" in the
+      # results. So the grep statement must be -m 2 instead of -m 1, so that it
+      # returns two results, and then we have to "tail -1" to get only the last of
+      # the two results. This works to tease out the "ok" from this text:
+      #           "status": {
+      #            "streamStatus": "active",
+      #            "healthStatus": {
+      #             "status": "ok",
+      # Possible expected values should be:
+      #    good – There are no configuration issues for which the severity is warning or worse.
+      #    ok – There are no configuration issues for which the severity is error.
+      #    bad – The stream has some issues for which the severity is error.
+      #    noData – YouTube's live streaming backend servers do not have any information about the stream's health status.
+      healthStatus=""
+      healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
+      logMessage "dbg" "healthStatus: $healthStatus"
 
-    # # Make sure the boundStreamId is not empty.
-    # if test -z "$boundStreamId"
-    # then
-    #   logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API. Test_Stream failed"
-    #   logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
-    #   StreamIsUp=false
-    # else
-    #   # Obtain the liveStreams status details and look at the resource results in
-    #   # the response. Details of the various items in the response are found here:
-    #   # https://developers.google.com/youtube/v3/live/docs/liveStreams#resource
-    #   curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=status&id=$boundStreamId&access_token=$accessToken"
-    #   liveStreamsOutput=""
-    #   liveStreamsOutput=$( curl -s -m 20 $curlUrl )
-
-    #   # Debugging output. Leave disabled most of the time.
-    #   #   logMessage "dbg" "Live Streams output response:"
-    #   #   logMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
-    #   #   logMessage "dbg" "----------------------------------------------------------"
-
-    #   # Get "streamStatus" from the results. Looking for the field "active" in
-    #   # these results:
-    #   #           "status": {
-    #   #            "streamStatus": "active",
-    #   #            "healthStatus": {
-    #   #             "status": "ok",
-    #   # Possible expected values should be:
-    #   #     active – The stream is in active state which means the user is receiving data via the stream.
-    #   #     created – The stream has been created but does not have valid CDN settings.
-    #   #     error – An error condition exists on the stream.
-    #   #     inactive – The stream is in inactive state which means the user is not receiving data via the stream.
-    #   #     ready – The stream has valid CDN settings.
-    #   streamStatus=""
-    #   streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
-    #   logMessage "dbg" "streamStatus: $streamStatus"
-      
-    #   # Make sure the streamStatus is not empty.
-    #   if test -z "$streamStatus"
-    #   then
-    #     logMessage "err" "The variable streamStatus came up empty. Error accessing YouTube API"
-    #     logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
-    #     StreamIsUp=false
-    #   else
-    #     # Stream status should be "active" if the stream is up and working. Any
-    #     # other value means the stream is down at the current time.
-    #     if [ "$streamStatus" != "active" ]
-    #     then
-    #         logMessage "err" "The streamStatus is not active. Value retrieved was: $streamStatus"
-    #         StreamIsUp=false
-    #     fi
-    #   fi
-
-    #   # Extract the "status" field of the  "healthStatus" object, but that means
-    #   # we're parsing for the second occurrence of the variable "status" in the
-    #   # results. So the grep statement must be -m 2 instead of -m 1, so that it
-    #   # returns two results, and then we have to "tail -1" to get only the last of
-    #   # the two results. This works to tease out the "ok" from this text:
-    #   #           "status": {
-    #   #            "streamStatus": "active",
-    #   #            "healthStatus": {
-    #   #             "status": "ok",
-    #   # Possible expected values should be:
-    #   #    good – There are no configuration issues for which the severity is warning or worse.
-    #   #    ok – There are no configuration issues for which the severity is error.
-    #   #    bad – The stream has some issues for which the severity is error.
-    #   #    noData – YouTube's live streaming backend servers do not have any information about the stream's health status.
-    #   healthStatus=""
-    #   healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
-    #   logMessage "dbg" "healthStatus: $healthStatus"
-      
-    #   # Make sure the healthStatus is not empty.
-    #   if test -z "$healthStatus" 
-    #   then
-    #     logMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
-    #     logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
-    #     StreamIsUp=false
-    #   else
-    #     # Health status should be "good" or "ok" if the stream is up and
-    #     # working. I have discovered that the stream can also be reported as
-    #     # "bad" if there is low bandwidth, even though the stream is working
-    #     # fine, so we actually must consider "bad" to be good, even though
-    #     # it's the exact opposite of what you might expect. Receiving "noData"
-    #     # or other values mean the stream is down at the current time, and
-    #     # that's the thing we're truly looking for here: A genuinely dead
-    #     # stream, not just a low-bandwidth stream.
-    #     if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ] && [ "$healthStatus" != "bad" ]
-    #     then
-    #         logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
-    #         StreamIsUp=false
-    #     fi    
-    #   fi
-    # fi    
+      # Make sure the healthStatus is not empty.
+      if test -z "$healthStatus" 
+      then
+        logMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
+        logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+        StreamIsUp=false
+      else
+        # Health status should be "good" or "ok" if the stream is up and
+        # working. I have discovered that the stream can also be reported as
+        # "bad" if there is low bandwidth, even though the stream is working
+        # fine, so we actually must consider "bad" to be good, even though
+        # it's the exact opposite of what you might expect. Receiving "noData"
+        # or other values mean the stream is down at the current time, and
+        # that's the thing we're truly looking for here: A genuinely dead
+        # stream, not just a low-bandwidth stream.
+        if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ] && [ "$healthStatus" != "bad" ]
+        then
+            logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
+            StreamIsUp=false
+        fi    
+      fi
+    fi    
 
     # Original code which uses YouTube-DL to check if the stream is up.
     # if the YouTube API code above works well over time (i.e., it matches
@@ -1138,14 +1142,6 @@ fi
 # known as the "Stream Name/Key" even though it's not a "name" per se),
 # matches the value we have plugged into the Synology NAS for the "Live
 # Broadcast" feature.
-#
-# Choosing to do this in "CrowCam.sh" even though there is a chance for a
-# slight race condition with "CrowCamCleanup.sh" regarding the YouTube API
-# access token. I'm not certain if only one access token can be alive at once
-# or not. If more than one can be alive at a time, then no problem, both
-# scripts will work simultaneously. If not, then one of the scripts might die
-# if they both run at exactly the same time. I've tested running them both at
-# the same time and I haven't seen an error, so we might be OK.
 #------------------------------------------------------------------------------
 
 # Fix for issue #28 - preset a global flag variable that I will be using below.
@@ -1167,40 +1163,41 @@ YouTubeApiAuth
 if test -z "$accessToken" 
 then
   # An error message will have already been printed about the access token at
-  # this point, no need to do anything other than flag the issue for later.
+  # this point. So here, we only need to set the flag indicating that it is not
+  # safe to try to work on the key.
   safeToFixStreamKey=false
+else
+  # Get the current live broadcast information details as a prelude to obtaining
+  # the live stream's current/active "Secret Key" for the default live broadcast
+  # video on my YouTube channel.
+  #     Some help here:     https://stackoverflow.com/a/35329439/3621748
+  #     Best help was here: https://stackoverflow.com/a/40422459/3621748
+  # Note: We are querying "liveBroadcasts" in the URL here, not "liveStreams",
+  # they are two different things (and I'm not clear on the exact difference).
+  # For more details of the items found in the response, look here:
+  # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
+  # Also, we must request "broadcastType=persistent&mine=true" in order to get
+  # the correct details of our live stream's default/main live broadcast stream.
+  # Requesting the "part=contentDetails" gets us some variables including
+  # "boundStreamId". The boundStreamId is needed for obtaining the stream's
+  # secret key. We also need to request "part=snippet" in addition to
+  # "part=contendDetails" to get more info, because we need to obtain the "title"
+  # field as well, for verification that we're working on the right video. You
+  # can request a bunch of "parts" of data simultaneously by requesting them all
+  # together separated by commas, like part=id,snippet,contentDetails,status etc.
+  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+  liveBroadcastOutput=""
+  liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
+
+  # Debugging output. Only needed if you run into a nasty bug here.
+  # Leave deactivated most of the time.
+  # logMessage "dbg" "Live Broadcast output information: $liveBroadcastOutput"
+
+  # Extract the boundStreamId which is needed in order to find the secret key.
+  boundStreamId=""
+  boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+  logMessage "dbg" "boundStreamId: $boundStreamId"
 fi
-
-# Get the current live broadcast information details as a prelude to obtaining
-# the live stream's current/active "Secret Key" for the default live broadcast
-# video on my YouTube channel.
-#     Some help here:     https://stackoverflow.com/a/35329439/3621748
-#     Best help was here: https://stackoverflow.com/a/40422459/3621748
-# Note: We are querying "liveBroadcasts" in the URL here, not "liveStreams",
-# they are two different things (and I'm not clear on the exact difference).
-# For more details of the items found in the response, look here:
-# https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-# Also, we must request "broadcastType=persistent&mine=true" in order to get
-# the correct details of our live stream's default/main live broadcast stream.
-# Requesting the "part=contentDetails" gets us some variables including
-# "boundStreamId". The boundStreamId is needed for obtaining the stream's
-# secret key. We also need to request "part=snippet" in addition to
-# "part=contendDetails" to get more info, because we need to obtain the "title"
-# field as well, for verification that we're working on the right video. You
-# can request a bunch of "parts" of data simultaneously by requesting them all
-# together separated by commas, like part=id,snippet,contentDetails,status etc.
-curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
-liveBroadcastOutput=""
-liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
-
-# Debugging output. Only needed if you run into a nasty bug here.
-# Leave deactivated most of the time.
-# logMessage "dbg" "Live Broadcast output information: $liveBroadcastOutput"
-
-# Extract the boundStreamId which is needed in order to find the secret key.
-boundStreamId=""
-boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
-logMessage "dbg" "boundStreamId: $boundStreamId"
 
 # Make sure the boundStreamId is not empty.
 if test -z "$boundStreamId" 
@@ -1272,65 +1269,6 @@ else
   fi
 fi
 
-# While we're here, extract the UTC timestamp of the last change in the
-# stream. Note: Originally intended to help detect hung streams, this does not
-# actually help because it only describes when the stream's details changed,
-# such as the text description, not when the video stream itself last got
-# valid data. Still, this will be useful for the logs to (hopefully) figure
-# out exactly when YouTube yanked my stream key from me. I am hoping that if
-# YouTube wipes my stream key, they'll at least have the courtesy to mark it
-# as a "change" to the stream configuration, and I'll see the timestamp in the
-# log.
-boundStreamLastUpdateTimeMs=""
-boundStreamLastUpdateTimeMs=$(echo $liveBroadcastOutput | sed 's/"boundStreamLastUpdateTimeMs"/\'$'\n&/g' | grep -m 1 "boundStreamLastUpdateTimeMs" | cut -d '"' -f4)
-logMessage "dbg" "boundStreamLastUpdateTimeMs: $boundStreamLastUpdateTimeMs"
-
-# Make sure the boundStreamLastUpdateTimeMs is not empty.
-if test -z "$boundStreamLastUpdateTimeMs" 
-then
-  logMessage "err" "The variable boundStreamLastUpdateTimeMs came up empty. Error accessing YouTube API"
-  safeToFixStreamKey=false
-else
-  # Calculate difference between system current date and the date that was given
-  # by the API query of the last update time. The date commands below will
-  # convert the UTC string that the YouTube API returns, into local time
-  # automatically, when running on Linux. Alas, not with Mac. For instance if
-  # YouTube responds with boundStreamLastUpdateTimeMs="2019-05-08T15:26:11.276Z"
-  # (which is 3:26pm UTC) then I get 8:26am output on Linux, but I get 3:26pm on
-  # Mac. Fortunately, the final target run destination for this script will by
-  # Linux on Synology, and Mac is only used for test/debug/development, so it's
-  # OK if it's inaccurate during debug runs. For debugging purposes, we will
-  # obtain the last update time two different ways, depending on if you're on
-  # Mac or Linux.
-  if [[ $debugMode == *"Mac"* ]]
-  then
-      # Mac version - Note: Mac version is inaccurate due to failure to
-      # interpret GMT zone. Also Note: This line will also print the warming
-      # message "Warning: Ignoring 5 extraneous characters in date string
-      # (.xxxZ)" due to Mac not supporting the milliseconds (%f) formatting
-      # parameter. Basically, Mac's date commands suck compared to Linux.
-      lastUpdatePrettyString=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$boundStreamLastUpdateTimeMs")
-      lastUpdateDateTimeSeconds=$( date -j -f "%Y-%m-%dT%H:%M:%S" "$boundStreamLastUpdateTimeMs" +%s )
-  else
-      # Linux version - Accurate, but only works on Linux.
-      lastUpdatePrettyString=$( date -d "$boundStreamLastUpdateTimeMs" )
-      lastUpdateDateTimeSeconds=$( date -d "$boundStreamLastUpdateTimeMs" +%s )
-  fi
-
-  # Use local time for your local side of the calculations. At least "date +%s"
-  # works the same on Mac as on Linux.
-  currentDateTimePrettyString=$( date )
-  currentDateTimeSeconds=$( date +%s )
-
-  # Get the difference between the two times.
-  differenceDateTimeSeconds=$(( $currentDateTimeSeconds - $lastUpdateDateTimeSeconds ))
-  differencePrettyString=$( SecondsToTime $differenceDateTimeSeconds )
-
-  logMessage "dbg" "Date/Time of last YouTube Stream update:  $lastUpdateDateTimeSeconds seconds, $lastUpdatePrettyString"
-  logMessage "dbg" "Date/Time of current system:              $currentDateTimeSeconds seconds, $currentDateTimePrettyString"
-  logMessage "dbg" "Stream was last edited:                   $differenceDateTimeSeconds seconds ago, aka $differencePrettyString ago"
-fi
-
 # Fix for issue #28 - Check to make sure it is safe to work on the stream key.
 # If any of the YouTube API retreivals above failed, then none of this section
 # below should get executed. Skip it rather than exiting the program.
@@ -1375,7 +1313,6 @@ then
       logMessage "err" "Local Synology stream key does not match YouTube stream name/key"
       logMessage "err" "Local Key:   $streamKey"
       logMessage "err" "YouTube Key: $streamName"
-      logMessage "err" "Stream was last edited $differencePrettyString ago, at $lastUpdatePrettyString local time"
 
       # Write the new key to the Synology configuration automatically. Use the
       # Synology API's "Save" method to set "key=(the new key)". Response is

@@ -266,13 +266,13 @@ In the Synology Control Panel, open the Task Scheduler, and create three tasks:
 - Schedule: Set all three tasks to run "Daily"
 - Schedule: First run time: Set all three tasks to "00:00"
 - Schedule: Frequency: 
-    - CrowCam Controller: Frequency: "Every Minute"
+    - CrowCam Controller: Frequency: "Every 2 Minutes"
     - CrowCam Cleanup:    Frequency: "Every Day" 
     - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
-  for a task that runs every minute, the highest run time available will be
-  "23:59", a task that runs every 20 minutes will be "23:40", etc.
+  for a task that runs every 2 minutes, the highest run time available will be
+  "23:58", a task that runs every 20 minutes will be "23:40", etc.
 - Task Settings, Run Command, User-defined script: create a command in each
   task to run each of the the corresponding scripts, for example:
 ```
@@ -293,6 +293,8 @@ be very chatty there, though expect to see messages in the following
 situations:
 - The Synology log should show a message near sunrise or sunset, when the
   stream is being turned on and off.
+- The Synology log should show a message each afternoon when the script Googles
+  for the sunrise and sunset times for that day.
 - If your local internet connection has a temporary outage, you should see
   Synology log entries which indicate that the script is bouncing the "Live
   Broadcast" feature to restart the failed stream.
