@@ -266,13 +266,13 @@ In the Synology Control Panel, open the Task Scheduler, and create three tasks:
 - Schedule: Set all three tasks to run "Daily"
 - Schedule: First run time: Set all three tasks to "00:00"
 - Schedule: Frequency: 
-    - CrowCam Controller: Frequency: "Every 2 Minutes"
+    - CrowCam Controller: Frequency: "Every 5 Minutes"
     - CrowCam Cleanup:    Frequency: "Every Day" 
     - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
-  for a task that runs every 2 minutes, the highest run time available will be
-  "23:58", a task that runs every 20 minutes will be "23:40", etc.
+  for a task that runs every 5 minutes, the highest run time available will be
+  "23:55", a task that runs every 20 minutes will be "23:40", etc.
 - Task Settings, Run Command, User-defined script: create a command in each
   task to run each of the the corresponding scripts, for example:
 ```

@@ -72,10 +72,10 @@ source "$DIR/CrowCamHelperFunctions.sh"
 # cause the stream to hang, unless I bounce it.
 #
 # Note: Attempting to address issue #29 - Do not call the YouTube API as often.
-# Try to prevent busting the quota by running this script every two minutes
-# instead of every one minute. This requires 12 network tests spaced at 10
-# seconds apart, instead of 6 calls at 10 seconds apart.
-NumberOfTests=12
+# Try to prevent busting the quota by running this script every five minutes
+# instead of every one minute. This requires 30 network tests spaced at 10
+# seconds apart, instead of 6 tests at 10 seconds apart.
+NumberOfTests=30
 
 # Number of seconds to pause between network-up-check tests.
 PauseBetweenTests=10
@@ -91,12 +91,12 @@ PauseBetweenTests=10
 # stream, then we will bounce the stream, even if the network hasn't gone down.
 #
 # Note: Attempting to address issue #29 - Do not call the YouTube API as often.
-# Try to prevent busting the quota by only re-querying 2 times over 1.5mins
+# Try to prevent busting the quota by only re-querying 3 times over 1.5mins
 # rather than 6 times over 1.5mins.
-NumberOfStreamTests=2
+NumberOfStreamTests=3
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=45
+PauseBetweenStreamTests=30
 
 # When in test mode, pause for a shorter period between tests.
 if [ ! -z "$debugMode" ]
