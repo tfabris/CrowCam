@@ -98,11 +98,13 @@ NumberOfStreamTests=3
 # Number of seconds to pause between stream-up-check tests.
 PauseBetweenStreamTests=30
 
-# When in test mode, pause for a shorter period between tests.
+# When in test mode, pause for a shorter period between tests, and do fewer
+# loops of the main network test loop.
 if [ ! -z "$debugMode" ]
 then
   PauseBetweenTests=1
   PauseBetweenStreamTests=1
+  NumberOfTests=5
 fi
 
 # Number of retries that the script will perform, to wait for the network to
@@ -332,6 +334,23 @@ Test_Stream()
             logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
             StreamIsUp=false
         fi    
+      fi
+
+      # Attempt to catch issue #23 and correct it. Look for any occurrence
+      # of this particular error in the status output and bounce the stream
+      # if it's there:
+      #    "configurationIssues": [
+      #     {
+      #      "type": "videoIngestionFasterThanRealtime",
+      #      "severity": "error",
+      #      "reason": "Check video settings",
+      #      "description": "Your encoder is sending data faster than realtime (multipleseconds of video each second). You must rate limit your livevideo upload to approximately 1 second of video each second."
+      #     },
+      #
+      if [[ $liveStreamsOutput == *"videoIngestionFasterThanRealtime"* ]]
+      then
+            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionFasterThanRealtime"
+            StreamIsUp=false
       fi
     fi    
 
