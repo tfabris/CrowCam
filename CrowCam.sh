@@ -377,7 +377,7 @@ Test_Stream()
     # This is the first test, where I am testing if the return code is zero.
     if [[ $errorStatus != 0 ]]
     then
-      logMessage "dbg" "$executable finished with exit code $errorStatus, live stream is down"
+      logMessage "err" "$executable finished with exit code $errorStatus, live stream is down"
       StreamIsUp=false
     fi
 
@@ -386,7 +386,7 @@ Test_Stream()
     # blank, that would also mean the stream is probably down. Return false.
     if [ -z "$finalUrl" ]
     then
-      logMessage "dbg" "No URL was obtained from $executable, live stream is down"
+      logMessage "err" "No URL was obtained from $executable, live stream is down"
       StreamIsUp=false
     fi
 
@@ -396,7 +396,7 @@ Test_Stream()
     # is unavailable." but there could be others. 
     if [[ $finalUrl == *"ERROR"* ]] || [[ $finalUrl == *"error"* ]] || [[ $finalUrl == *"Error"* ]]
     then
-      logMessage "dbg" "$executable returned an error message string, live stream is down"
+      logMessage "err" "$executable returned an error message string, live stream is down"
       StreamIsUp=false
     fi
 
