@@ -24,6 +24,8 @@ include well-documented methods for the following things:
 - How to script based on sunrise and sunset.
 - How to work around the Synology bug which prevents the YouTube live stream
   from properly resuming after a network outage.
+- How to work around the Synology bug which causes the YouTube live stream to
+  hang with a "spinny death icon".
 - How to work around the YouTube bug which prevents some users from being able
   to use the live stream's DVR functionality.
 - How to work around the YouTube bug which randomly resets your live stream's
@@ -50,9 +52,9 @@ Table of Contents
 ==============================================================================
 - [Project Information                                                             ](#project-information)
 - [Requirements                                                                    ](#requirements)
-- [Configuration                                                                    ](#configuration)
-- [Usage and Troubleshooting                                                       ](#usage-and-troubleshooting)
 - [What Each Script Does                                                           ](#what-each-script-does)
+- [Configuration                                                                   ](#configuration)
+- [Usage and Troubleshooting                                                       ](#usage-and-troubleshooting)
 - [Resources                                                                       ](#resources)
 - [Acknowledgments                                                                 ](#acknowledgments)
 
@@ -103,11 +105,90 @@ Requirements
   script, and if desired, to test and debug all of the scripts. This can be on
   a Linux computer, a MacOS computer, or even a Windows computer if you install
   the [Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
+- These scripts must be set up correctly. See: [Configuration](#configuration)
 
 Setup of your YouTube live stream is not documented here. See the YouTube and
 Synology documentation to set this up. Make sure that the camera, NAS, Synology
 Surveillance Station, and "Live Broadcast" features are all working correctly,
 and that you can see the stream on your YouTube channel.
+
+
+What Each Script Does
+------------------------------------------------------------------------------
+####  CrowCam.sh
+This script has multiple purposes:
+- Fixes Synology Bugs:
+  - There is a very specific bug in Synology Surveillance Station: the "Live
+    Broadcast" feature does not automatically restart its YouTube live stream
+    after a network interruption. So if you are using Surveillance Station as
+    the tool to create an unattended live webcam, then you will lose your
+    stream if your network has a brief glitch. This script will bounce the
+    Live Broadcast feature if the network blips, automatically restoring the
+    stream, and working around Synology's bug.
+  - Sometimes YouTube displays a hung stream, showing a "spinning icon of
+    death" instead of displaying new video content. This script tries to detect
+    when the stream is in this state, and will restart the stream
+    automatically, working around this bug.
+- Fixes YouTube Bugs:
+  - There is a bug in YouTube where it randomly clobbers your live stream's
+    secret name/key variable, which causes your YouTube stream to unexpectedly
+    stop working, because the variable no longer matches the one that you
+    plugged into the Synology Surveillance Station "Live Broadcast" dialog box.
+    This script will query the YouTube API, obtain the new key, and make sure
+    that the one plugged into the Synology NAS matches the one on YouTube. If
+    not, it logs an error message, and then automatically updates the key,
+    keeping your stream alive and working around YouTube's bug.
+- Sunrise/Sunset Scheduling:
+  - Turns the YouTube live stream on and off based on the approximate sunrise
+    and sunset for the camera's location and timezone. Because crows are
+    diurnal, it is not useful to leave the YouTube stream running all of the
+    time. For example, there is no point in consuming upstream bandwidth to
+    display a YouTube stream during the night when no crows are around. Though
+    we could set a simple time-on-the-clock schedule, either via the Synology
+    features or the camera features, it's much more useful to base it around
+    local sunrise/sunset times, which is closer to the schedule that the crows
+    follow. Since sunrise/sunset isn't built-in to Surveillance Station, we
+    must code this ourselves. Additionally, this leaves Surveillance Station
+    (and all attached cameras) still running 24/7, so that it can still be used
+    for its intended security camera features; the scheduling feature only
+    stops and starts the YouTube "Live Broadcast", without touching the rest
+    of the security camera features.
+
+####  CrowCamCleanup.sh
+This script cleans up old archives: 
+- Each day, a new CrowCam video is created on the YouTube channel. Every video
+  has a default title, in our case, that default title is always "CrowCam".
+- We don't want the channel archives filling up with a bunch of old videos
+  named "CrowCam" that we're not using.
+- This script will delete old videos from the channel, provided that:
+  - The video name is exactly "CrowCam" (or whatever name is configured), and
+    the video has not been renamed.
+  - The video is old enough, for example, more than 5 days old. This is also
+    configurable.
+- This allows us to save interesting videos by simply renaming them from the
+  default name, and it gives us a buffer of a few days to look at recent videos
+  before they get deleted.
+
+####  CrowCamKeepAlive.sh
+This script keeps the live stream alive:
+- It works around a bug in YouTube which prevents users from seeing the history
+  of a live video stream. 
+- YouTube has a bug where, if there is nobody watching the live stream, then
+  the next person who joins the stream will not be able to scroll backwards in
+  the timeline. YouTube calls this feature "DVR functionality", and it should
+  theoretically work all the time, allowing any user to scroll up to four
+  hours backwards into the live stream. But it does not always work, and the
+  reason it doesn't work is not documented by YouTube. I did some experiments,
+  and I discovered that as long as somebody is watching the stream, the DVR
+  functionality works as expected for that user, and for all subsequent users,
+  starting at the moment that the user began watching the stream. But once
+  everyone drops off the stream, then about half an hour later, the DVR
+  functionality stops working, so later joiners will not be able to scroll
+  backwards. Based on these experiments, it looks like YouTube doesn't bother
+  to fill their DVR cache unless someone is using it, with a hysteresis
+  algorithm that's configured for about 30 minutes or so.
+- This program works around the bug by making it so that "someone" (i.e., the
+  CrowCamKeepAlive script) is always watching the stream intermittently.
 
 
 Configuration
@@ -150,9 +231,9 @@ these script files:
      wget https://yt-dl.org/downloads/latest/youtube-dl.exe -O ./youtube-dl.exe
 
 ####  Obtain OAuth credentials:
-OAuth credentials are used for giving the CrowCamCleanup script permission to
-access the YouTube account, so that it can delete old video stream archives
-from the YouTube account's "uploads" directory. You should only need create
+OAuth credentials are used for giving these scripts permission to access the
+YouTube account, so that it can do things such as clean up old video stream
+archives and check on the status of the stream. You should only need create
 these credentials once, unless something goes wrong or you revoke the
 credentials.
 - Navigate to your Google developer account dashboard at
@@ -254,7 +335,8 @@ Set the access permissions on the folder and its files, using the SSH prompt:
      chmod 660 client_id.json
 
 ####  Create automated tasks in the Synology Task Scheduler
-In the Synology Control Panel, open the Task Scheduler, and create three tasks:
+In the Synology Control Panel, open the Task Scheduler, and create three tasks,
+each task should have the following settings:
 - Type of tasks: "Scheduled Task", "User-defined script"
 - General, General Settings: Run all three tasks under User: "root"
 - General, General Settings: Name each of the three tasks as follows:
@@ -333,80 +415,6 @@ If you see the error message "synologset1: command not found", it most likely
 means that you are trying to debug one of the scripts on your local PC, but
 you have forgotten to set the debugMode= flag to the appropriate setting in 
 the script.
-
-
-What Each Script Does
-------------------------------------------------------------------------------
-####  CrowCam.sh
-This script has two purposes:
-- Fixes Synology Bug:
-  - There is a very specific bug in Synology Surveillance Station: the "Live
-    Broadcast" feature does not automatically restart its YouTube live stream
-    after a network interruption. So if you are using Surveillance Station as
-    the tool to create an unattended live webcam, then you will lose your
-    stream if your network has a brief glitch. This script will bounce the
-    Live Broadcast feature if the network blips, automatically restoring the
-    stream, and working around Synology's bug.
-- Fixes YouTube Bug:
-  - There is a bug in YouTube where it randomly clobbers your live stream's
-    secret name/key variable, which causes your YouTube stream to unexpectedly
-    stop working, because the variable no longer matches the one that you
-    plugged into the Synology Surveillance Station "Live Broadcast" dialog box.
-    This script will query the YouTube API, obtain the secret key, and make
-    sure that the one plugged into the Synology NAS matches the one on YouTube.
-    If not, it logs an error message and then automatically updates it, thus
-    keeping your stream alive, and working around YouTube's bug.
-- Sunrise/Sunset Scheduling:
-  - Turns the YouTube live stream on and off based on the approximate sunrise
-    and sunset for the camera's location and timezone. Because crows are
-    diurnal, it is not useful to leave the YouTube stream running all of the
-    time. For example, there is no point in consuming upstream bandwidth to
-    display a YouTube stream which does not have any chance of crow activity.
-    Though we could set a simple time-on-the-clock schedule, either via the
-    Synology features or the camera features, it's much more useful to base it
-    around local sunrise/sunset times, which is closer to the schedule that the
-    crows follow. Since sunrise/sunset isn't built-in to Surveillance Station,
-    we must code this ourselves. Additionally, this leaves Surveillance Station
-    (and all attached cameras) still running 24/7, so that it can still be used
-    for its intended security camera features; the scheduling feature only
-    stops and starts the YouTube "Live Broadcast", without touching the rest
-    of the security camera features.
-
-####  CrowCamCleanup.sh
-This script cleans up old archives: 
-- Each day, a new CrowCam video is created on our YouTube channel. Every video
-  has a default title, in our case, that default title is always "CrowCam".
-- We don't want the channel archives filling up with a bunch of old videos
-  that we're not using.
-- This script will delete old videos from the channel, provided that:
-  - The video name is exactly "CrowCam" (or whatever name you configure), and
-    the video has not been renamed.
-  - The video is old enough, for example, more than 5 days old. This is also
-    configurable.
-- This allows us to save a favorite video by simply renaming it from the
-  default name, and it gives us a buffer of a few days to look at recent videos
-  before they get deleted.
-
-####  CrowCamKeepAlive.sh
-This script keeps the live stream alive:
-- It works around a bug in YouTube which prevents users from seeing the history
-  of a live video stream. 
-- YouTube has a bug where, if there is nobody watching the live stream, then
-  the next person who joins the stream will not be able to scroll backwards in
-  the timeline. YouTube calls this feature "DVR functionality", and it should
-  theoretically work all the time, allowing any user to scroll up to four
-  hours backwards into the live stream. But it does not always work, and the
-  reason it doesn't work is not documented by YouTube. I did some experiments,
-  and I discovered that as long as somebody is watching the stream, the DVR
-  functionality works as expected for that user, and for all subsequent users,
-  starting at the moment that the user began watching the stream. But once
-  everyone drops off the stream, then about half an hour later, the DVR
-  functionality stops working, so later joiners will not be able to scroll
-  backwards. Based on these experiments, it looks like YouTube doesn't bother
-  to fill their DVR cache unless someone is using it, with a hysteresis
-  algorithm that's configured for about 30 minutes or so.
-- This program works around the bug by making it so that "someone" (i.e., the
-  CrowCamKeepAlive script) is always watching the stream intermittently.
 
 
 Resources
