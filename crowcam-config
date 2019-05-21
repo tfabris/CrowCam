@@ -235,6 +235,12 @@ crowcamSunrise="$DIR/crowcam-sunrise"
 crowcamSunset="$DIR/crowcam-sunset"
 
 
+# Create a variable for the "crowcam-camstart" file, we will write to this file.
+#
+# Do not change this value.
+#
+crowcamCamstart="$DIR/crowcam-camstart"
+
 # Temporary file to store the contents of the live stream that we are (for a 
 # short time) downloading during a "CrowCamKeepAlive" run. The file will get
 # cleaned up at the end of normal runs, but will be left on the hard disk at

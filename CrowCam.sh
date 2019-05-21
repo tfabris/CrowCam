@@ -753,6 +753,7 @@ ChangeStreamState()
 
     # Bring the stream back up. Start it here by using the "Save" method to
     # set live_on=true. Response is expected to be {"success":true}.
+    WriteStreamStartTime
     WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
 
     # Insert a deliberate pause after starting the stream, to make sure that
@@ -820,12 +821,16 @@ BounceTheStream()
   # Wait a while to make sure it is really turned off. I had some troubles
   # in testing, where, if I set this number too small, that I would not get
   # a successful stream reset. Now using a nice long chunk of time here to
-  # make absolutely sure. This seems to work long-term.
+  # make absolutely sure. This seems to work long-term. I have only seen one
+  # example where it wasn't long enough to cause a stream split. Every other
+  # time, when the stream is bounced, this length of time caused a stream
+  # split. This tells me the value is precisely as long as it needs to be.
   logMessage "info" "Pausing, after bringing down the stream, before bringing it up again"
   sleep 95
   
   # Bring the stream back up. Start it here by using the "Save" method to
   # set live_on=true. Response is expected to be {"success":true}.
+  WriteStreamStartTime
   WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
 
   # Log that we're done.
@@ -854,6 +859,33 @@ BounceTheStream()
   # GitHub Issue #17.
   logMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
   sleep 40
+}
+
+
+#------------------------------------------------------------------------------
+# Function: Write the time to a file each time we start the YouTube stream.
+# 
+# Write the current wall clock time, in seconds, to a certain file, intended
+# to track the most recent time that we started the stream for any reason.
+# 
+# Make sure to call this function each time we start the YouTube stream for any
+# reason.
+# 
+# Parameters: None.
+# Returns: Nothing.
+#------------------------------------------------------------------------------
+WriteStreamStartTime()
+{
+  # Get the current time string into a variable, but use only hours and
+  # minutes. This code is deliberately not accurate down to the second.
+  currentStreamStartTime="`date +%H:%M`"
+
+  # Convert our current time into seconds-since-midnight.
+  currentStreamStartTimeSeconds=$(TimeToSeconds $currentStreamStartTime)
+
+  # Write the current time, in seconds, into the specified file.
+  # Use "-n" to ensure there is no trailing newline character.
+  echo -n "$currentStreamStartTimeSeconds" > "$crowcamCamstart"
 }
 
 
@@ -1146,6 +1178,109 @@ then
 else
   logMessage "dbg" "Performing network tests in debug mode, since we cannot check the status of $featureName feature"
 fi
+
+
+#------------------------------------------------------------------------------
+# Issue #34: Workaround for YouTube limiting videos to about 12 hours long.
+#
+# Check to see if the total video length is expected to exceed 11 hours today,
+# and if so, bounce the stream at the midpoint of the day, to force the video
+# to split the archive into two equal pieces. But... only do this if there
+# hasn't already been some bouncing today which would have shortened the video
+# to an acceptable length anyway. Do this by also checking the last time that
+# we started the video stream (which we write to a file at start time).
+#------------------------------------------------------------------------------
+
+# Calculate the total length of the stream, and calculate the half way point
+# between the stream start and stop points.
+totalStreamSeconds=$(($stopServiceSeconds - $startServiceSeconds))
+if [ $totalStreamSeconds -lt 1 ]
+then
+  logMessage "err" "Problem calculating sunrise/sunset values. Total stream length is $totalStreamSeconds seconds"
+  exit 1
+fi
+halfTimeSeconds=$(( ($totalStreamSeconds / 2) + $startServiceSeconds ))
+
+# Read the value from the file which stores the last time-of-day our camera was
+# started (in seconds). This value might be blank or null if running on a fresh
+# system due to the file not being present. In theory, value might be later in
+# the day than current time, because it might be a value from yesterday. These
+# weird situations will likely only occur in debug/test runs, not in normal run
+# states. In normal run states, we will only read this value if the stream is
+# already started and the value has already been written, because this section
+# of code is only executed if the stream is up and running. Worst cases of bad
+# values: If this value is blank/null, then the midday bounce will occur at the
+# midpoint time of the day even if maybe it wasn't strictly needed. If this
+# value is in the future (for example if it was yesterday's value) then the
+# bounce will not occur and at worst the debug output will display some
+# negative numbers.
+if [ -f "$crowcamCamstart" ]
+then
+  camstartSeconds=$(< "$crowcamCamstart")
+fi
+
+# Avoid errors in the math calculations if no camstart value was retrieved.
+if test -z "$camstartSeconds" 
+then
+  camstartSeconds=0
+fi
+
+# Calculate how long it's been since our last camstart based on
+# $currentTimeSeconds. Although we are farther along in the code than we were
+# when $currentTimeSeconds was first retrieved, we shouldn't be very far from
+# that actual time. At worst, the wall clock might be several seconds past
+# $currentTimeSeconds but that's close enough for our calculations.
+secondsSinceCamstart=$(($currentTimeSeconds - $camstartSeconds))
+
+# Calculate the maximum potential segment length of the currently-streaming
+# segment, from now until the end of the day, based on when the camera was last
+# started versus the time of day that we expect the stream to get shut down at
+# the end of the day. This assumes the best-case scenario where we there will
+# be no more network or stream problems for the rest of the day. If this number
+# ends up being greater than 11 hours, then a midday bounce might be needed.
+maxPotentialSeconds=$(($stopServiceSeconds - $camstartSeconds))
+
+# Display all values we will be using to base our midday bounce decision upon.
+logMessage "dbg" ""
+logMessage "dbg" "Today's stream length is         $totalStreamSeconds $(SecondsToTime $totalStreamSeconds) long"
+logMessage "dbg" "Today's stream's halfway time    $halfTimeSeconds $(SecondsToTime $halfTimeSeconds)"
+logMessage "dbg" "Camera was last started at       $camstartSeconds $(SecondsToTime $camstartSeconds)"
+logMessage "dbg" "Time since camera was started    $secondsSinceCamstart $(SecondsToTime $secondsSinceCamstart) ago"
+logMessage "dbg" "Max potential segment length     $maxPotentialSeconds $(SecondsToTime $maxPotentialSeconds) long"
+
+# Decide if a midday bounce is needed at all. Check if the total uptime today
+# is longer than YouTube's maximum archive length. Though YouTube seems to
+# limit the length to about 12 hours, it's not quite exactly 12 hours each
+# time; it seems to end up being 11 hours and change. So we'll make our
+# detection occur at the 11 hour mark to be safe. (11 hours is 39600 seconds.)
+# Also check if the maximum possible length of the current stream segment could
+# exceed the maximum archive length too, and if the current time is past
+# today's halfway point.
+#
+# In theory, I shouldn't need the first check for totalStreamSeconds. The
+# totalStreamSeconds should always be equal to, or longer than, the
+# maxPotentialSeconds. Really, maxPotentialSeconds is the one I really care
+# about. The totalStreamSeconds check is only here for safety in cases where
+# weird values might be retrieved sometimes.
+if [ $totalStreamSeconds -gt 39600 ] && [ $maxPotentialSeconds -gt 39600 ] && [ $currentTimeSeconds -gt $halfTimeSeconds ] 
+then
+  # Log to the Synology system log that we are doing a midday bounce.
+  logMessage "info" "A midday stream bounce is needed, to prevent the current stream segment from exceeding the maximum video length"
+  
+  # Perform the bounce, but only if we are not in debug mode.
+  if [ -z "$debugMode" ]
+  then
+    BounceTheStream
+  else
+    logMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+  fi
+else
+  logMessage "dbg" "Midday bounce not needed"
+fi
+
+# Log a blank line in the debug console output to separate the midday bounce
+# reports from the remainder of the output.
+logMessage "dbg" ""
 
 
 #------------------------------------------------------------------------------

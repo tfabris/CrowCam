@@ -30,6 +30,8 @@ include well-documented methods for the following things:
   to use the live stream's DVR functionality.
 - How to work around the YouTube bug which randomly resets your live stream's
   secret name/key with no warning.
+- How to work around the YouTube bug which limits the length of your video
+  live stream to 12 hours maximum.
 - How to clean out old YouTube stream archives.
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
@@ -98,9 +100,9 @@ Requirements
 - A working YouTube live stream, using the "Live Broadcast" feature of
   Surveillance Station to feed the camera's output to the live stream. 
 - A free Google Developer account, required to create the OAuth tokens needed
-  to access the YouTube account. These tokens are used by CrowCamCleanup to
-  delete old stream archives. If you don't already have one, create one at
-  https://developers.google.com/
+  to access the YouTube account. The account is used to access the API to
+  delete old stream archives, and to query the stream status. If you don't
+  already have an account, create one at https://developers.google.com/
 - A Bash shell prompt on your local computer, to execute the preparation
   script, and if desired, to test and debug all of the scripts. This can be on
   a Linux computer, a MacOS computer, or even a Windows computer if you install
@@ -115,6 +117,9 @@ and that you can see the stream on your YouTube channel.
 
 What Each Script Does
 ------------------------------------------------------------------------------
+There are three main scripts in this archive, which are configured to run on
+an automatic timer on the Synology NAS. The three scripts are:
+
 ####  CrowCam.sh
 This script has multiple purposes:
 - Fixes Synology Bugs:
@@ -138,6 +143,15 @@ This script has multiple purposes:
     that the one plugged into the Synology NAS matches the one on YouTube. If
     not, it logs an error message, and then automatically updates the key,
     keeping your stream alive and working around YouTube's bug.
+  - There is a bug in YouTube where it arbitrarily decides that your video's
+    archive length must be limited to slightly less than 12 hours maximum. This
+    prevents you from recording a long summer day's worth of livestream. If
+    your video exceeds that length, YouTube truncates that day's video archive
+    file shortly before the 12 hour mark, potentially making you lose the
+    archived video of events in the evening. This script works around that bug,
+    by pre-calculating the expected length of today's live stream, and
+    splitting the stream at midday, in cases where the stream is expected to
+    exceed 11 hours or so.
 - Sunrise/Sunset Scheduling:
   - Turns the YouTube live stream on and off based on the approximate sunrise
     and sunset for the camera's location and timezone. Because crows are
