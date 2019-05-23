@@ -346,6 +346,17 @@ Test_Stream()
             logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionFasterThanRealtime"
             StreamIsUp=false
       fi
+
+      # Also check for this error type and see how often it comes up.
+      if [[ $liveStreamsOutput == *"VideoIngestionStarved"* ]]
+      then
+            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: VideoIngestionStarved"
+
+            # For now, simply log the error above but don't do anything about
+            # it. Uncomment this line if the logs show this error being useful
+            # to detect.
+            #     StreamIsUp=false
+      fi
     fi    
                                 # Issues #23 and #26 - Attempt using only the API to test the stream.
                                 #
