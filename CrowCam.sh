@@ -349,9 +349,9 @@ Test_Stream()
       fi
 
       # Also check for this error type and see how often it comes up.
-      if [[ $liveStreamsOutput == *"VideoIngestionStarved"* ]]
+      if [[ $liveStreamsOutput == *"videoIngestionStarved"* ]]
       then
-            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: VideoIngestionStarved"
+            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved"
 
             # For now, simply log the error above but don't do anything about
             # it. Uncomment this line if the logs show this error being useful
