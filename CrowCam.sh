@@ -91,12 +91,13 @@ PauseBetweenTests=10
 # stream, then we will bounce the stream, even if the network hasn't gone down.
 #
 # Note: Attempting to address issue #29 - Do not call the YouTube API as often.
-# Try to prevent busting the quota by only re-querying 3 times over 1.5mins
-# rather than 6 times over 1.5mins.
-NumberOfStreamTests=3
+# Try to prevent busting the quota by re-querying more slowly. You can view
+# your quota usage here:
+# https://console.developers.google.com/apis/api/youtube.googleapis.com/quotas?project=crowcam
+NumberOfStreamTests=4
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=30
+PauseBetweenStreamTests=40
 
 # When in test mode, pause for a shorter period between tests, and do fewer
 # loops of the main network test loop.
