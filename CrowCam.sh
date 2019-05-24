@@ -833,12 +833,9 @@ BounceTheStream()
   # Wait a while to make sure it is really turned off. I had some troubles
   # in testing, where, if I set this number too small, that I would not get
   # a successful stream reset. Now using a nice long chunk of time here to
-  # make absolutely sure. This seems to work long-term. I have only seen one
-  # example where it wasn't long enough to cause a stream split. Every other
-  # time, when the stream is bounced, this length of time caused a stream
-  # split. This tells me the value is precisely as long as it needs to be.
+  # make absolutely sure.
   logMessage "info" "Pausing, after bringing down the stream, before bringing it up again"
-  sleep 95
+  sleep 105
   
   # Bring the stream back up. Start it here by using the "Save" method to
   # set live_on=true. Response is expected to be {"success":true}.
