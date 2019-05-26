@@ -771,7 +771,7 @@ ChangeStreamState()
     # stream is up (in the network test section), and discovering the wheels
     # weren't quite turning yet, and then raising a false alarm.
     logMessage "dbg" "Sleeping briefly, to allow for stream startup"
-    sleep 30
+    sleep 50
   fi
   
   # Behavior when stream is set to up, at a time when it should be down.
@@ -863,7 +863,7 @@ BounceTheStream()
   # UP-UPDATE: Experimentation indicates that we still need a pause. See
   # GitHub Issue #17.
   logMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
-  sleep 40
+  sleep 50
 }
 
 
