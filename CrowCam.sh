@@ -351,60 +351,14 @@ Test_Stream()
       # Also check for this error type and see how often it comes up.
       if [[ $liveStreamsOutput == *"videoIngestionStarved"* ]]
       then
-            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved"
-            StreamIsUp=false
+            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes."
+            
+            # Update 2019-05-27 - Do not bounce the stream due to the error
+            # "videoIngestionStarved" because it cries wolf too frequently.
+            # Only log the situation and allow the program to continue.
+            # StreamIsUp=false
       fi
     fi    
-                                # Issues #23 and #26 - Attempt using only the API to test the stream.
-                                #
-                                # # Original code which uses YouTube-DL to check if the stream is up.
-                                # # if the YouTube API code above works well over time (i.e., it matches
-                                # # the Youtube-DL results below most of the time), then remove the
-                                # # YouTube-DL-related code in the section below.
-                                #
-                                # # Use youtube-dl to perform the first step of attempting to download the
-                                # # live stream, just enough to either get an error message or not. This is
-                                # # the minimum work needed to find out if the stream is alive or not. It
-                                # # uses this parameter to youtube-dl to "get" the final URL of the stream.
-                                # #         -g, --get-url Simulate, quiet but print URL
-                                # # This will either retrieve a valid URL for the stream, or fail with an
-                                # # error message.
-                                # #      logMessage "dbg" "\"$executable\" $youTubeUrl -g"
-                                # finalUrl=$("$executable" $youTubeUrl -g  2>&1 )
-                                # errorStatus=$?
-                                #
-                                # # Because the command above used the "2>&1" construct, then the resulting
-                                # # variable will contain either the valid URL, or the error message. Also
-                                # # the return code from youtube-dl will most likely be nonzero if an error
-                                # # was hit. If either of those things are the case, report a downed stream.
-                                # # This is the first test, where I am testing if the return code is zero.
-                                # if [[ $errorStatus != 0 ]]
-                                # then
-                                #   logMessage "err" "$executable finished with exit code $errorStatus, live stream is down"
-                                #   StreamIsUp=false
-                                # fi
-                                #
-                                # # I doubt the URL will be empty, I figure it will either be a valid URL
-                                # # or it will be the text of an error message. But if it happens to be
-                                # # blank, that would also mean the stream is probably down. Return false.
-                                # if [ -z "$finalUrl" ]
-                                # then
-                                #   logMessage "err" "No URL was obtained from $executable, live stream is down"
-                                #   StreamIsUp=false
-                                # fi
-                                #
-                                # # If the URL variable contains the word "error" anywhere in it, then an
-                                # # error message was returned into the variable instead of a URL, stream is
-                                # # probably down. The most likely error message would be "ERROR: This video
-                                # # is unavailable." but there could be others. 
-                                # if [[ $finalUrl == *"ERROR"* ]] || [[ $finalUrl == *"error"* ]] || [[ $finalUrl == *"Error"* ]]
-                                # then
-                                #   logMessage "err" "$executable returned an error message string, live stream is down"
-                                #   StreamIsUp=false
-                                # fi
-                                #
-                                # # Debugging only, print the results of the $finalUrl variable:
-                                # #   logMessage "dbg" "Variable finalUrl was: $finalUrl"
 
     # Attempted Issue #4 bugfixing - Controlling the pass/fail state of the
     # hysteresis loop here. If we reach this point and get "true", then that
@@ -928,13 +882,7 @@ then
   logMessage "err" "Missing file $apicreds"
   exit 1
 fi
-                                # Issues #23 and #26 - Attempt using only the API to test the stream.
-                                #
-                                # if [ ! -e "$executable" ]
-                                # then
-                                #   logMessage "err" "Missing file $executable"
-                                #   exit 1
-                                # fi
+
 
 # Get API creds out of the external file, assert values are non-blank.
 # TO DO: Learn the correct linux-supported method for storing and retrieving a
