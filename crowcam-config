@@ -52,7 +52,7 @@ titleToDelete="CrowCam"
 #
 # Set this to the number of days you wish to keep old videos before deletion.
 #
-dateBufferDays=5
+dateBufferDays=8
 
 
 # Camera location for using in a Google Search. Can be a zip code, a city name,
