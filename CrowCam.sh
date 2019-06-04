@@ -351,7 +351,7 @@ Test_Stream()
       # Also check for this error type and see how often it comes up.
       if [[ $liveStreamsOutput == *"videoIngestionStarved"* ]]
       then
-            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes."
+            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
             
             # Update 2019-05-27 - Do not bounce the stream due to the error
             # "videoIngestionStarved" because it cries wolf too frequently.
