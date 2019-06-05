@@ -169,13 +169,23 @@ TestModeComeBackOnRetry=1
 # about the YouTube stream potentially being down. The process of checking the
 # YouTube stream is a little bit flaky. Sometimes it is unreliable and returns
 # a false alarm. So this will retry a few times before officially flagging an
-# issue.
+# issue. Also, this function will also leave StreamIsUp set to true if the
+# YouTube API is completely down and returns no information about the status of
+# the stream.
 # -----------------------------------------------------------------------------
 Test_Stream()
 {
   # Debugging message, leave commented out usually.
   # logMessage "info" "Begin Test_Stream"
-
+  
+  # When starting this function, assume the stream is up. It will be set to
+  # false if the hysteresis loop below exits with definitive information that
+  # the stream has gone bad. If the results of the test are inconclusive, then
+  # the stream will be considered still good, so that we don't over-bounce in
+  # situations where the YouTube API isn't responding to queries. This is to
+  # help one of the issues I found in bug #37.
+  StreamIsUp=true
+  
   # Check the global variable $NetworkIsUp and see if it's true. This function
   # is only useful if the network is up. If the network is down, then return
   # false automatically.
@@ -199,13 +209,22 @@ Test_Stream()
   # any success.
   for streamTestLoop in `seq 1 $NumberOfStreamTests`
   do
-    # Start by assuming the stream is up, and set the value to true, then set it
-    # to false below if any of our failure conditions are hit.
-    StreamIsUp=true
-
     # Attempting to address issues #23 and #26: Test if the live stream is up
     # by querying the YouTube API for the stream status.
 
+    # Bugfix for issue #37 - Keep track of whether the stream upness detection
+    # succeeded inside this hysteresis loop. Start by assuming upness is good,
+    # and set the variable to false below if any of our failure conditions are
+    # hit. This must be a separate variable from StreamIsUp in order to combine
+    # its results with the GoodApiDataRetrieved variable, below.
+    GoodStreamInsideLoop=true
+    
+    # Bugfix for issue #37 - Start by assuming that we will retrieve good API
+    # data, and if we do not, then it will be set to false below if there are
+    # any data retrieval problems encountered. This will be used to determine
+    # if the StreamIsUp variable should be altered or not, in any given loop.
+    GoodApiDataRetrieved=true
+  
     # Authenticate with the YouTube API and receive the Access Token which allows
     # us to make YouTube API calls. Retrieves the $accessToken variable.
     #
@@ -223,9 +242,11 @@ Test_Stream()
     # not exit the program if the access token fails, just keep rolling.
     if test -z "$accessToken" 
     then
-      # An error message will have already been printed about the access token at
-      # this point, so we only need to flag the issue for later processing.
-      StreamIsUp=false
+      # Bugfix to issue #37 - Do not bounce the stream if there is no valid
+      # data to analyze, instead, flag that we did not get good API data.
+      # An error message will have already been printed about the access token
+      # at this point, so we only need to flag the issue for later processing.
+      GoodApiDataRetrieved=false
     else
       # Get the current live broadcast information details as a prelude to obtaining
       # the live stream details. Details of the items in the response are found here:
@@ -238,136 +259,157 @@ Test_Stream()
       boundStreamId=""
       boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
       logMessage "dbg" "boundStreamId: $boundStreamId"
+    
+      # Make sure the boundStreamId is not empty.
+      if test -z "$boundStreamId"
+      then
+        logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
+        logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+        
+        # Bugfix to issue #37 - Do not bounce the stream if there is no valid
+        # data to analyze, instead, flag that we did not get good API data.
+        GoodApiDataRetrieved=false
+      else
+        # Obtain the liveStreams status details and look at the resource results in
+        # the response. Details of the various items in the response are found here:
+        # https://developers.google.com/youtube/v3/live/docs/liveStreams#resource
+        curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=status&id=$boundStreamId&access_token=$accessToken"
+        liveStreamsOutput=""
+        liveStreamsOutput=$( curl -s -m 20 $curlUrl )
+  
+        # Debugging output. Leave disabled most of the time.
+        #   logMessage "dbg" "Live Streams output response:"
+        #   logMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
+        #   logMessage "dbg" "----------------------------------------------------------"
+  
+        # Get "streamStatus" from the results. Looking for the field "active" in
+        # these results:
+        #           "status": {
+        #            "streamStatus": "active",
+        #            "healthStatus": {
+        #             "status": "ok",
+        # Possible expected values should be:
+        #     active – The stream is in active state which means the user is receiving data via the stream.
+        #     created – The stream has been created but does not have valid CDN settings.
+        #     error – An error condition exists on the stream.
+        #     inactive – The stream is in inactive state which means the user is not receiving data via the stream.
+        #     ready – The stream has valid CDN settings.
+        streamStatus=""
+        streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+        logMessage "dbg" "streamStatus: $streamStatus"
+
+        # Make sure the streamStatus is not empty.
+        if test -z "$streamStatus"
+        then
+          logMessage "err" "The variable streamStatus came up empty. Error accessing YouTube API"
+          logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+          
+          # Bugfix to issue #37 - Do not bounce the stream if there is no valid
+          # data to analyze, instead, flag that we did not get good API data.
+          GoodApiDataRetrieved=false
+        else
+          # Stream status should be "active" if the stream is up and working. Any
+          # other value means the stream is down at the current time.
+          if [ "$streamStatus" != "active" ]
+          then
+              logMessage "err" "The streamStatus is not active. Value retrieved was: $streamStatus"
+              GoodStreamInsideLoop=false
+          fi
+        fi
+  
+        # Extract the "status" field of the  "healthStatus" object, but that means
+        # we're parsing for the second occurrence of the variable "status" in the
+        # results. So the grep statement must be -m 2 instead of -m 1, so that it
+        # returns two results, and then we have to "tail -1" to get only the last of
+        # the two results. This works to tease out the "ok" from this text:
+        #           "status": {
+        #            "streamStatus": "active",
+        #            "healthStatus": {
+        #             "status": "ok",
+        # Possible expected values should be:
+        #    good – There are no configuration issues for which the severity is warning or worse.
+        #    ok – There are no configuration issues for which the severity is error.
+        #    bad – The stream has some issues for which the severity is error.
+        #    noData – YouTube's live streaming backend servers do not have any information about the stream's health status.
+        healthStatus=""
+        healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
+        logMessage "dbg" "healthStatus: $healthStatus"
+    
+        # Make sure the healthStatus is not empty.
+        if test -z "$healthStatus" 
+        then
+          logMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
+          logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+          
+          # Bugfix to issue #37 - Do not bounce the stream if there is no valid
+          # data to analyze, instead, flag that we did not get good API data.
+          GoodApiDataRetrieved=false
+        else
+          # Health status should be "good" or "ok" if the stream is up and
+          # working. I have discovered that the stream can also be reported as
+          # "bad" if there is low bandwidth, even though the stream is working
+          # fine, so we actually must consider "bad" to be good, even though
+          # it's the exact opposite of what you might expect. Receiving "noData"
+          # or other values mean the stream is down at the current time, and
+          # that's the thing we're truly looking for here: A genuinely dead
+          # stream, not just a low-bandwidth stream.
+          if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ] && [ "$healthStatus" != "bad" ]
+          then
+              logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
+              GoodStreamInsideLoop=false
+          fi    
+        fi
+  
+        # Attempt to catch issue #23 and correct it. Look for any occurrence
+        # of this particular error in the status output and bounce the stream
+        # if it's there:
+        #    "configurationIssues": [
+        #     {
+        #      "type": "videoIngestionFasterThanRealtime",
+        #      "severity": "error",
+        #      "reason": "Check video settings",
+        #      "description": "Your encoder is sending data faster than realtime (multipleseconds of video each second). You must rate limit your livevideo upload to approximately 1 second of video each second."
+        #     },
+        #
+        if [[ $liveStreamsOutput == *"videoIngestionFasterThanRealtime"* ]]
+        then
+              logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionFasterThanRealtime"
+              GoodStreamInsideLoop=false
+        fi
+  
+        # Also check for this error type and see how often it comes up.
+        if [[ $liveStreamsOutput == *"videoIngestionStarved"* ]]
+        then
+          # Update 2019-05-27 - Do not bounce the stream due to the error
+          # "videoIngestionStarved" because it cries wolf too frequently.
+          # Only log the situation and allow the program to continue.
+          logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
+        fi
+      fi    
     fi
     
-    # Make sure the boundStreamId is not empty.
-    if test -z "$boundStreamId"
+    # Attempted bugfix related to issue #37 - Don't make assumptions about
+    # whether the stream is really good or not if this loop had any API data
+    # retrieval problems. 
+    if "$GoodApiDataRetrieved" = true
     then
-      logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API. Test_Stream failed"
-      logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
-      StreamIsUp=false
-    else
-      # Obtain the liveStreams status details and look at the resource results in
-      # the response. Details of the various items in the response are found here:
-      # https://developers.google.com/youtube/v3/live/docs/liveStreams#resource
-      curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=status&id=$boundStreamId&access_token=$accessToken"
-      liveStreamsOutput=""
-      liveStreamsOutput=$( curl -s -m 20 $curlUrl )
-
-      # Debugging output. Leave disabled most of the time.
-      #   logMessage "dbg" "Live Streams output response:"
-      #   logMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
-      #   logMessage "dbg" "----------------------------------------------------------"
-
-      # Get "streamStatus" from the results. Looking for the field "active" in
-      # these results:
-      #           "status": {
-      #            "streamStatus": "active",
-      #            "healthStatus": {
-      #             "status": "ok",
-      # Possible expected values should be:
-      #     active – The stream is in active state which means the user is receiving data via the stream.
-      #     created – The stream has been created but does not have valid CDN settings.
-      #     error – An error condition exists on the stream.
-      #     inactive – The stream is in inactive state which means the user is not receiving data via the stream.
-      #     ready – The stream has valid CDN settings.
-      streamStatus=""
-      streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
-      logMessage "dbg" "streamStatus: $streamStatus"
-    
-      # Make sure the streamStatus is not empty.
-      if test -z "$streamStatus"
+      # Attempted Issue #4 bugfixing - Controlling the pass/fail state of the
+      # hysteresis loop here. If we reach this point and get "true", then that
+      # is the "good" state and we can bail out. If we get "false" then we have
+      # to try again.
+      if "$GoodStreamInsideLoop" = true
       then
-        logMessage "err" "The variable streamStatus came up empty. Error accessing YouTube API"
-        logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
-        StreamIsUp=false
+        # Break out of the hysteresis loop if the stream and the API are OK.
+        # Also set the global variable StreamIsUp to True because we know that
+        # we got good data indicating that it was indeed up.
+        StreamIsUp=true
+        break
       else
-        # Stream status should be "active" if the stream is up and working. Any
-        # other value means the stream is down at the current time.
-        if [ "$streamStatus" != "active" ]
-        then
-            logMessage "err" "The streamStatus is not active. Value retrieved was: $streamStatus"
-            StreamIsUp=false
-        fi
-      fi
-
-      # Extract the "status" field of the  "healthStatus" object, but that means
-      # we're parsing for the second occurrence of the variable "status" in the
-      # results. So the grep statement must be -m 2 instead of -m 1, so that it
-      # returns two results, and then we have to "tail -1" to get only the last of
-      # the two results. This works to tease out the "ok" from this text:
-      #           "status": {
-      #            "streamStatus": "active",
-      #            "healthStatus": {
-      #             "status": "ok",
-      # Possible expected values should be:
-      #    good – There are no configuration issues for which the severity is warning or worse.
-      #    ok – There are no configuration issues for which the severity is error.
-      #    bad – The stream has some issues for which the severity is error.
-      #    noData – YouTube's live streaming backend servers do not have any information about the stream's health status.
-      healthStatus=""
-      healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
-      logMessage "dbg" "healthStatus: $healthStatus"
-
-      # Make sure the healthStatus is not empty.
-      if test -z "$healthStatus" 
-      then
-        logMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
-        logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+        # The current inner hysteresis loop run returned an actual failure.
+        # Set our global StreamIsUp variable to false and allow it to go
+        # through the loop again.
         StreamIsUp=false
-      else
-        # Health status should be "good" or "ok" if the stream is up and
-        # working. I have discovered that the stream can also be reported as
-        # "bad" if there is low bandwidth, even though the stream is working
-        # fine, so we actually must consider "bad" to be good, even though
-        # it's the exact opposite of what you might expect. Receiving "noData"
-        # or other values mean the stream is down at the current time, and
-        # that's the thing we're truly looking for here: A genuinely dead
-        # stream, not just a low-bandwidth stream.
-        if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ] && [ "$healthStatus" != "bad" ]
-        then
-            logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
-            StreamIsUp=false
-        fi    
       fi
-
-      # Attempt to catch issue #23 and correct it. Look for any occurrence
-      # of this particular error in the status output and bounce the stream
-      # if it's there:
-      #    "configurationIssues": [
-      #     {
-      #      "type": "videoIngestionFasterThanRealtime",
-      #      "severity": "error",
-      #      "reason": "Check video settings",
-      #      "description": "Your encoder is sending data faster than realtime (multipleseconds of video each second). You must rate limit your livevideo upload to approximately 1 second of video each second."
-      #     },
-      #
-      if [[ $liveStreamsOutput == *"videoIngestionFasterThanRealtime"* ]]
-      then
-            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionFasterThanRealtime"
-            StreamIsUp=false
-      fi
-
-      # Also check for this error type and see how often it comes up.
-      if [[ $liveStreamsOutput == *"videoIngestionStarved"* ]]
-      then
-            logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
-            
-            # Update 2019-05-27 - Do not bounce the stream due to the error
-            # "videoIngestionStarved" because it cries wolf too frequently.
-            # Only log the situation and allow the program to continue.
-            # StreamIsUp=false
-      fi
-    fi    
-
-    # Attempted Issue #4 bugfixing - Controlling the pass/fail state of the
-    # hysteresis loop here. If we reach this point and get "true", then that
-    # is the "good" state and we can bail out. If we get "false" then we have
-    # to try again.
-    if "$StreamIsUp" = true
-    then
-      # Break out of the hysteresis loop if the stream is OK.
-      break
     fi
 
     # If we have reached this point then we need to pause and try another
@@ -376,10 +418,14 @@ Test_Stream()
     # one.
     if [ "$streamTestLoop" -lt "$NumberOfStreamTests" ]
     then
-      # Make this message "info" level so that I can get some data on how
-      # often GitHub issue #4 occurs. 
-      logMessage "info" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
-
+      # Related to issue #37: Change messaging if the API is being goofy today.
+      if "$GoodApiDataRetrieved" = true
+      then
+        logMessage "info" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
+      else
+        logMessage "info" "The network is up, but the YouTube stream test results are inconclusive. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
+      fi
+      
       # Sleep between stream tests.
       sleep $PauseBetweenStreamTests
     fi    
@@ -396,7 +442,13 @@ Test_Stream()
     # message from our hysteresis loop above.
     if [ "$streamTestLoop" -gt "1" ]
     then
-      logMessage "info" "Live stream came back up"
+      # Related to issue #37: Change messaging if the API is being goofy today.
+      if "$GoodApiDataRetrieved" = true
+      then
+        logMessage "info" "Live stream came back up"
+      else
+        logMessage "info" "Live stream test results are inconclusive"
+      fi
     else
       logMessage "dbg" "Live stream is up"
     fi
