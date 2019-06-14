@@ -189,7 +189,7 @@ Test_Stream()
   # Check the global variable $NetworkIsUp and see if it's true. This function
   # is only useful if the network is up. If the network is down, then return
   # false automatically.
-  if "$NetworkIsUp" = true
+  if [ "$NetworkIsUp" = true ]
   then
     logMessage "dbg" "Network is up, checking if live stream is up"
   else
@@ -391,13 +391,13 @@ Test_Stream()
     # Attempted bugfix related to issue #37 - Don't make assumptions about
     # whether the stream is really good or not if this loop had any API data
     # retrieval problems. 
-    if "$GoodApiDataRetrieved" = true
+    if [ "$GoodApiDataRetrieved" = true ]
     then
       # Attempted Issue #4 bugfixing - Controlling the pass/fail state of the
       # hysteresis loop here. If we reach this point and get "true", then that
       # is the "good" state and we can bail out. If we get "false" then we have
       # to try again.
-      if "$GoodStreamInsideLoop" = true
+      if [ "$GoodStreamInsideLoop" = true ]
       then
         # Break out of the hysteresis loop if the stream and the API are OK.
         # Also set the global variable StreamIsUp to True because we know that
@@ -419,7 +419,7 @@ Test_Stream()
     if [ "$streamTestLoop" -lt "$NumberOfStreamTests" ]
     then
       # Related to issue #37: Change messaging if the API is being goofy today.
-      if "$GoodApiDataRetrieved" = true
+      if [ "$GoodApiDataRetrieved" = true ]
       then
         logMessage "info" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
       else
@@ -432,7 +432,7 @@ Test_Stream()
   done
 
   # If we haven't hit one of our failure modes, the stream is likely up.
-  if "$StreamIsUp" = true
+  if [ "$StreamIsUp" = true ]
   then
     # This message is normally a debug message (i.e., doesn't go into the
     # Synology log), unless we have been encountering stream problems, and
@@ -443,7 +443,7 @@ Test_Stream()
     if [ "$streamTestLoop" -gt "1" ]
     then
       # Related to issue #37: Change messaging if the API is being goofy today.
-      if "$GoodApiDataRetrieved" = true
+      if [ "$GoodApiDataRetrieved" = true ]
       then
         logMessage "info" "Live stream came back up"
       else
@@ -534,7 +534,7 @@ Test_Network()
   fi
 
   # Message for local test runs.
-  if "$NetworkIsUp" = true
+  if [ "$NetworkIsUp" = true ]
   then
     # Note that there is a more serious message which appears in the log,
     # triggered elsewhere in the code, when the network is down, so a log
@@ -1341,7 +1341,7 @@ else
   # field as well, for verification that we're working on the right video. You
   # can request a bunch of "parts" of data simultaneously by requesting them all
   # together separated by commas, like part=id,snippet,contentDetails,status etc.
-  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&broadcastType=persistent&mine=true&access_token=$accessToken"
   liveBroadcastOutput=""
   liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 
@@ -1425,10 +1425,181 @@ else
   fi
 fi
 
+# Fix for issue #37 - Check to make sure that the stream visibility/privacy is
+# set to the correct desired setting ("private", "public", or "unlisted").
+# Sometimes YouTube glitches, and clobbers this value, causing the stream to
+# disappear. The goal is to have it automatically fix this and get the stream
+# to go back to a visible/working state again without human intervention.
+privacyStatus=""
+privacyStatus=$(echo $liveBroadcastOutput | sed 's/"privacyStatus"/\'$'\n&/g' | grep -m 1 "privacyStatus" | cut -d '"' -f4)
+logMessage "dbg" "privacyStatus: $privacyStatus"
+if test -z "$privacyStatus"; then safeToFixStreamKey=false; fi
+
+# Make sure the privacyStatus is not empty.
+if test -z "$privacyStatus" 
+then
+  logMessage "err" "The variable privacyStatus came up empty. Error accessing YouTube API"
+  safeToFixStreamKey=false
+else
+  # If privacyStatus is not empty, check to see if it is the desired value.
+  if [[ "$desiredStreamVisibility" == "$privacyStatus" ]]
+  then
+    logMessage "dbg" "Expected stream visibility $desiredStreamVisibility matches YouTube stream visibility $privacyStatus"
+  else
+    # Log a set of error messages if they do not match.
+    logMessage "err" "Expected stream visibility does not match YouTube stream visibility"
+    logMessage "err" "Expected visibility: $desiredStreamVisibility"
+    logMessage "err" "YouTube visibility:  $privacyStatus"
+    
+    # In addition to retrieving the privacyStatus, I must also retrieve all of
+    # these other values if I need to make an update. This is because the API call
+    # which performs the fix, according to the documentation, must include all of
+    # these values embedded in the API call itself. So retrieve them here, and
+    # bad-flag our "safeToFixStreamKey" flag if they come out blank.
+    thisStreamId=""
+    thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+    logMessage "dbg" "thisStreamId: $thisStreamId"
+    if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
+
+    scheduledStartTime=""
+    scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "scheduledStartTime" | cut -d '"' -f4)
+    logMessage "dbg" "scheduledStartTime: $scheduledStartTime"
+    if test -z "$scheduledStartTime"; then safeToFixStreamKey=false; fi
+
+    enableMonitorStream=""
+    enableMonitorStream=$(echo $liveBroadcastOutput | sed 's/"enableMonitorStream"/\'$'\n&/g' | grep -m 1 "enableMonitorStream" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "enableMonitorStream: $enableMonitorStream"
+    if test -z "$enableMonitorStream"; then safeToFixStreamKey=false; fi
+
+    broadcastStreamDelayMs=""
+    broadcastStreamDelayMs=$(echo $liveBroadcastOutput | sed 's/"broadcastStreamDelayMs"/\'$'\n&/g' | grep -m 1 "broadcastStreamDelayMs" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "broadcastStreamDelayMs: $broadcastStreamDelayMs"
+    if test -z "$broadcastStreamDelayMs"; then safeToFixStreamKey=false; fi
+
+    enableDvr=""
+    enableDvr=$(echo $liveBroadcastOutput | sed 's/"enableDvr"/\'$'\n&/g' | grep -m 1 "enableDvr" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "enableDvr: $enableDvr"
+    if test -z "$enableDvr"; then safeToFixStreamKey=false; fi
+
+    enableContentEncryption=""
+    enableContentEncryption=$(echo $liveBroadcastOutput | sed 's/"enableContentEncryption"/\'$'\n&/g' | grep -m 1 "enableContentEncryption" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "enableContentEncryption: $enableContentEncryption"
+    if test -z "$enableContentEncryption"; then safeToFixStreamKey=false; fi
+
+    enableEmbed=""
+    enableEmbed=$(echo $liveBroadcastOutput | sed 's/"enableEmbed"/\'$'\n&/g' | grep -m 1 "enableEmbed" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "enableEmbed: $enableEmbed"
+    if test -z "$enableEmbed"; then safeToFixStreamKey=false; fi
+
+    recordFromStart=""
+    recordFromStart=$(echo $liveBroadcastOutput | sed 's/"recordFromStart"/\'$'\n&/g' | grep -m 1 "recordFromStart" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "recordFromStart: $recordFromStart"
+    if test -z "$recordFromStart"; then safeToFixStreamKey=false; fi
+
+    startWithSlate=""
+    startWithSlate=$(echo $liveBroadcastOutput | sed 's/"startWithSlate"/\'$'\n&/g' | grep -m 1 "startWithSlate" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "startWithSlate: $startWithSlate"
+    if test -z "$startWithSlate"; then safeToFixStreamKey=false; fi
+
+    # Double check that it's safe to fix, before trying to fix. This variable
+    # would have been set to "false" if there was a problem with any of the
+    # earlier API calls to retrieve the necessary data to perform the fix.
+    if [ "$safeToFixStreamKey" = true ]
+    then
+      # Perform the fix, following the API documentation located here:
+      # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts/update
+      # The chunk (partially) looks like this in the liveBroadcasts response,
+      # and we are updating all of the mutable details, per the API docs:
+      #        (...)
+      #        (...)
+      #        (...)
+      #          "scheduledStartTime": "1970-01-01T00:00:00.000Z",
+      #          "actualStartTime": "2019-06-14T20:17:04.000Z",
+      #          "isDefaultBroadcast": true,
+      #          "liveChatId": "EiEKGFVDcVBaR0Z0QmF1OHJtN3duU2N4ZEEzZxIFL2xpdmU"
+      #         },
+      #         "status": {
+      #          "lifeCycleStatus": "live",
+      #          "privacyStatus": "public",
+      #          "recordingStatus": "recording"
+      #         },
+      #         "contentDetails": {
+      #          "boundStreamId": "qPZGFtBau8rm7wnScxdA3g1557329171185998",
+      #          "boundStreamLastUpdateTimeMs": "2019-05-08T15:26:11.276Z",
+      #          "monitorStream": {
+      #           "enableMonitorStream": true,
+      #           "broadcastStreamDelayMs": 0,
+      #        (...)
+      #        (...)
+      #        (...)
+      # According to the documentation, I *must* populate the following values
+      # since they are are all updated at once. So I retrieved them all, above,
+      # and will use them below in the update/fix call.
+      # 
+      #    My variable:              API actual variable:
+      #
+      #    thisStreamId              id
+      #    boundStreamTitle          snippet.title
+      #    scheduledStartTime        snippet.scheduledStartTime
+      #    desiredStreamVisibility   status.privacyStatus
+      #    privacyStatus             status.privacyStatus
+      #    enableMonitorStream       contentDetails.monitorStream.enableMonitorStream
+      #    broadcastStreamDelayMs    contentDetails.monitorStream.broadcastStreamDelayMs
+      #    enableDvr                 contentDetails.enableDvr
+      #    enableContentEncryption   contentDetails.enableContentEncryption
+      #    enableEmbed               contentDetails.enableEmbed
+      #    recordFromStart           contentDetails.recordFromStart
+      #    startWithSlate            contentDetails.startWithSlate
+      
+      # The code below runs without getting an error message from the YouTube
+      # API, but it has the following problems:
+      #
+      #  - The scheduledStartTime cannot use the existing retrieved variable
+      #    of "1970-01-01T00:00:00.000Z" because that is the epoch start and
+      #    the API will throw an error saying "scheduled start time required".
+      #    You cannot use a predefined start time because it will give a
+      #    different error saying  "Scheduled start time must be in the
+      #    future and close enough to the current date that a broadcast could
+      #    be reliably scheduled at that time." So we're going to need to
+      #    calculate the correct scheduled start time. For instance by taking
+      #    the current date and adding a few days to it.
+      #
+      #  - Even so, what happens when I run the code below, it creates a "new
+      #    upcoming event" rather than fixing the existing event. The existing
+      #    event remains unchanged and the new upcoming event has default
+      #    values for any fields which I didn't include in the $curlData.
+      #    Need to learn how to edit the existing live event rather than adding
+      #    a new upcoming event.
+
+      # TO DO: Calculate the variable below so it doesn't give an error.
+      scheduledStartTime="2019-06-17T00:00:00.000Z"
+      
+      # Build strings for fixing privacyStatus.
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails,status,snippet&broadcastType=persistent&mine=true&access_token=$accessToken"
+      curlData="{\"id\":\"$thisStreamId\",\"contentDetails\":{\"enableContentEncryption\":$enableContentEncryption,\"enableDvr\":$enableDvr,\"enableEmbed\":$enableEmbed,\"recordFromStart\":$recordFromStart,\"startWithSlate\":$startWithSlate,\"monitorStream\":{\"enableMonitorStream\":$enableMonitorStream,\"broadcastStreamDelayMs\":$broadcastStreamDelayMs}},\"status\":{\"privacyStatus\":\"$desiredStreamVisibility\"},\"snippet\":{\"title\":\"$boundStreamTitle\",\"scheduledStartTime\":\"$scheduledStartTime\"}}"
+      
+      # Because this code doesn't work as desired yet, leave commented out
+      # until we can fix it correctly.
+      #     # Perform the fix.
+      #     logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
+      #     logMessage "dbg" "curlData: $curlData"
+      #     logMessage "dbg" "curlUrl: $curlUrl"
+      #     streamVisibilityFixOutput=""
+      #     streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d $curlData $curlUrl )
+      #     logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
+      #     # TO DO: Check the response for errors and log the error if there is one.
+      logMessage "info" "Work-in-progress code: Not able to fix the privacyStatus yet" 
+    else
+      logMessage "err" "Unsafe to fix stream visibility due to API issues"
+    fi
+  fi
+fi
+
+
 # Fix for issue #28 - Check to make sure it is safe to work on the stream key.
-# If any of the YouTube API retreivals above failed, then none of this section
+# If any of the YouTube API retrievals above failed, then none of this section
 # below should get executed. Skip it rather than exiting the program.
-if "$safeToFixStreamKey" = true
+if [ "$safeToFixStreamKey" = true ]
 then
   # Obtain the local Synology stream key that is currently plugged into the
   # "Live Broadcast" feature of Surveillance Station.

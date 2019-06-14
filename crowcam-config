@@ -55,6 +55,17 @@ titleToDelete="CrowCam"
 dateBufferDays=8
 
 
+# Desired visibility/privacy of the live stream. Most live streams are set to
+# public, but you may have reasons for wanting to keep it unlisted or private.
+# Because YouTube intermittently glitches and clobbers this value, the script
+# will attempt to maintain this and keep it at the correct setting. Valid
+# values are "private", "public", or "unlisted".
+#
+# Set this to the desired visibility/privacy of this video stream, either 
+# "private", "public", or "unlisted".
+#
+desiredStreamVisibility="public"
+
 # Camera location for using in a Google Search. Can be a zip code, a city name,
 # or something else which might result in a Google search that returns the
 # correct sunrise or sunset time. Special bonus: If you leave the location
