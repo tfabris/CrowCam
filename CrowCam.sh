@@ -1447,9 +1447,7 @@ else
     logMessage "dbg" "Expected stream visibility $desiredStreamVisibility matches YouTube stream visibility $privacyStatus"
   else
     # Log a set of error messages if they do not match.
-    logMessage "err" "Expected stream visibility does not match YouTube stream visibility"
-    logMessage "err" "Expected visibility: $desiredStreamVisibility"
-    logMessage "err" "YouTube visibility:  $privacyStatus"
+    logMessage "err" "Expected stream visibility does not match YouTube stream visibility. Expected visibility: $desiredStreamVisibility YouTube visibility: $privacyStatus"
     
     # In addition to retrieving the privacyStatus, I must also retrieve all of
     # these other values if I need to make an update. This is because the API call
@@ -1461,10 +1459,51 @@ else
     logMessage "dbg" "thisStreamId: $thisStreamId"
     if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
 
+    # Note: Parsing "etag" is special because in the output from the server,
+    # etag has these extra \" things in the actual field. Like escape codes
+    # embedded inside the string. It doesn't seem to require those things in
+    # the etag when I send it up to the server, but if I want to parse it when
+    # coming down, I need to parse them out. So there is an extra CUT at
+    # the end of this parse statement and it starts on field 5 instead of 4.
+    # Not clear? Here's clearer:
+    # Instead of parsing this like a sane person:
+    #   "etag": "Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8",
+    # I'm having to parse this like a crazy person:
+    #   "etag": "\"Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8\"",
+    etag=""
+    etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "etag" | cut -d '"' -f5 | cut -d '\' -f1)
+    logMessage "dbg" "etag: $etag"
+    if test -z "$etag"; then safeToFixStreamKey=false; fi
+
+    channelId=""
+    channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
+    logMessage "dbg" "channelId: $channelId"
+    if test -z "$channelId"; then safeToFixStreamKey=false; fi
+    
     scheduledStartTime=""
     scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "scheduledStartTime" | cut -d '"' -f4)
     logMessage "dbg" "scheduledStartTime: $scheduledStartTime"
     if test -z "$scheduledStartTime"; then safeToFixStreamKey=false; fi
+    
+    actualStartTime=""
+    actualStartTime=$(echo $liveBroadcastOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+    logMessage "dbg" "actualStartTime: $actualStartTime"
+    if test -z "$actualStartTime"; then safeToFixStreamKey=false; fi
+    
+    isDefaultBroadcast=""
+    isDefaultBroadcast=$(echo $liveBroadcastOutput | sed 's/"isDefaultBroadcast"/\'$'\n&/g' | grep -m 1 "isDefaultBroadcast" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    logMessage "dbg" "isDefaultBroadcast: $isDefaultBroadcast"
+    if test -z "$isDefaultBroadcast"; then safeToFixStreamKey=false; fi
+
+    liveChatId=""
+    liveChatId=$(echo $liveBroadcastOutput | sed 's/"liveChatId"/\'$'\n&/g' | grep -m 1 "liveChatId" | cut -d '"' -f4)
+    logMessage "dbg" "liveChatId: $liveChatId"
+    if test -z "$liveChatId"; then safeToFixStreamKey=false; fi
+    
+    boundStreamId=""
+    boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+    logMessage "dbg" "boundStreamId: $boundStreamId"
+    if test -z "$boundStreamId"; then safeToFixStreamKey=false; fi
 
     enableMonitorStream=""
     enableMonitorStream=$(echo $liveBroadcastOutput | sed 's/"enableMonitorStream"/\'$'\n&/g' | grep -m 1 "enableMonitorStream" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
@@ -1516,7 +1555,7 @@ else
       #          "scheduledStartTime": "1970-01-01T00:00:00.000Z",
       #          "actualStartTime": "2019-06-14T20:17:04.000Z",
       #          "isDefaultBroadcast": true,
-      #          "liveChatId": "EiEKGFVDcVBaR0Z0QmF1OHJtN3duU2N4ZEEzZxIFL2xpdmU"
+      #          "liveChatId": "EiEKGFVDcVBaR0Z0QmF1OHJtN3dudgsdgaZEEzZxIFL2xpdmU"
       #         },
       #         "status": {
       #          "lifeCycleStatus": "live",
@@ -1524,7 +1563,7 @@ else
       #          "recordingStatus": "recording"
       #         },
       #         "contentDetails": {
-      #          "boundStreamId": "qPZGFtBau8rm7wnScxdA3g1557329171185998",
+      #          "boundStreamId": "qPZGFtBau8dfsfasdfScxdA3g1557329171185998",
       #          "boundStreamLastUpdateTimeMs": "2019-05-08T15:26:11.276Z",
       #          "monitorStream": {
       #           "enableMonitorStream": true,
@@ -1532,7 +1571,7 @@ else
       #        (...)
       #        (...)
       #        (...)
-      # According to the documentation, I *must* populate the following values
+      # According to the documentation, I must populate the following values
       # since they are are all updated at once. So I retrieved them all, above,
       # and will use them below in the update/fix call.
       # 
@@ -1550,9 +1589,21 @@ else
       #    enableEmbed               contentDetails.enableEmbed
       #    recordFromStart           contentDetails.recordFromStart
       #    startWithSlate            contentDetails.startWithSlate
+      #
+      # Other values that I am experimenting with...
+      #
+      #    actualStartTime           snippet.actualStartTime
+      #    boundStreamId             contentDetails.boundStreamId
+      #    etag                      etag
+      #    channelId                 snippet.channelId
+      #    isDefaultBroadcast        snippet.isDefaultBroadcast
+      #    liveChatId                snippet.liveChatId
       
       # The code below runs without getting an error message from the YouTube
       # API, but it has the following problems:
+      #
+      #  - The code below runs successfully without generating an error message
+      #    but the privacyStatus does not actually change. It stays the same.
       #
       #  - The scheduledStartTime cannot use the existing retrieved variable
       #    of "1970-01-01T00:00:00.000Z" because that is the epoch start and
@@ -1562,33 +1613,70 @@ else
       #    future and close enough to the current date that a broadcast could
       #    be reliably scheduled at that time." So we're going to need to
       #    calculate the correct scheduled start time. For instance by taking
-      #    the current date and adding a few days to it.
+      #    the current date and adding a few days to it. Update: After getting
+      #    to the point where it no longer created a blank "Upcoming" stream,
+      #    the actual value in the scheduledStartTime seemed to become less
+      #    important. No longer did I get an error message about how the
+      #    field needed to specify a specific date in the near future. Perhaps
+      #    this doesn't need to be updated? Not sure.
+      
+      # Put a valid value into the scheduledStartTime field. 
+      # scheduledStartTime="2019-06-22T00:00:00.000Z"
+      scheduledStartTime="$actualStartTime"
+      
+      # Build strings for fixing privacyStatus. Documentation note here:
+      # Only supplying "Status" and "Snippet", and omitting contentDetails,
+      # seems to work. Even though the docs say that you also must supply
+      # contentDetails, in my experiments, contentDetails was not needed for
+      # the code to produce a response from the API which does not complain.
+      # However it might be still required for it to correctly update the
+      # stream, not sure, since my current code still doesn't update the
+      # privacyStatus field.
       #
-      #  - Even so, what happens when I run the code below, it creates a "new
-      #    upcoming event" rather than fixing the existing event. The existing
-      #    event remains unchanged and the new upcoming event has default
-      #    values for any fields which I didn't include in the $curlData.
-      #    Need to learn how to edit the existing live event rather than adding
-      #    a new upcoming event.
-
-      # TO DO: Calculate the variable below so it doesn't give an error.
-      scheduledStartTime="2019-06-17T00:00:00.000Z"
+      # In order to prevent it from creating a "new upcoming event", I had to
+      # update these fields. Not sure which one of these fields was the kicker,
+      # but I know it was at least one of them:
+      #  etag
+      #  snippet.channelId
+      #  snippet.isDefaultBroadcast
+      #  snippet.liveChatId
+      # Still, even though it produces a response without an error message,
+      # it still doesn't actually update the privacyStatus field.
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=status,snippet&access_token=$accessToken"
+      curlData="{\"id\":\"$thisStreamId\",\"etag\":\"$etag\",\"status\":{\"privacyStatus\":\"$desiredStreamVisibility\"},\"snippet\":{\"channelId\":\"$channelId\",\"title\":\"$boundStreamTitle\",\"scheduledStartTime\":\"$scheduledStartTime\",\"liveChatId\":\"$liveChatId\",\"isDefaultBroadcast\":$isDefaultBroadcast}}"
       
-      # Build strings for fixing privacyStatus.
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails,status,snippet&broadcastType=persistent&mine=true&access_token=$accessToken"
-      curlData="{\"id\":\"$thisStreamId\",\"contentDetails\":{\"enableContentEncryption\":$enableContentEncryption,\"enableDvr\":$enableDvr,\"enableEmbed\":$enableEmbed,\"recordFromStart\":$recordFromStart,\"startWithSlate\":$startWithSlate,\"monitorStream\":{\"enableMonitorStream\":$enableMonitorStream,\"broadcastStreamDelayMs\":$broadcastStreamDelayMs}},\"status\":{\"privacyStatus\":\"$desiredStreamVisibility\"},\"snippet\":{\"title\":\"$boundStreamTitle\",\"scheduledStartTime\":\"$scheduledStartTime\"}}"
+      # Perform the fix.
+      logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
+      logMessage "dbg" "curlData: $curlData"
+      logMessage "dbg" "curlUrl: $curlUrl"
+      streamVisibilityFixOutput=""
+      streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d $curlData $curlUrl )
+      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
       
-      # Because this code doesn't work as desired yet, leave commented out
-      # until we can fix it correctly.
-      #     # Perform the fix.
-      #     logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
-      #     logMessage "dbg" "curlData: $curlData"
-      #     logMessage "dbg" "curlUrl: $curlUrl"
-      #     streamVisibilityFixOutput=""
-      #     streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d $curlData $curlUrl )
-      #     logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
-      #     # TO DO: Check the response for errors and log the error if there is one.
-      logMessage "info" "Work-in-progress code: Not able to fix the privacyStatus yet" 
+      # Check the response for errors and log the error if there is one.
+      # Example of what an error response looks like:
+      #         {
+      #          "error": {
+      #           "errors": [
+      #            {
+      #             "domain": "global",
+      #             "reason": "parseError",
+      #             "message": "Parse Error"
+      #            }
+      #           ],
+      #           "code": 400,
+      #           "message": "Parse Error"
+      #          }
+      #         }
+      # Note: A good response might contain freeform descriptive text from the
+      # Description field, so try to make this as specific as possible so that
+      # if the user has a video description that merely contains the word
+      # error somewhere it it, it won't false-alarm. 
+      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
+      then
+        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
+      fi
+      
     else
       logMessage "err" "Unsafe to fix stream visibility due to API issues"
     fi
