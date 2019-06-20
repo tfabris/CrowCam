@@ -1646,36 +1646,42 @@ else
       curlData="{\"id\":\"$thisStreamId\",\"etag\":\"$etag\",\"status\":{\"privacyStatus\":\"$desiredStreamVisibility\"},\"snippet\":{\"channelId\":\"$channelId\",\"title\":\"$boundStreamTitle\",\"scheduledStartTime\":\"$scheduledStartTime\",\"liveChatId\":\"$liveChatId\",\"isDefaultBroadcast\":$isDefaultBroadcast}}"
       
       # Perform the fix.
-      logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
-      logMessage "dbg" "curlData: $curlData"
-      logMessage "dbg" "curlUrl: $curlUrl"
-      streamVisibilityFixOutput=""
-      streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d $curlData $curlUrl )
-      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
+
+      logMessage "info" "Not fixing stream visibility yet - Work in progress"
+
+      # (Work in progress code, doesn't succeed at its task yet.
+      # Disable in production until we get it working right.
+
+      #      logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
+      #      logMessage "dbg" "curlData: $curlData"
+      #      logMessage "dbg" "curlUrl: $curlUrl"
+      #      streamVisibilityFixOutput=""
+      #      streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d $curlData $curlUrl )
+      #      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
       
-      # Check the response for errors and log the error if there is one.
-      # Example of what an error response looks like:
-      #         {
-      #          "error": {
-      #           "errors": [
-      #            {
-      #             "domain": "global",
-      #             "reason": "parseError",
-      #             "message": "Parse Error"
-      #            }
-      #           ],
-      #           "code": 400,
-      #           "message": "Parse Error"
-      #          }
-      #         }
-      # Note: A good response might contain freeform descriptive text from the
-      # Description field, so try to make this as specific as possible so that
-      # if the user has a video description that merely contains the word
-      # error somewhere it it, it won't false-alarm. 
-      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
-      then
-        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
-      fi
+      #      # Check the response for errors and log the error if there is one.
+      #      # Example of what an error response looks like:
+      #      #         {
+      #      #          "error": {
+      #      #           "errors": [
+      #      #            {
+      #      #             "domain": "global",
+      #      #             "reason": "parseError",
+      #      #             "message": "Parse Error"
+      #      #            }
+      #      #           ],
+      #      #           "code": 400,
+      #      #           "message": "Parse Error"
+      #      #          }
+      #      #         }
+      #      # Note: A good response might contain freeform descriptive text from the
+      #      # Description field, so try to make this as specific as possible so that
+      #      # if the user has a video description that merely contains the word
+      #      # "error" somewhere it it, it won't false-alarm. 
+      #      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
+      #      then
+      #        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
+      #      fi
       
     else
       logMessage "err" "Unsafe to fix stream visibility due to API issues"
