@@ -1,0 +1,66 @@
+Notes on creating a new live stream
+-----------------------------------
+
+Below are the settings I use when creating a new live stream. Sometimes
+YouTube glitches badly enough that I must create the live stream again from
+scratch. As long as the script is working as expected, it should be OK for me
+to completely delete my YouTube channel's main live stream and start over with
+these settings. The script then updates the stream ingestion secret key
+automatically and begins streaming correctly. This is what I did to correct
+issue #42.
+
+Here are my personal settings:
+
+
+
+Video Description
+-----------------
+
+Here is a permanent link to the most current live stream: https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live
+--- 
+Live view of backyard crows and squirrels, Seattle, Washington. The video feed is only live from sunrise to sunset each day, since crows and squirrels are diurnal.
+
+Use the video's "scrub bar" control, to scroll backwards into the video feed, to find recent visits by the critters. Note: The live stream may stop and restart at certain times of day, limiting how far back in the timeline that you can view.
+--- 
+We have installed a new feeder system to keep the seagulls out. We used to put food in bowls for the crows (they like puppy kibble), but after a while, the seagulls got the hang of it, and would eat all the crows' food before they could get any. The new feeder takes care of this. The feeder is an off-the-shelf "seesaw" counter-weighted design which was originally meant to keep squirrels out of the birdseed for smaller chirpy birds. The type of feeder we're using is a modified version of this one: https://www.amazon.com/gp/product/B001G17E7Y - we have modified it by removing the chirpy bird perch, and replacing it with a platform for the crows to land on. Then we added more weight to the seesaw's counterweight, so that the feeder will now accept the weight of crows and squirrels, while rejecting the weight of seagulls. This works well, though it took some time for the crows to get used to the new feeder without being skittish. Now, crows and squirrels visit the feeder several times a day, while the seagulls merely gaze at it wistfully.
+---
+There is some custom script code to control and maintain this camera feed, and it is open source on GitHub: https://github.com/tfabris/CrowCam
+---
+Here is a link to a TED talk by John Marzluff of the University of Washington, about research he has done with our local crows: https://www.youtube.com/watch?v=0fiAoqwsc9g
+---
+Here are some links to a song that we wrote about our local crows.
+Lyrics: https://vixy.dreamwidth.org/794522.html
+Performance: https://www.youtube.com/watch?v=ppCwy61EahM&feature=youtu.be&t=31m29s
+
+
+
+My personal settings which differ from YouTube defaults
+-------------------------------------------------------
+
+Title: CrowCam
+
+Description: (Above)
+
+Change Thumbnail: (Video thumbnail is my own saved image, made in Adobe
+Spark online, by logging in with my Adobe ID account credentials)
+
+Category: Pets & Animals
+
+Stream Optimizations: Normal Latency
+
+Activate the "Make archive unlisted when complete" feature. This setting is
+unchecked by default, and can be found in both the basic settings screen and
+the advanced settings screen.
+
+Tags: 
+Crows, Squirrels, Animals, Live, Cam, Webcam, Birds, Birdwatching
+
+- How to change the tags? Sometimes it is hard to find the screen.
+- Press ADVANCED SETTINGS.
+- Press BASIC INFO.
+- I know the above seems unintuitive (advanced then basic) but it worked for
+  me, at a time when I couldn't find the tags field.
+- If you take the string above with the commas, and paste the whole string
+  into the tags field, with the commas, it works.
+
+
