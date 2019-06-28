@@ -190,7 +190,7 @@ This script keeps the live stream alive:
 - YouTube has a bug where, if there is nobody watching the live stream, then
   the next person who joins the stream will not be able to scroll backwards in
   the timeline. YouTube calls this feature "DVR functionality", and it should
-  theoretically work all the time, allowing any user to scroll up to four
+  theoretically work all the time, allowing any user to scroll up to several
   hours backwards into the live stream. But it does not always work, and the
   reason it doesn't work is not documented by YouTube. I did some experiments,
   and I discovered that as long as somebody is watching the stream, the DVR

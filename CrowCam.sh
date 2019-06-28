@@ -1187,8 +1187,9 @@ fi
 
 #------------------------------------------------------------------------------
 # Issue #34: Workaround for YouTube limiting videos to about 12 hours long.
+# Issue #44: Make sure the video is split into manageable segments every day.
 #
-# Check to see if the total video length is expected to exceed 11 hours today,
+# Check to see if the total video length is expected to exceed maximum length,
 # and if so, bounce the stream at the midpoint of the day, to force the video
 # to split the archive into two equal pieces. But... only do this if there
 # hasn't already been some bouncing today which would have shortened the video
@@ -1196,8 +1197,10 @@ fi
 # we started the video stream (which we write to a file at start time).
 #------------------------------------------------------------------------------
 
-# Calculate the total length of the stream, and calculate the half way point
-# between the stream start and stop points.
+# Calculate the total length of all stream uptime (the elapsed time between
+# the approximate sunrise/camera-on time and the approximate sunset/camera-off
+# time), and calculate the halfway point between those two points. That halfway
+# point will be our midday bounce time.
 totalStreamSeconds=$(($stopServiceSeconds - $startServiceSeconds))
 if [ $totalStreamSeconds -lt 1 ]
 then
@@ -1238,36 +1241,74 @@ fi
 secondsSinceCamstart=$(($currentTimeSeconds - $camstartSeconds))
 
 # Calculate the maximum potential segment length of the currently-streaming
-# segment, from now until the end of the day, based on when the camera was last
+# segment, from camstart until the end of the day, based on when the camera was
 # started versus the time of day that we expect the stream to get shut down at
 # the end of the day. This assumes the best-case scenario where we there will
 # be no more network or stream problems for the rest of the day. If this number
-# ends up being greater than 11 hours, then a midday bounce might be needed.
+# ends up being greater than max length, then a midday bounce might be needed.
 maxPotentialSeconds=$(($stopServiceSeconds - $camstartSeconds))
 
 # Display all values we will be using to base our midday bounce decision upon.
 logMessage "dbg" ""
-logMessage "dbg" "Today's stream length is         $totalStreamSeconds $(SecondsToTime $totalStreamSeconds) long"
-logMessage "dbg" "Today's stream's halfway time    $halfTimeSeconds $(SecondsToTime $halfTimeSeconds)"
-logMessage "dbg" "Camera was last started at       $camstartSeconds $(SecondsToTime $camstartSeconds)"
-logMessage "dbg" "Time since camera was started    $secondsSinceCamstart $(SecondsToTime $secondsSinceCamstart) ago"
-logMessage "dbg" "Max potential segment length     $maxPotentialSeconds $(SecondsToTime $maxPotentialSeconds) long"
+logMessage "dbg" "Current time (approximate)                  $currentTimeSeconds $(SecondsToTime $currentTimeSeconds) on the clock"
+logMessage "dbg" "Today's stream length (sunrise to sunset)   $totalStreamSeconds $(SecondsToTime $totalStreamSeconds) long"
+logMessage "dbg" "Today's stream's halfway point (midday)     $halfTimeSeconds $(SecondsToTime $halfTimeSeconds) on the clock"
+logMessage "dbg" "Camera was last started at                  $camstartSeconds $(SecondsToTime $camstartSeconds) on the clock"
+logMessage "dbg" "Elapsed time since camera was started       $secondsSinceCamstart $(SecondsToTime $secondsSinceCamstart) ago"
+logMessage "dbg" "Max potential segment length (start to EOD) $maxPotentialSeconds $(SecondsToTime $maxPotentialSeconds) long"
+logMessage "dbg" "Max stream length allowed                   $maxVideoLengthSeconds $(SecondsToTime $maxVideoLengthSeconds) long"
 
 # Decide if a midday bounce is needed at all. Check if the total uptime today
 # is longer than YouTube's maximum archive length. Though YouTube seems to
 # limit the length to about 12 hours, it's not quite exactly 12 hours each
-# time; it seems to end up being 11 hours and change. So we'll make our
-# detection occur at the 11 hour mark to be safe. (11 hours is 39600 seconds.)
+# time; it seems to end up being 11 hours and change.
+#
+# UPDATE: Issue #44 - change the hardcoded "11 hour" (39600 seconds) detection
+# time to be configurable, so that we can, if desired, configure the video
+# lengths so that a midday bounce occurs every day of the year, not just in the
+# summer. So, changing hard coded "39600" to variable "$maxVideoLengthSeconds".
+#
 # Also check if the maximum possible length of the current stream segment could
-# exceed the maximum archive length too, and if the current time is past
+# exceed the maximum archive length too, and check if the current time is past
 # today's halfway point.
 #
-# In theory, I shouldn't need the first check for totalStreamSeconds. The
-# totalStreamSeconds should always be equal to, or longer than, the
-# maxPotentialSeconds. Really, maxPotentialSeconds is the one I really care
+# There is also a check to make sure that the bounce can only occur if the
+# current running video segment is longer than the maximum allowed video
+# length. This prevents a problem where the user might configure a max length
+# which is too short for the day length. For instance, a two-hour max segment
+# length when the day might be 14 hours long. If we didn't have that check,
+# then it might keep bouncing the stream every time the script runs after the
+# day's midpoint. This check keeps it from repeatedly bouncing there too much.
+#
+# BUG, potentially livable: This algorithm intends to bounce only at midday,
+# but there is a discrepancy between the max length video versus the possible
+# number of hours in the day for certain latitudes. The current code issue
+# means that after the day's midpoint, there might still be multiple bounces
+# if the max stream length is configured to be too short. For example, at the
+# height of summer in Seattle, the day can be about 16 hours long, and if I
+# add 15 minutes of cam-on/cam-off compensation at the twilight ends (which I
+# do), that makes it possibly a total of about 16.5 hours of total stream time.
+# If I set the max video segment length to 8 hours, then the first half of the
+# day will still run to about 8 hours (up to the midpoint) and bounce, and then
+# after the midpoint, it will run for 8 more hours and then bounce again,
+# shortly before the camera shuts itself off for the night. So that's slightly
+# too short of a time to set. But then I'm squeezed at the other end: In the
+# winter, the daylight can be about 8.5 hours long, so I don't want to set the
+# max time to 9 hours to work around the "too short" thing in the summer. In
+# reality, I don't care if an extra bounce happens near the end of the day in
+# the summer, since the critters don't usually visit that late in the day. So
+# for now I can live with setting this value to the shorter one (6 to 8 hours)
+# so that the stream always has a midday bounce, even in the winter, and the
+# summer sometimes get a second "midday" bounce near the end of the day.
+#
+# There is also a check for making sure the totalStreamSeconds is greater than
+# the maximum allowed video length. I shouldn't need this check, in theory.
+# The totalStreamSeconds should always be equal to, or longer than, the
+# maxPotentialSeconds, so the second check for maxPotentialSeconds should also
+# handle those situations. Really, maxPotentialSeconds is the one I really care
 # about. The totalStreamSeconds check is only here for safety in cases where
 # weird values might be retrieved sometimes.
-if [ $totalStreamSeconds -gt 39600 ] && [ $maxPotentialSeconds -gt 39600 ] && [ $currentTimeSeconds -gt $halfTimeSeconds ] 
+if [ $totalStreamSeconds -gt $maxVideoLengthSeconds ] && [ $maxPotentialSeconds -gt $maxVideoLengthSeconds ] && [ $currentTimeSeconds -gt $halfTimeSeconds ] && [ $secondsSinceCamstart -gt $maxVideoLengthSeconds ]
 then
   # Log to the Synology system log that we are doing a midday bounce.
   logMessage "info" "A midday stream bounce is needed, to prevent the current stream segment from exceeding the maximum video length"
@@ -1280,7 +1321,7 @@ then
     logMessage "dbg" "(Skipping the actual bounce when in debug mode)"
   fi
 else
-  logMessage "dbg" "Midday bounce not needed"
+  logMessage "dbg" "Midday bounce not needed, at least not yet"
 fi
 
 # Log a blank line in the debug console output to separate the midday bounce
