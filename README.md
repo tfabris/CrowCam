@@ -149,9 +149,7 @@ This script has multiple purposes:
     your video exceeds that length, YouTube truncates that day's video archive
     file shortly before the 12 hour mark, potentially making you lose the
     archived video of events in the evening. This script works around that bug,
-    by pre-calculating the expected length of today's live stream, and
-    splitting the stream at midday, in cases where the stream is expected to
-    exceed 11 hours or so.
+    by making sure the livestream's video segments are limited in length.
 - Sunrise/Sunset Scheduling:
   - Turns the YouTube live stream on and off based on the approximate sunrise
     and sunset for the camera's location and timezone. Because crows are
