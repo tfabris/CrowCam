@@ -101,45 +101,45 @@ startServiceOffset=-15
 stopServiceOffset=15
 
 
-# Maximum length, in seconds, that a video is allowed to get, before the code
-# will attempt to split the video sometime during the middle of the day. This
-# addresses GitHub issues #34 and #44.
+# Maximum length, in seconds, that a video streaming segment is allowed to get,
+# before the code will attempt to split the video stream into another segment.
+# It will do this by bouncing the video stream, if it's been successfully up
+# and running for longer than this configured value.
 #
-# Problems can occur with the video archives if we try to record a livestream
-# which lasts too long in a given day. For instance, the maximum length of any
-# YouTube video seems to be about 12 hours (actually, it seems to be more like
-# 11:55 in practice), and so if we livestream for longer than that, the video
-# archive of that day will be truncated. Also, there is a "processing" phase
-# on YouTube, where the livestream is being converted into an archive video,
-# and the "processing" takes a long time if the video file is too long. So
-# pretty much every day, splitting the video in the middle of the day is
-# useful to do.
+# Set this variable to be the desired maximum video length, recommended to be
+# as short as about 4 hours, and as long as about 11:55 hours.
 #
-# The script will bounce the video stream (splitting the video archive file
-# into multiple manageable segments) based on the length of the current video
-# segment, the midpoint of the expected day's stream (the approximate midday)
-# and the value you enter below. If the current recording segment of the day's
-# video stream has either already (or is expected to) exceed the max length
-# you set, then the script will bounce the stream, splitting the video archive
-# at an appropriate length.
-#
-# Set this variable to be the desired maximum video length, between about
-# 4 hours and 11:55 hours.
-#
-# Recommend setting to a value which is slightly less than the winter solstice
-# daylight hours in your region, and/or slightly less than half of the summer
-# solstice daylight hours. For instance, if the shortest day of your year is
-# going to be 8.5 hours, and the longest day of your year is going to be about
-# 16 hours, then set this to something like 8 hours. You can also set it for
-# shorter lengths if you prefer the day's video to be split up into even
-# smaller segments. Some possible values could be:
+# Some possible values could be:
 #    maxVideoLengthSeconds=42900    (11 hours and 55 minutes, max recommended)
 #    maxVideoLengthSeconds=39600    (11 hours)
 #    maxVideoLengthSeconds=28800    (8 hours)
 #    maxVideoLengthSeconds=25200    (7 hours)
 #    maxVideoLengthSeconds=21600    (6 hours)
-#    maxVideoLengthSeconds=14400    (4 hours)
-maxVideoLengthSeconds=25200
+#    maxVideoLengthSeconds=14400    (4 hours, minimum recommended)
+maxVideoLengthSeconds=21600
+
+# Explanation of the maxVideoLengthSeconds value:
+#
+# Problems can occur with YouTube video archives if we try to record a stream
+# which lasts too long in any given day. The first problem is that the maximum
+# length of a YouTube video seems to be about 12 hours (actually, more like
+# 11:55 in practice), and so if we livestream for longer than that, the video
+# archive for that day will be truncated. The second problem is that there is a
+# "processing" phase on YouTube, where the stream is being converted into an
+# archive video, and this "processing" takes an unexpectedly long time if the
+# video file is too large. So splitting the video during the day, even if it's
+# not having any network troubles, is useful to do.
+#
+# Recommend setting maxVideoLengthSeconds to a value which is slightly less
+# than the winter solstice daylight hours in your region, and/or slightly less
+# than half of the summer solstice daylight hours. For instance, if the
+# shortest day of your year is going to be 8.5 hours, and the longest day of
+# your year is going to be about 16 hours, then set maxVideoLengthSeconds to
+# something like 6-8 hours. You can also set it for a shorter length, if you
+# prefer the day's video to be split up into even smaller segments, however, be
+# advised that each split point will cause the video stream to go down for a
+# couple of minutes, so don't make this number too small or else you'll have
+# too much downtime.
 
 
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
