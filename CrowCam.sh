@@ -1618,9 +1618,28 @@ else
       #  snippet.liveChatId
       # Still, even though it produces a response without an error message,
       # it still doesn't actually update the privacyStatus field.
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=status,snippet&access_token=$accessToken"
-      curlData="{\"id\":\"$thisStreamId\",\"etag\":\"$etag\",\"status\":{\"privacyStatus\":\"$desiredStreamVisibility\"},\"snippet\":{\"channelId\":\"$channelId\",\"title\":\"$boundStreamTitle\",\"scheduledStartTime\":\"$scheduledStartTime\",\"liveChatId\":\"$liveChatId\",\"isDefaultBroadcast\":$isDefaultBroadcast}}"
-      
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=status,snippet&broadcastType=persistent&mine=true&access_token=$accessToken"
+      curlData=""
+      curlData+="{"
+        curlData+="\"id\":\"$thisStreamId\","
+        curlData+="\"etag\":\"\\\"$etag\\\"\","                           # etag is weird because of the extra quotes
+        curlData+="\"status\":"
+          curlData+="{"
+            curlData+="\"privacyStatus\":\"$desiredStreamVisibility\""
+          curlData+="},"
+        curlData+="\"snippet\":"
+          curlData+="{"
+            curlData+="\"channelId\":\"$channelId\","
+            curlData+="\"title\":\"$boundStreamTitle\","                  # To-do - Need to know how to handle this if there is a space in title
+            #  curlData+="\"description\":\"Test&#x20Description\","      # work in progress experimentation. Don't know if it works.
+            #  curlData+="\"description\":\"Test\ Description\","         # work in progress experimentation. Does not work.
+            curlData+="\"scheduledStartTime\":\"$scheduledStartTime\","
+            curlData+="\"liveChatId\":\"$liveChatId\","
+            curlData+="\"isDefaultBroadcast\":$isDefaultBroadcast"        # no quotes around the "true"
+          curlData+="}"
+        curlData+="}"
+
+
       # Perform the fix.
 
       logMessage "info" "Not fixing stream visibility yet - Work in progress"
@@ -1653,7 +1672,7 @@ else
       #      # Note: A good response might contain freeform descriptive text from the
       #      # Description field, so try to make this as specific as possible so that
       #      # if the user has a video description that merely contains the word
-      #      # "error" somewhere it it, it won't false-alarm. 
+      #      # "error" somewhere in it, it won't false-alarm. 
       #      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
       #      then
       #        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
