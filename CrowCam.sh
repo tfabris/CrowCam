@@ -1422,25 +1422,36 @@ else
   then
     logMessage "dbg" "Expected stream visibility $desiredStreamVisibility matches YouTube stream visibility $privacyStatus"
   else
-    # Log a set of error messages if they do not match.
+    # Log an error message if they do not match.
     logMessage "err" "Expected stream visibility does not match YouTube stream visibility. Expected visibility: $desiredStreamVisibility YouTube visibility: $privacyStatus"
     
-    # In addition to retrieving the privacyStatus, I must also retrieve all of
-    # these other values if I need to make an update. This is because the API call
-    # which performs the fix, according to the documentation, must include all of
-    # these values embedded in the API call itself. So retrieve them here, and
-    # bad-flag our "safeToFixStreamKey" flag if they come out blank.
+    # Retrieve the "id" field, so that the API command can identify which
+    # video stream to update.
     thisStreamId=""
     thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
     logMessage "dbg" "thisStreamId: $thisStreamId"
     if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
 
+    # In addition to retrieving privacyStatus and id, also retrieve all of
+    # these other values. According to the documentation, the API call which
+    # performs the fix must include all of these values embedded in the API
+    # call itself. My experimentation has found that many of these values
+    # might not actually be needed if we're merely updating the privacyStatus
+    # field. But since there's not a major cost associated with retrieving all
+    # of these values, retrieve them here (the API call was already made, so
+    # the API quota is already spent, we merely need to parse them into some
+    # variables). Also, I will bad-flag our "safeToFixStreamKey" flag if any
+    # of them come out blank, because these values should definitely get
+    # retrieved, and if they're not, then something worse is going on with the
+    # API, so I shouldn't be making any changes if any of these fields are
+    # bad.
+
     # Note: Parsing "etag" is special because in the output from the server,
     # etag has these extra \" things in the actual field. Like escape codes
     # embedded inside the string. It doesn't seem to require those things in
     # the etag when I send it up to the server, but if I want to parse it when
-    # coming down, I need to parse them out. So there is an extra CUT at
-    # the end of this parse statement and it starts on field 5 instead of 4.
+    # coming down, I need to parse them out. So there is an extra CUT at the
+    # end of this parse statement, and it starts on field f5 instead of f4.
     # Not clear? Here's clearer:
     # Instead of parsing this like a sane person:
     #   "etag": "Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8",
@@ -1524,9 +1535,9 @@ else
       # Perform the fix, following the API documentation located here:
       # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts/update
       # The chunk (partially) looks like this in the liveBroadcasts response,
-      # and we are updating all of the mutable details, per the API docs:
-      #        (...)
-      #        (...)
+      # and the docs say we must update many of these mutable details (though
+      # experimentation shows that I so not have to update all the ones that
+      # the docs say I must update):
       #        (...)
       #          "scheduledStartTime": "1970-01-01T00:00:00.000Z",
       #          "actualStartTime": "2019-06-14T20:17:04.000Z",
@@ -1545,11 +1556,9 @@ else
       #           "enableMonitorStream": true,
       #           "broadcastStreamDelayMs": 0,
       #        (...)
-      #        (...)
-      #        (...)
       # According to the documentation, I must populate the following values
-      # since they are are all updated at once. So I retrieved them all, above,
-      # and will use them below in the update/fix call.
+      # since they are are all updated at once. So I retrieved them all, above.
+      # (Though it turns out that I don't really need to update all of these.)
       # 
       #    My variable:              API actual variable:
       #
@@ -1566,117 +1575,144 @@ else
       #    recordFromStart           contentDetails.recordFromStart
       #    startWithSlate            contentDetails.startWithSlate
       #
-      # Other values that I am experimenting with...
+      # Other values that I have been experimenting with...
       #
-      #    actualStartTime           snippet.actualStartTime
-      #    boundStreamId             contentDetails.boundStreamId
+      #    "youtube#liveBroadcast"   kind
       #    etag                      etag
+      #    actualStartTime           snippet.actualStartTime
+      #                              snippet.description
       #    channelId                 snippet.channelId
       #    isDefaultBroadcast        snippet.isDefaultBroadcast
       #    liveChatId                snippet.liveChatId
+      #    boundStreamId             contentDetails.boundStreamId
       
-      # The code below runs without getting an error message from the YouTube
-      # API, but it has the following problems:
-      #
-      #  - The code below runs successfully without generating an error message
-      #    but the privacyStatus does not actually change. It stays the same.
-      #
-      #  - The scheduledStartTime cannot use the existing retrieved variable
-      #    of "1970-01-01T00:00:00.000Z" because that is the epoch start and
-      #    the API will throw an error saying "scheduled start time required".
-      #    You cannot use a predefined start time because it will give a
-      #    different error saying  "Scheduled start time must be in the
-      #    future and close enough to the current date that a broadcast could
-      #    be reliably scheduled at that time." So we're going to need to
-      #    calculate the correct scheduled start time. For instance by taking
-      #    the current date and adding a few days to it. Update: After getting
-      #    to the point where it no longer created a blank "Upcoming" stream,
-      #    the actual value in the scheduledStartTime seemed to become less
-      #    important. No longer did I get an error message about how the
-      #    field needed to specify a specific date in the near future. Perhaps
-      #    this doesn't need to be updated? Not sure.
-      
-      # Put a valid value into the scheduledStartTime field. 
-      # scheduledStartTime="2019-06-22T00:00:00.000Z"
+      # Populate the scheduledStartTime value (might not be needed). The
+      # scheduledStartTime cannot use the existing retrieved variable of
+      # "1970-01-01T00:00:00.000Z" because that is the epoch start and the API
+      # will throw an error saying "scheduled start time required". You cannot
+      # use a predefined start time because it will give a different error
+      # saying "Scheduled start time must be in the future and close enough
+      # to the current date that a broadcast could be reliably scheduled at
+      # that time." We may need to calculate the correct scheduled start time.
+      # For instance by taking the current date and adding a few days to it.
+      # After more experimentation, the scheduledStartTime seemed to become
+      # less important: I stopped getting an error message about how the field
+      # needed to specify a specific date in the near future. Perhaps this
+      # doesn't need to be updated? Not sure.
+      #    scheduledStartTime="2019-06-22T00:00:00.000Z" # Experimental values
       scheduledStartTime="$actualStartTime"
       
-      # Build strings for fixing privacyStatus. Documentation note here:
-      # Only supplying "Status" and "Snippet", and omitting contentDetails,
-      # seems to work. Even though the docs say that you also must supply
-      # contentDetails, in my experiments, contentDetails was not needed for
-      # the code to produce a response from the API which does not complain.
-      # However it might be still required for it to correctly update the
-      # stream, not sure, since my current code still doesn't update the
-      # privacyStatus field.
-      #
-      # In order to prevent it from creating a "new upcoming event", I had to
-      # update these fields. Not sure which one of these fields was the kicker,
-      # but I know it was at least one of them:
-      #  etag
-      #  snippet.channelId
-      #  snippet.isDefaultBroadcast
-      #  snippet.liveChatId
-      # Still, even though it produces a response without an error message,
-      # it still doesn't actually update the privacyStatus field.
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=status,snippet&broadcastType=persistent&mine=true&access_token=$accessToken"
+      # Build strings for fixing privacyStatus.
+      # 
+      # Documentation note here: Only supplying the relevant sections, for
+      # example, only supplying "id" and "status" but omitting "snippet" and
+      # omitting contentDetails, seems to work. Even though the docs say that
+      # you also must supply snippet and contentDetails, in my experiments,
+      # these sections were not needed for the code to succeed.
+      # 
+      # Make sure that the sections listed in the "part=" section of the URL
+      # are also included in the curlData for the PUT command. In other words,
+      # if the URL contains "part=status", then you must also have
+      # "status:<some data>" in the JSON data being posted to the API.
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,status&broadcastType=persistent&mine=true&access_token=$accessToken"
       curlData=""
       curlData+="{"
-        curlData+="\"id\":\"$thisStreamId\","
-        curlData+="\"etag\":\"\\\"$etag\\\"\","                           # etag is weird because of the extra quotes
-        curlData+="\"status\":"
+        curlData+="\"id\": \"$thisStreamId\","
+        curlData+="\"status\": "
           curlData+="{"
-            curlData+="\"privacyStatus\":\"$desiredStreamVisibility\""
-          curlData+="},"
-        curlData+="\"snippet\":"
-          curlData+="{"
-            curlData+="\"channelId\":\"$channelId\","
-            curlData+="\"title\":\"$boundStreamTitle\","                  # To-do - Need to know how to handle this if there is a space in title
-            curlData+="\"description\":\"Test Description\","             # work in progress experimentation.
-            curlData+="\"scheduledStartTime\":\"$scheduledStartTime\","
-            curlData+="\"liveChatId\":\"$liveChatId\","
-            curlData+="\"isDefaultBroadcast\":$isDefaultBroadcast"        # no quotes around the "true"
+            curlData+="\"privacyStatus\": \"$desiredStreamVisibility\""
           curlData+="}"
-        curlData+="}"
+      curlData+="}"
 
+      # In the code below, I have commented out the values which are not
+      # needed for updating just the privacyStatus, both the ones stated by
+      # the docs, as well as my experimental values.
+      #
+      # Note: If commenting/uncommenting which sections and values get
+      # included/excluded, make sure to get the positions of commas correct.
+      # For instance, the difference between these statements means the
+      # difference between a success and a "parse error", depending on
+      # whether there is more data in that section after that line.
+      #       curlData+="},"
+      #       curlData+="}"
+      #
+      # curlData+="\"kind\": \"youtube#liveBroadcast\","
+      # curlData+="\"etag\": \"$etag\","
+      # curlData+="\"snippet\": "
+      #   curlData+="{"
+      #     #curlData+="\"isDefaultBroadcast\": $isDefaultBroadcast,"                 # no quotes around true/false values
+      #     curlData+="\"channelId\": \"$channelId\","
+      #     curlData+="\"description\": \"Test Stream\n\\\"Test Description\\\"\","   # experimentation (syntax is correct here for embedded quotes).
+      #     curlData+="\"scheduledStartTime\": \"$scheduledStartTime\","
+      #     curlData+="\"liveChatId\": \"$liveChatId\","
+      #     curlData+="\"title\": \"$boundStreamTitle\""                  
+      #   curlData+="},"
+      # curlData+="\"contentDetails\": "
+      #   curlData+="{"
+      #     curlData+="\"monitorStream\": "
+      #     curlData+="{"
+      #       curlData+="\"enableMonitorStream\": $enableMonitorStream,"              # no quotes around true/false values
+      #       curlData+="\"broadcastStreamDelayMs\": $broadcastStreamDelayMs"         # no quotes around numeric values
+      #     curlData+="},"
+      #     curlData+="\"enableDvr\": $enableDvr,"                                    # no quotes around true/false values
+      #     curlData+="\"enableContentEncryption\": $enableContentEncryption,"        # no quotes around true/false values
+      #     curlData+="\"enableEmbed\": $enableEmbed,"                                # no quotes around true/false values
+      #     curlData+="\"recordFromStart\": $recordFromStart,"                        # no quotes around true/false values
+      #     curlData+="\"startWithSlate\": $startWithSlate"                           # no quotes around true/false values
+      #   curlData+="}"
 
       # Perform the fix.
+      logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
+      logMessage "dbg" "curlData: $curlData"
+      logMessage "dbg" "curlUrl: $curlUrl"
+      streamVisibilityFixOutput=""
 
-      logMessage "info" "Not fixing stream visibility yet - Work in progress"
+      # Important syntax note: In order to be able to update the stream
+      # instead of creating a new stream, you must use the PUT feature of Curl
+      # rather than the POST feature of Curl. The documentation says that PUT
+      # is an "update" command for YouTube, and POST is an "insert" command
+      # for YouTube. The trick is, you can't just say "PUT" and then use -d
+      # for the data. If you do that, the -d will default to a POST instead of
+      # a PUT and that will cause it to do a YouTube API "insert" command
+      # (creating a new stream) instead of a YouTube API "update" command.
+      # Instead you must use the "-X" aka "--request" command in Curl with the
+      # PUT command immediately following the -X. Despite Curl's own
+      # documentation stating that the "-X" command shouldn't be needed, it
+      # seems to actually be needed, as described in places such as these:
+      # https://stackoverflow.com/a/13782211
+      # https://www.mkyong.com/web/curl-put-request-examples/
+      # ...and even YouTube API's own example code for the Update
+      # command.
+      streamVisibilityFixOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
 
-      # (Work in progress code, doesn't succeed at its task yet.
-      # Disable in production until we get it working right.
-
-      #      logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
-      #      logMessage "dbg" "curlData: $curlData"
-      #      logMessage "dbg" "curlUrl: $curlUrl"
-      #      streamVisibilityFixOutput=""
-      #      streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
-      #      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
-      
-      #      # Check the response for errors and log the error if there is one.
-      #      # Example of what an error response looks like:
-      #      #         {
-      #      #          "error": {
-      #      #           "errors": [
-      #      #            {
-      #      #             "domain": "global",
-      #      #             "reason": "parseError",
-      #      #             "message": "Parse Error"
-      #      #            }
-      #      #           ],
-      #      #           "code": 400,
-      #      #           "message": "Parse Error"
-      #      #          }
-      #      #         }
-      #      # Note: A good response might contain freeform descriptive text from the
-      #      # Description field, so try to make this as specific as possible so that
-      #      # if the user has a video description that merely contains the word
-      #      # "error" somewhere in it, it won't false-alarm. 
-      #      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
-      #      then
-      #        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
-      #      fi
-      
+      # Check the response for errors and log the error if there is one.
+      # Here is an example of what an error response looks like:
+      #         {
+      #          "error": {
+      #           "errors": [
+      #            {
+      #             "domain": "global",
+      #             "reason": "parseError",
+      #             "message": "Parse Error"
+      #            }
+      #           ],
+      #           "code": 400,
+      #           "message": "Parse Error"
+      #          }
+      #         }
+      # Note: A "good" response (a response that isn't an error), if that
+      # response happens to contain the "snippet" details, might also contain
+      # the "description" field of the snipped details. That field might some
+      # freeform descriptive text, and I can't control the contents of that
+      # text, so there is a chance that it might contain the word "error"
+      # somewhere in that text. So try to make this check as specific as
+      # possible,  so that if the user has a video description that merely
+      # contains the word "error" somewhere in it, it won't false-alarm. 
+      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
+      then
+        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
+      fi
     else
       logMessage "err" "Unsafe to fix stream visibility due to API issues"
     fi
