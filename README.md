@@ -30,9 +30,11 @@ include well-documented methods for the following things:
   to use the live stream's DVR functionality.
 - How to work around the YouTube bug which randomly resets your live stream's
   secret name/key with no warning.
+- How to work around the YouTube bug which randomly resets your live stream's
+  public/private/unlisted status with no warning.
 - How to work around the YouTube bug which limits the length of your video
   live stream to 12 hours maximum.
-- How to clean out old YouTube stream archives.
+- How to clean out old YouTube stream archives automatically via a script.
 - How to properly fail out of a Bash script while down inside a sub-function,
   since in Bash, "exit 1" doesn't work as expected when inside a function.
 - How to access and use the Synology API.
@@ -143,6 +145,13 @@ This script has multiple purposes:
     that the one plugged into the Synology NAS matches the one on YouTube. If
     not, it logs an error message, and then automatically updates the key,
     keeping your stream alive and working around YouTube's bug.
+  - There is a bug in YouTube where it randomly clobbers your live stream's
+    public/private/unlisted status. For example, if your live stream is set to
+    "public", YouTube sometimes randomly changes it to be "unlisted". That
+    causes your YouTube stream to unexpectedly go down for anyone watching.
+    This script will query the YouTube API, check if this has occurred, and
+    fix the setting automatically, bringing the live stream back up and working
+    around YouTube's bug.
   - There is a bug in YouTube where it arbitrarily decides that your video's
     archive length must be limited to slightly less than 12 hours maximum. This
     prevents you from recording a long summer day's worth of livestream. If
@@ -168,8 +177,9 @@ This script has multiple purposes:
 
 ####  CrowCamCleanup.sh
 This script cleans up old archives: 
-- Each day, a new CrowCam video is created on the YouTube channel. Every video
-  has a default title, in our case, that default title is always "CrowCam".
+- Each day, a new set of CrowCam videos is created on the YouTube channel.
+  Every video has a default title, in our case, that default title is always
+  "CrowCam".
 - We don't want the channel archives filling up with a bunch of old videos
   named "CrowCam" that we're not using.
 - This script will delete old videos from the channel, provided that:
