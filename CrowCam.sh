@@ -1631,8 +1631,7 @@ else
           curlData+="{"
             curlData+="\"channelId\":\"$channelId\","
             curlData+="\"title\":\"$boundStreamTitle\","                  # To-do - Need to know how to handle this if there is a space in title
-            #  curlData+="\"description\":\"Test&#x20Description\","      # work in progress experimentation. Don't know if it works.
-            #  curlData+="\"description\":\"Test\ Description\","         # work in progress experimentation. Does not work.
+            curlData+="\"description\":\"Test Description\","             # work in progress experimentation.
             curlData+="\"scheduledStartTime\":\"$scheduledStartTime\","
             curlData+="\"liveChatId\":\"$liveChatId\","
             curlData+="\"isDefaultBroadcast\":$isDefaultBroadcast"        # no quotes around the "true"
@@ -1651,7 +1650,7 @@ else
       #      logMessage "dbg" "curlData: $curlData"
       #      logMessage "dbg" "curlUrl: $curlUrl"
       #      streamVisibilityFixOutput=""
-      #      streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d $curlData $curlUrl )
+      #      streamVisibilityFixOutput=$( curl -s -m 20 PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
       #      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
       
       #      # Check the response for errors and log the error if there is one.
