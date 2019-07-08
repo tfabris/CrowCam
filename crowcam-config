@@ -138,7 +138,7 @@ stopServiceOffset=15
 #    maxVideoLengthSeconds=25200    (7 hours)
 #    maxVideoLengthSeconds=21600    (6 hours)
 #    maxVideoLengthSeconds=14400    (4 hours, minimum recommended)
-maxVideoLengthSeconds=21600
+maxVideoLengthSeconds=27600
 
 
 # Grace period for $maxVideoLengthSeconds (above), in seconds.
