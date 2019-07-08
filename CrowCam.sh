@@ -1191,17 +1191,6 @@ fi
 #
 # Check to see if the total video length exceeds maximum length, and if so,
 # bounce the stream, to force the video to split the archive.
-#
-# This has a side effect of sometimes leaving a "short" segment near the end of
-# the day before the camera gets shut down for the night. In other words, if
-# the daylight (camera uptime) hours are 13 hours total, and the video length
-# is set to 6 hours, there will be two 6-hour segments followed by a 1-hour
-# segment. I tried several algorithms to make this more elegant, including
-# midday splits, sliding scale "averaged" segment lengths, etc., but there was
-# too much complexity, mostly due to the possibility that the stream might need
-# to also get bounced because of network problems. In the end, I have decided
-# that a "short" segment near the end of the broadcast day is not as much of an
-# issue because there is usually not any critter activity in the late evening.
 #------------------------------------------------------------------------------
 
 # Read the value from the file which stores the last time-of-day our camera was
@@ -1235,12 +1224,21 @@ fi
 # $currentTimeSeconds but that's close enough for our calculations.
 secondsSinceCamstart=$(($currentTimeSeconds - $camstartSeconds))
 
+# Part of the fix to issue #47: Calculate the "graced" end of the broadcast
+# day, i.e., the expected stream stop time, minus the grace period. This will
+# be used when deciding whether to split the stream if the end of the day
+# is approaching.
+gracedEndOfDay=$(($stopServiceSeconds - $maxVideoLengthGracePeriod))
+
 # Display all values we will be using to base our stream split decision upon.
 logMessage "dbg" ""
 logMessage "dbg" "Camera was last started at                     $camstartSeconds $(SecondsToTime $camstartSeconds) on the clock"
-logMessage "dbg" "Current time (approximate)                     $currentTimeSeconds $(SecondsToTime $currentTimeSeconds) on the clock"
 logMessage "dbg" "Elapsed time since camera was started          $secondsSinceCamstart $(SecondsToTime $secondsSinceCamstart) ago"
 logMessage "dbg" "Max stream length allowed                      $maxVideoLengthSeconds $(SecondsToTime $maxVideoLengthSeconds) long"
+logMessage "dbg" "Grace period length                            $maxVideoLengthGracePeriod $(SecondsToTime $maxVideoLengthGracePeriod) long"
+logMessage "dbg" "Current time (approximate)                     $currentTimeSeconds $(SecondsToTime $currentTimeSeconds) on the clock"
+logMessage "dbg" "End of broadcast day                           $stopServiceSeconds $(SecondsToTime $stopServiceSeconds) on the clock"
+logMessage "dbg" "End of broadcast with grace period subtracted  $gracedEndOfDay $(SecondsToTime $gracedEndOfDay) on the clock"
 
 # Decide if a stream bounce is needed, based on the length of the currently
 # recording video stream. Check if the total uptime of the current segment is
@@ -1248,14 +1246,24 @@ logMessage "dbg" "Max stream length allowed                      $maxVideoLength
 # split the video.
 if [ $secondsSinceCamstart -gt $maxVideoLengthSeconds ]
 then
-  logMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream"
-
-  # Perform the bounce, but only if we are not in debug mode.
-  if [ -z "$debugMode" ]
+  # Fix issue #47: Check if the end of the broadcast day is coming up soon
+  # anyway, and if the day's endpoint is within the grace period, then don't
+  # bother to bounce the stream.
+  if [ $currentTimeSeconds -ge $gracedEndOfDay ]
   then
-    BounceTheStream
+    # We are within the grace period, don't bounce the stream.
+    logMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
   else
-    logMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+    # The end of the day is not close enough. Bounce the stream.
+    logMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream"
+
+    # Perform the bounce, but only if we are not in debug mode.
+    if [ -z "$debugMode" ]
+    then
+      BounceTheStream
+    else
+      logMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+    fi
   fi
 fi
 

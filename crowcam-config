@@ -20,7 +20,8 @@
 # controlling. It must be the live stream's main parent URL, not the address
 # of an individual video within the channel. For instance, it must not be an
 # archived video, or a link to a particular day's live stream. You can tell
-# whether it is the correct link by looking at the the style of the URL:
+# whether it is the correct link by looking at the the style of the URL. The
+# correct value is https://www.youtube.com/channel/(Your_Channel_ID)/live.
 #
 #   Right:    https://www.youtube.com/channel/xyzxyzxyzxyzxyzxyzxyzxyz/live
 #   Wrong:    https://www.youtube.com/watch?v=xyzxyzxyzxyz
@@ -28,7 +29,7 @@
 # This value is used when checking if the stream is working, and it is used
 # when ensuring that the stream's DVR functionality stays working.
 #
-# Update this value to point to your live stream.
+# Update this value to point to your channel's live stream.
 #
 youTubeUrl="https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live"
 
@@ -59,7 +60,7 @@ dateBufferDays=8
 # public, but you may have reasons for wanting to keep it unlisted or private.
 # Because YouTube intermittently glitches and clobbers this value, the script
 # will attempt to maintain this and keep it at the correct setting. Valid
-# values are "private", "public", or "unlisted".
+# values are "private", "public", or "unlisted", case-sensitive.
 #
 # Set this to the desired visibility/privacy of this video stream, either 
 # "private", "public", or "unlisted".
@@ -106,20 +107,6 @@ stopServiceOffset=15
 # It will do this by bouncing the video stream, if it's been successfully up
 # and running for longer than this configured value.
 #
-# Set this variable to be the desired maximum video length, recommended to be
-# as short as about 4 hours, and as long as about 11:55 hours.
-#
-# Some possible values could be:
-#    maxVideoLengthSeconds=42900    (11 hours and 55 minutes, max recommended)
-#    maxVideoLengthSeconds=39600    (11 hours)
-#    maxVideoLengthSeconds=28800    (8 hours)
-#    maxVideoLengthSeconds=25200    (7 hours)
-#    maxVideoLengthSeconds=21600    (6 hours)
-#    maxVideoLengthSeconds=14400    (4 hours, minimum recommended)
-maxVideoLengthSeconds=21600
-
-# Explanation of the maxVideoLengthSeconds value:
-#
 # Problems can occur with YouTube video archives if we try to record a stream
 # which lasts too long in any given day. The first problem is that the maximum
 # length of a YouTube video seems to be about 12 hours (actually, more like
@@ -138,9 +125,51 @@ maxVideoLengthSeconds=21600
 # something like 6-8 hours. You can also set it for a shorter length, if you
 # prefer the day's video to be split up into even smaller segments, however, be
 # advised that each split point will cause the video stream to go down for a
-# couple of minutes, so don't make this number too small or else you'll have
-# too much downtime.
+# couple of minutes, so don't make this number too small, or else you'll have
+# too many moments of downtime during the day.
+#
+# Set this variable to be the desired maximum video length, recommended to be
+# as short as about 4 hours, and as long as about 11 hours.
+#
+# Some possible values could be:
+#    maxVideoLengthSeconds=42900    (11 hours and 55 minutes, max recommended)
+#    maxVideoLengthSeconds=39600    (11 hours)
+#    maxVideoLengthSeconds=28800    (8 hours)
+#    maxVideoLengthSeconds=25200    (7 hours)
+#    maxVideoLengthSeconds=21600    (6 hours)
+#    maxVideoLengthSeconds=14400    (4 hours, minimum recommended)
+maxVideoLengthSeconds=21600
 
+
+# Grace period for $maxVideoLengthSeconds (above), in seconds.
+#
+# This helps prevent a "short segment" at the end of the broadcast day.
+#
+# If the video is going to be split into smaller sections based on the value of
+# $maxVideoLengthSeconds, but the last section is near the end of the broadcast
+# day, this allows the video segment to stretch slightly longer than the
+# maximum, so that there isn't a "short segment" left behind at the end of the
+# day. For example: If you have configured $maxVideoLengthSeconds to six hours,
+# and the day is going to be about 13 hours long, then normally you'd get three
+# video segments that day: Two segments of six hours in length, and one final
+# segment of only one hour in length, before it shuts down for the night. But
+# if you set this value to one hour (3600 seconds), then, if it's near the end
+# of the day, it will allow the last segment of the day to stretch an
+# additional hour, to seven hours total, so you would get a nicer set of two
+# video segments that day: A six hour segment followed by a seven hour segment.
+# 
+# Set this to a comfortable value that is the shortest that you'd want a short
+# segment to be. For instance, if you don't mind having a 60-minute video
+# archive segment near the end of the broadcast day, but a 45-minute segment
+# would bother you, then set this to 3600 seconds (60 minutes).
+# 
+# The value must be between 0 and (42900 - $maxVideoLengthSeconds). The latter
+# is so that this doesn't accidentally make the video longer than 11:55 (the
+# YouTube maximum length).
+#
+# Recommended value: 3600 seconds (one hour).
+# 
+maxVideoLengthGracePeriod=3600
 
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
 # accessing, from the point of view of the script running on the NAS itself
