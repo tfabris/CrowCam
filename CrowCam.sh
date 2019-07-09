@@ -383,7 +383,7 @@ Test_Stream()
           # Update 2019-05-27 - Do not bounce the stream due to the error
           # "videoIngestionStarved" because it cries wolf too frequently.
           # Only log the situation and allow the program to continue.
-          logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
+          logMessage "dbg" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
         fi
       fi    
     fi
