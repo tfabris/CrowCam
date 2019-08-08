@@ -76,12 +76,12 @@ use the "Live Broadcast" feature of Surveillance Station to push the video
 stream to our YouTube channel, where anyone can watch.
 
 This project is a suite of related Bash script files:
-- [CrowCam.sh - CrowCam Controller                                                 ](#crowcam-sh)
+- [CrowCam.sh - CrowCam Controller                                                 ](#crowcamsh)
   - Starts and stops the YouTube stream at Sunrise/Sunset, and detects network
     outages, restarting the stream after an outage if needed.
-- [CrowCamCleanup.sh - CrowCam Cleanup tool                                        ](#crowcamcleanup-sh)
+- [CrowCamCleanup.sh - CrowCam Cleanup tool                                        ](#crowcamcleanupsh)
   - Cleans out old YouTube stream archives after a certain number of days.
-- [CrowCamKeepAlive.sh - CrowCam Keep Alive tool                                   ](#crowcamkeepalive-sh)
+- [CrowCamKeepAlive.sh - CrowCam Keep Alive tool                                   ](#crowcamkeepalivesh)
   - Ensures that a YouTube stream's DVR functionality works at all times
     for all users. It works around an unfixed YouTube bug related to DVR
     functionality.
