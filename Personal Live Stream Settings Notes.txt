@@ -37,8 +37,8 @@ http://www.VixyAndTony.com
 
 
 
-My personal settings which differ from YouTube defaults
--------------------------------------------------------
+My personal YouTube settings which differ from YouTube defaults
+---------------------------------------------------------------
 
 Title: CrowCam
 
@@ -67,3 +67,73 @@ Crows, Squirrels, Animals, Live, Cam, Webcam, Birds, Birdwatching
   into the tags field, with the commas, it works.
 
 
+Synology NAS Surveillance Station settings
+------------------------------------------
+
+IP Camera - Edit - Device Settings - Video
+
+Video format: H.264
+Audio format: AAC
+Field of View: 4mp
+Stream profile: All three set to "Stream 1"
+"Stream 1" settings - Resolution: 1080p
+"Stream 1" settings - Frame Rate: 30
+"Stream 1" settings - Bitrate: Constant
+"Stream 1" settings - Bitrate KBPS: 3072
+
+IP Camera - Edit - Device Settings - Advanced
+
+Use a speaker: Unchecked
+Transport Protocol: TCP
+Keep alive method: OPTIONS (Default)
+Streaming information source: RSTP
+
+IP Camera - Edit - Recording Settings - Recording
+
+Pre-recording time: 5 sec
+Post-recording time: 5 sec
+Limit the archive folder up to: 180 GB
+Recordings storage: surveillance (Volume 1)
+
+IP Camera - Edit - Recording Settings - Stream
+
+Schedule Recording Settings: All set to "High Quality"
+Advanced Continuous Recoring Settings: Do not change dynamically
+
+IP Camera - Edit - Recording Settings - Advanced
+
+Truncate video every: 240 minutes
+When space or time limit is reached: Remove old archives
+Other recording settings: All set to "High Quality"
+
+IP Camera - Edit - Event Detection - Motion
+
+Detection source: By Surveillance Station
+Edit Detection Area: (hand-customized area)
+Sensitivity: 87
+Threshold: 5
+Ignore short lived motion: 2 seconds
+
+
+Reolink Camera Settings
+-----------------------
+
+Display - Quality - Clear
+
+Resolution: 1080p
+Frame rate: 25fps (max the camera will do)
+Max bitrate 3072 kbps
+
+Display
+
+Anti-Flicker: Auto
+Exposure: Auto
+White Balance: Auto
+Day and Night: Auto
+Backlight: Dynamic (custom setting)
+3D DNR: On
+
+Settings
+
+Record Audio: On
+Infrared lights: On
