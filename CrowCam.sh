@@ -421,9 +421,9 @@ Test_Stream()
       # Related to issue #37: Change messaging if the API is being goofy today.
       if [ "$GoodApiDataRetrieved" = true ]
       then
-        logMessage "info" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
+        logMessage "dbg" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
       else
-        logMessage "info" "The network is up, but the YouTube stream test results are inconclusive. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
+        logMessage "dbg" "The network is up, but the YouTube stream test results are inconclusive. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
       fi
       
       # Sleep between stream tests.
@@ -836,7 +836,7 @@ BounceTheStream()
   # in testing, where, if I set this number too small, that I would not get
   # a successful stream reset. Now using a nice long chunk of time here to
   # make absolutely sure.
-  logMessage "info" "Pausing, after bringing down the stream, before bringing it up again"
+  logMessage "dbg" "Pausing, after bringing down the stream, before bringing it up again"
   sleep 105
   
   # Bring the stream back up. Start it here by using the "Save" method to
@@ -845,7 +845,7 @@ BounceTheStream()
   WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
 
   # Log that we're done.
-  logMessage "info" "Done bouncing YouTube stream"
+  logMessage "dbg" "Done bouncing YouTube stream"
 
   # If we had to bounce the stream, wait a little while before allowing the
   # program to continue to its exit point. This allows the stream to get
@@ -1833,9 +1833,9 @@ do
       sleep $PauseBetweenTests
 
       # Test the network and stream again.
-      logMessage "info" "Testing network again"
+      logMessage "dbg" "Testing network again"
       Test_Network
-      logMessage "info" "Status - Network up: $NetworkIsUp"
+      logMessage "dbg" "Status - Network up: $NetworkIsUp"
 
       # Check if the network has come back up and break out of the retry loop
       # if the network is now up.
@@ -1865,7 +1865,7 @@ do
     if [ "$NetworkIsUp" = true ]
     then
       # Inform the user that we're bouncing the stream because the network is up.
-      logMessage "info" "Bouncing the YouTube stream since the network is up"
+      logMessage "info" "Bouncing the YouTube stream since the network came back up"
     else
       # Inform the user that we gave up trying.
       logMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway"
