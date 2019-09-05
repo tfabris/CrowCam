@@ -1074,7 +1074,7 @@ then
   if [ ! -f "$crowcamSunrise" ] || [ ! -f "$crowcamSunset" ] || [ "$( find "$crowcamSunrise" -mmin +$ageLimit )" != "" ] || [ "$( find "$crowcamSunset" -mmin +$ageLimit )" != "" ]
   then
     # Get more accurate sunrise/sunset results from Google if available.
-    logMessage "info" "Retrieving sunrise/sunset times from Google"
+    logMessage "dbg" "Retrieving sunrise/sunset times from Google"
     googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
     googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
 
