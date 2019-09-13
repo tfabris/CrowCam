@@ -143,20 +143,73 @@ logMessage "dbg" "My Uploads playlist ID: $uploadsId"
 
 # Get a list of videos in the "My Uploads" playlist, which includes both
 # public videos as well as unlisted videos (all my archived CrowCam videos are
-# unlisted, but this should work either way). NOTE: Must use maxResults=50
-# parameter because the default number of search results is only 5 items. My
-# playlist is always longer than 5 items so I'll always want to process 50.
-# The maximum allowed number per page is 50, and I don't know what will happen
-# if the playlist exceeds 50 items total. My hope is that the most recent
-# videos will be on the first page of retrieved items. That way, if we only
-# care about videos which are about 5 days old or so, we'll likely see them on
-# the first page of the results. If that's the case, then we can always work
-# with the first 50 results returned and we won't need to implement
-# pagination. If pagination ends up being needed, there are instructions in
-# YouTube API docs for how to implement it.
-curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$uploadsId&maxResults=50&part=contentDetails&mine=true&access_token=$accessToken"
+# unlisted, but this should work either way).
+
+# Bugfix for GitHub issue #51 - Implement pagination in the query. Start by
+# initializing the variable which will be keeping track of the pagination.
+nextPageToken=""
+
+# Set/clear the variable which will hold the combined results of all loops
+# which query multiple pages of the youtube channel's "My Uploads" playlist.
 uploadsOutput=""
-uploadsOutput=$( curl -s $curlUrl )
+
+# Create a limited-length FOR loop to paginate. The reason that this FOR loop
+# is limited, is because, if this script is running against a YouTube channel
+# with too many pages, I want to limit the number of pages it churns through
+# during any single run, so that it doesn't run forever and doesn't
+# over-consume Google API quota limits. Since this program queries the video
+# details of each video in this playlist, having too many pages worth of
+# queries will quickly overstep the Google quota limits. Ideally we should run
+# this script well before midnight each night (since Google resets the quota at
+# midnight Pacific time for me).
+for (( c=1; c<=3; c++ ))
+do
+    # Create the base url for the Curl command to query the API for the videos
+    # in the "My Uploads" playlist. NOTE: Must use maxResults=50 parameter
+    # because the default number of search results is only 5 items, and we want
+    # to get as many items per page as possible. 50/page is the max allowed.
+    curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$uploadsId&maxResults=50&part=contentDetails&mine=true&access_token=$accessToken"
+
+    # If a prior loop resulted in a "next page" pagination token, use it on
+    # this loop. If the token is nonblank, then assume we got a page token on
+    # the prior run, and use it. The first time through the loop, we will be
+    # retrieving the first page, so it will always be blank, so the first
+    # query will never contain this parameter. Subsequent queries may or may
+    # not contain the parameter depending on how many videos are in the
+    # playlist.
+    if [ ! -z "$nextPageToken" ]
+    then
+        # If the prior loop's response contained a next page token, then 
+        # concatenate the next page token into the command for this loop run.
+        curlUrl="$curlUrl&pageToken=$nextPageToken"
+    fi
+    
+    # Print the curl command we are about to use, in debug mode only.
+    logMessage "dbg" "curl -s $curlUrl"
+    
+    # Perform the API query with curl.
+    uploadsOneLoopOutput=""
+    uploadsOneLoopOutput=$( curl -s $curlUrl )
+
+    # Zero out the next page token for this loop, and then try to re-retrieve
+    # it from the curl results. If this results in a nonblank string, then,
+    # the string will be the next page token for the next loop. 
+    nextPageToken=""
+    nextPageToken=$(echo $uploadsOneLoopOutput | sed 's/"nextPageToken"/\'$'\n&/g' | grep "nextPageToken" | cut -d '"' -f4)
+    
+    # Concatenate the current loop's output with all the prior loops' output.
+    # This will be used later, to scan for all of the videos in the entire
+    # set of all queries together.
+    uploadsOutput="$uploadsOutput $uploadsOneLoopOutput"
+
+    # If the next page token is blank, it means we have reached the last page
+    # and can exit the loop.
+    if [ -z "$nextPageToken" ]
+    then
+        # We have reached the last page, exit the paginiation loop.
+        break
+    fi
+done
 
 # Log the output results. Not usually needed. Leave deactivated usually.
 # echo " "

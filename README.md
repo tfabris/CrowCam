@@ -368,11 +368,14 @@ each task should have the following settings:
      Task:   CrowCam Keep Alive
 ```
 - Schedule: Set all three tasks to run "Daily"
-- Schedule: First run time: Set all three tasks to "00:00"
+- Schedule: First run time:
+    - CrowCam Controller: First run time: "00:00"
+    - CrowCam Keep Alive: First run time: "00:00"
+    - CrowCam Cleanup:    First run time: "23:00"
 - Schedule: Frequency: 
     - CrowCam Controller: Frequency: "Every 5 Minutes"
-    - CrowCam Cleanup:    Frequency: "Every Day" 
     - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
+    - CrowCam Cleanup:    Frequency: "Every Day" 
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
   for a task that runs every 5 minutes, the highest run time available will be
@@ -402,7 +405,7 @@ situations:
 - If your local internet connection has a temporary outage, you should see
   Synology log entries which indicate that the script is bouncing the "Live
   Broadcast" feature to restart the failed stream.
-- Around midnight, you should see a Synology log entry which lists how many
+- Late at night, you should see a Synology log entry which lists how many
   files are in the "My Uploads" folder on your YouTube channel, being analyzed,
   and a message for any old archived livestream files which are being deleted.
 - If the scripts encounter any major error, the errors should be reported in
