@@ -330,8 +330,8 @@ doing the following:
 Copy the following files from your local PC into the folder on the NAS:
 
      CrowCam.sh
-     CrowCamCleanup.sh
      CrowCamKeepAlive.sh
+     CrowCamCleanup.sh
      CrowCamHelperFunctions.sh
      crowcam-config
      youtube-dl
@@ -364,8 +364,8 @@ each task should have the following settings:
 - General, General Settings: Name each of the three tasks as follows:
 ```
      Task:   CrowCam Controller
-     Task:   CrowCam Cleanup
      Task:   CrowCam Keep Alive
+     Task:   CrowCam Cleanup
 ```
 - Schedule: Set all three tasks to run "Daily"
 - Schedule: First run time:
@@ -384,8 +384,8 @@ each task should have the following settings:
   task to run each of the the corresponding scripts, for example:
 ```
      CrowCam Controller:        bash "/volume1/homes/admin/CrowCam/CrowCam.sh"
-     CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCam/CrowCamCleanup.sh"
      CrowCam Keep Alive:        bash "/volume1/homes/admin/CrowCam/CrowCamKeepAlive.sh"
+     CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCam/CrowCamCleanup.sh"
 ```
 
 
