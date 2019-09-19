@@ -845,7 +845,7 @@ BounceTheStream()
   WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
 
   # Log that we're done.
-  logMessage "dbg" "Done bouncing YouTube stream"
+  logMessage "err" "Done bouncing YouTube stream"
 
   # If we had to bounce the stream, wait a little while before allowing the
   # program to continue to its exit point. This allows the stream to get
