@@ -121,7 +121,7 @@ Reolink Camera Settings
 Display - Quality - Clear
 
 Resolution: 1080p
-Frame rate: 25fps (max the camera will do)
+Frame rate: 30fps
 Max bitrate 3072 kbps
 
 Display
