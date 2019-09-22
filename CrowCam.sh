@@ -94,10 +94,10 @@ PauseBetweenTests=10
 # Try to prevent busting the quota by re-querying more slowly. You can view
 # your quota usage here:
 # https://console.developers.google.com/apis/api/youtube.googleapis.com/quotas?project=crowcam
-NumberOfStreamTests=5
+NumberOfStreamTests=7
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=45
+PauseBetweenStreamTests=49
 
 # When in test mode, pause for a shorter period between tests, and do fewer
 # loops of the main network test loop.
