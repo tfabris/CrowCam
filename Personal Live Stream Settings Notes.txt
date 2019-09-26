@@ -79,7 +79,7 @@ Stream profile: All three set to "Stream 1"
 "Stream 1" settings - Resolution: 1080p
 "Stream 1" settings - Frame Rate: 30
 "Stream 1" settings - Bitrate: Constant
-"Stream 1" settings - Bitrate KBPS: 3072
+"Stream 1" settings - Bitrate KBPS: 2048
 
 IP Camera - Edit - Device Settings - Advanced
 
@@ -122,7 +122,7 @@ Display - Quality - Clear
 
 Resolution: 1080p
 Frame rate: 30fps
-Max bitrate 3072 kbps
+Max bitrate 2048 kbps
 
 Display
 
