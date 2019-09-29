@@ -84,7 +84,7 @@ Stream profile: All three set to "Stream 1"
 IP Camera - Edit - Device Settings - Advanced
 
 Use a speaker: Unchecked
-Transport Protocol: TCP
+Transport Protocol: UDP
 Keep alive method: OPTIONS (Default)
 Streaming information source: RSTP
 
