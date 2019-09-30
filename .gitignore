@@ -13,3 +13,4 @@ wgetcookies.txt
 wget-log*
 CrowCamTemp*
 *.temp
+*.stackdump
