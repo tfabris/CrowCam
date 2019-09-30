@@ -838,19 +838,17 @@ ChangeStreamState()
 BounceTheStream()
 {
   # Only bounce the stream if we are running on the Synology, or at least at
-  # home where we can access its API on the local LAN. If not, then simply
-  # return from this function without doing anything.
+  # home where we can access its API on the local LAN. 
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
-    logMessage "dbg" "Bouncing stream for $1 seconds"
+    # Stop the YouTube stream feature here by using the "Save" method to set
+    # live_on=false. Response is expected to be {"success":true}.
+    logMessage "info" "Bouncing stream for $1 seconds"
+    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
   else
-    logMessage "dbg" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
-    return
+    # In test mode, log something anyway.
+    logMessage "info" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
   fi
-
-  # Stop the YouTube stream feature here by using the "Save" method to set
-  # live_on=false. Response is expected to be {"success":true}.
-  WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
   
   # Wait a while to make sure it is really turned off. The number passed in
   # as parameter $1 will determine how long to wait. Short values will quickly
@@ -872,7 +870,10 @@ BounceTheStream()
 
   # Bring the stream back up. Start it here by using the "Save" method to
   # set live_on=true. Response is expected to be {"success":true}.
-  WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
+  if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+  then
+    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
+  fi
 
   # Log that we're done. Note: This message is used both when the bounce
   # is "good", i.e., during a midday bounce, as well as when the bounce
@@ -925,6 +926,9 @@ WriteStreamStartTime()
 
   # Convert our current time into seconds-since-midnight.
   currentStreamStartTimeSeconds=$(TimeToSeconds $currentStreamStartTime)
+
+  # Log
+  logMessage "dbg" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
 
   # Write the current time, in seconds, into the specified file.
   # Use "-n" to ensure there is no trailing newline character.
