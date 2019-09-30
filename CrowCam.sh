@@ -856,6 +856,7 @@ BounceTheStream()
   # as parameter $1 will determine how long to wait. Short values will quickly
   # restart the stream, keeping the stream to be part of the same video on
   # YouTube, and long values (not sure how long, but 100+ seconds seems to
+  # work in my experiments) will end the current stream and split it into a
   # different stream archive video segment on YouTube.
   logMessage "dbg" "Pausing for $1 seconds, after bringing down the stream, before bringing it up again"
   sleep $1
