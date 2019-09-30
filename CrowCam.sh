@@ -852,16 +852,25 @@ BounceTheStream()
   # live_on=false. Response is expected to be {"success":true}.
   WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
   
-  # Wait a while to make sure it is really turned off. I had some troubles
-  # in testing, where, if I set this number too small, that I would not get
-  # a successful stream reset. Now using a nice long chunk of time here to
-  # make absolutely sure.
+  # Wait a while to make sure it is really turned off. The number passed in
+  # as parameter $1 will determine how long to wait. Short values will quickly
+  # restart the stream, keeping the stream to be part of the same video on
+  # YouTube, and long values (not sure how long, but 100+ seconds seems to
+  # different stream archive video segment on YouTube.
   logMessage "dbg" "Pausing for $1 seconds, after bringing down the stream, before bringing it up again"
   sleep $1
-  
+
+  # Write the bounceup time to our configuration file which tracks the startup
+  # time of each stream segment. Do this only for long bounces such as those
+  # which are intended to split the stream. Shorter ones are not expected to
+  # split the stream, so don't write a new start time for the shorter ones.
+  if [ $1 -ge $longBounceDuration ]
+  then
+    WriteStreamStartTime
+  fi
+
   # Bring the stream back up. Start it here by using the "Save" method to
   # set live_on=true. Response is expected to be {"success":true}.
-  WriteStreamStartTime
   WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
 
   # Log that we're done. Note: This message is used both when the bounce
