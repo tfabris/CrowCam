@@ -94,10 +94,10 @@ PauseBetweenTests=10
 # Try to prevent busting the quota by re-querying more slowly. You can view
 # your quota usage here:
 # https://console.developers.google.com/apis/api/youtube.googleapis.com/quotas?project=crowcam
-NumberOfStreamTests=8
+NumberOfStreamTests=4
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=57
+PauseBetweenStreamTests=15
 
 # When in test mode, pause for a shorter period between tests, and do fewer
 # loops of the main network test loop.
@@ -122,6 +122,15 @@ fi
 # set this value to 30, it will continue to retry and look for the network to
 # come back up for about ten minutes before bouncing the network stream anyway.
 MaxComebackRetries=40
+
+# Bounce duration, in seconds. These are the number of seconds that the stream
+# will bounce "down" during bounces. It is the amount of time that the script
+# will wait after bringing the stream down, before bringing it back up again.
+# There are two values here: shortBounceDuration, used when certain issues
+# can be repaired with a fast bounce, and longBounceDuration, used when we are
+# trying to seriously split the stream into separate sections.
+shortBounceDuration=5
+longBounceDuration=105
 
 # Set this global variable to a starting integer value. There is a possible
 # condition in the code if we are in test mode, where we might test the value
@@ -823,11 +832,22 @@ ChangeStreamState()
 # continue working and recording to the NAS, while bouncing the YouTube Stream
 # portion of the system.
 #
-# Parameters: None.
+# Parameters: $1 - Integer - length of bounce (down time) in seconds.
 # Returns: Nothing.
 #------------------------------------------------------------------------------
 BounceTheStream()
 {
+  # Only bounce the stream if we are running on the Synology, or at least at
+  # home where we can access its API on the local LAN. If not, then simply
+  # return from this function without doing anything.
+  if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+  then
+    logMessage "dbg" "Bouncing stream for $1 seconds"
+  else
+    logMessage "dbg" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
+    return
+  fi
+
   # Stop the YouTube stream feature here by using the "Save" method to set
   # live_on=false. Response is expected to be {"success":true}.
   WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
@@ -836,8 +856,8 @@ BounceTheStream()
   # in testing, where, if I set this number too small, that I would not get
   # a successful stream reset. Now using a nice long chunk of time here to
   # make absolutely sure.
-  logMessage "dbg" "Pausing, after bringing down the stream, before bringing it up again"
-  sleep 105
+  logMessage "dbg" "Pausing for $1 seconds, after bringing down the stream, before bringing it up again"
+  sleep $1
   
   # Bring the stream back up. Start it here by using the "Save" method to
   # set live_on=true. Response is expected to be {"success":true}.
@@ -1257,12 +1277,14 @@ then
     logMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
   else
     # The end of the day is not close enough. Bounce the stream.
-    logMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream"
+    logMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
 
     # Perform the bounce, but only if we are not in debug mode.
+    # Use the long bounce duration here, because we are deliberately trying
+    # to split the stream into multiple sections with this bounce.
     if [ -z "$debugMode" ]
     then
-      BounceTheStream
+      BounceTheStream $longBounceDuration
     else
       logMessage "dbg" "(Skipping the actual bounce when in debug mode)"
     fi
@@ -1867,14 +1889,15 @@ do
     if [ "$NetworkIsUp" = true ]
     then
       # Inform the user that we're bouncing the stream because the network is up.
-      logMessage "info" "Bouncing the YouTube stream since the network came back up"
+      logMessage "info" "Bouncing the YouTube stream since the network came back up, bouncing for $shortBounceDuration seconds"
     else
       # Inform the user that we gave up trying.
-      logMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway"
+      logMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway, bouncing for $shortBounceDuration seconds"
     fi
     
-    # Actually bounce the stream.
-    BounceTheStream
+    # Actually bounce the stream. Using the short bounce duration because maybe
+    # it was just a brief blip which only needs a slight correction.
+    BounceTheStream $shortBounceDuration
     
     # Exit the program because we should only need to bounce the stream once
     # per run of the program. After bouncing the stream, we can exit this
@@ -1953,10 +1976,13 @@ logMessage "dbg" "Status - Network up: $NetworkIsUp - Stream up: $StreamIsUp"
 if [ "$StreamIsUp" = false ] 
 then
   # Inform the user that we're bouncing the stream.
-  logMessage "err" "Bouncing the YouTube stream, because it was unexpectedly down"
+  logMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down"
   
-  # Bounce the stream.
-  BounceTheStream
+  # Bounce the stream. Use the short bounce duration because we are
+  # experimenting with the idea that the "VideoIngestionFasterThanRealtime"
+  # issue might need only the slightest correction in order to be fixed, so
+  # this might result in a quick-fix that doesn't even split the stream.
+  BounceTheStream $shortBounceDuration
   
   # Exit the program because we should only need to bounce the stream once
   # per run of the program. After bouncing the stream, we can exit this
