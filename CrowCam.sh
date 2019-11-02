@@ -1159,9 +1159,37 @@ sunsetDifferenceSeconds=$( expr $sunsetSeconds - $currentTimeSeconds)
 startServiceSeconds=$(($sunriseSeconds + $startServiceOffset*60 ))
 stopServiceSeconds=$(($sunsetSeconds + $stopServiceOffset*60 ))
 
+# GitHub issue #55 - Calculate midday (again). Get the total length of all
+# stream uptime (the elapsed time between the approximate sunrise/camera-on
+# time and the approximate sunset/camera-off time), and calculate the halfway
+# point between those two points. That halfway point will be our approximate
+# midday mark, which gets used in bounce/split calculations. 
+totalStreamSeconds=$(($stopServiceSeconds - $startServiceSeconds))
+if [ $totalStreamSeconds -lt 1 ]  
+then  
+  logMessage "err" "Problem calculating sunrise/sunset values. Total stream length is $totalStreamSeconds seconds"  
+  exit 1  
+fi
+halfTimeSeconds=$(( ($totalStreamSeconds / 2) ))
+middaySeconds=$(( $startServiceSeconds + $halfTimeSeconds ))
+middayDifferenceSeconds=$(( $middaySeconds - $currentTimeSeconds ))
+midday=$(SecondsToTimeAmPm $middaySeconds)
+
+# GitHub issue #55 - If the midday point is shorter than the maximum allowed
+# video length, then use that value in place of it. This means that the daily
+# split point will be either midday, or, the max video length, whichever is
+# the shorter one.
+if [ $halfTimeSeconds -lt $maxVideoLengthSeconds ]  
+then  
+  logMessage "dbg" "Using midday bounce length $(SecondsToTime $halfTimeSeconds) in place of maximum video length $(SecondsToTime $maxVideoLengthSeconds) to determine split points"  
+  maxVideoLengthSeconds=$halfTimeSeconds
+fi  
+
+
 # Output - print the results of our calculations to the screen.
 logMessage "dbg" "Current time:    $currentTime    ($currentTimeSeconds seconds)"
 logMessage "dbg" "Approx Sunrise:  $sunrise  ($sunriseSeconds seconds, difference is $sunriseDifferenceSeconds)"
+logMessage "dbg" "Approx Midday:   $midday  ($middaySeconds seconds, difference is $middayDifferenceSeconds)"
 logMessage "dbg" "Approx Sunset:   $sunset  ($sunsetSeconds seconds, difference is $sunsetDifferenceSeconds)"
 logMessage "dbg" ""
 logMessage "dbg" "$( OutputTimeDifference $sunriseDifferenceSeconds $(SecondsToTime $sunriseDifferenceSeconds) Sunrise )"
@@ -1169,6 +1197,7 @@ logMessage "dbg" "$( OutputTimeDifference $sunsetDifferenceSeconds $(SecondsToTi
 logMessage "dbg" ""
 logMessage "dbg" "Will start the stream at about   $startServiceSeconds $(SecondsToTime $startServiceSeconds)"
 logMessage "dbg" "Will stop it for the night at    $stopServiceSeconds $(SecondsToTime $stopServiceSeconds)"
+logMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds $(SecondsToTime $totalStreamSeconds)"
 logMessage "dbg" ""
 
 # Decide the behavior if we need to stop the stream before sunrise.

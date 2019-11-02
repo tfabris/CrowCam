@@ -272,6 +272,50 @@ SecondsToTime()
   fi
 }
 
+#------------------------------------------------------------------------------
+# Function: Convert a number of seconds duration into H:MM AM/PM format.
+# 
+# Parameters: $1 = integer of the number of seconds since midnight
+#
+# Returns: Formatted time string in "H:MM AM/PM" format, or "D days HH:MM AM/PM".
+#
+# Technique gleaned from: https://unix.stackexchange.com/a/27014
+#------------------------------------------------------------------------------
+SecondsToTimeAmPm()
+{
+  # If the number of seconds is a negative number, then the event is in the
+  # past, so flip the number to positive so that we can show the HH:MM time
+  # without a bunch of ugly "-" signs in the output. If the number is 0 or
+  # positive, then use the number as-is.
+  if [ $1 -ge 0 ]
+  then
+    # Use the number as-is if it's 0 or positive.
+    T=$1
+  else
+    # If the number is negative, flip it to positive by multiplying by -1.
+    T=$((-1*$1))
+  fi
+  
+  # Perform the calculations and formatting based on the code example.
+  local D=$((T/60/60/24))
+  local H=$((T/60/60%24))
+  local M=$((T/60%60))
+  local S=$((T%60))
+
+  # Do the AM/PM fun stuff.
+  amPmString="AM"
+  if [ $H -gt 11 ]; then amPmString="PM"; fi
+  if [ $H -eq 0 ]; then H=12; fi
+  if [ $H -gt 12 ]; then H=$(( $H - 12 )); fi
+  
+  # Return the resulting string to the code that called us.
+  if [ $D -gt 0 ]
+  then
+    printf "%d days %d:%02d %s\n" $D $H $M $amPmString
+  else
+    printf "%d:%02d %s\n" $H $M $amPmString
+  fi
+}
 
 #------------------------------------------------------------------------------
 # Function: Authenticate with the YouTube API.
