@@ -18,7 +18,8 @@
 
 
 #------------------------------------------------------------------------------
-# Function: Log message to console and Synology log both.
+# Function: Log message to console and, if this script is running on a
+# Synology NAS, also log to the Synology system log.
 # 
 # Parameters: $1 - "info"  - Log to console stderr and Synology log as info.
 #                  "err"   - Log to console stderr and Synology log as error.
@@ -49,8 +50,11 @@ logMessage()
   # Only log to synology if the log level is not "dbg"
   if ! [ "$1" = dbg ]
   then
-    # Only log to Synology system log if we are running on Synology.
-    if [ -z "$debugMode" ] || [[ $debugMode == *"Synology"* ]]
+    # Only log to Synology system log if we are running on a Synology NAS
+    # with the correct logging command available. Test for the command
+    # by using "command" to locate the command, and "if -x" to determine
+    # if the file is present and executable.
+    if  [ -x "$(command -v synologset1)" ]
     then 
       # Special command on Synology to write to its main log file. This uses
       # an existing log entry in the Synology log message table which allows
