@@ -81,22 +81,22 @@ fi
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
-  logMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
+  LogMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
 
 # Log current script location and working directory.
-logMessage "dbg" "Script exists in directory: $DIR"
-logMessage "dbg" "Current working directory:  $(pwd)"
+LogMessage "dbg" "Script exists in directory: $DIR"
+LogMessage "dbg" "Current working directory:  $(pwd)"
 
 # Verify that the necessary external files exist.
 if [ ! -e "$clientIdJson" ]
 then
-  logMessage "err" "Missing file $clientIdJson"
+  LogMessage "err" "Missing file $clientIdJson"
   exit 1
 fi
 if [ ! -e "$crowcamTokens" ]
 then
-  logMessage "err" "Missing file $crowcamTokens"
+  LogMessage "err" "Missing file $crowcamTokens"
   exit 1
 fi
 
@@ -120,7 +120,7 @@ channelsOutput=$( curl -s $curlUrl )
 
 # Debugging output. Only needed if you run into a nasty bug here.
 # Leave deactivated most of the time.
-# logMessage "dbg" "Channels output information: $channelsOutput"
+# LogMessage "dbg" "Channels output information: $channelsOutput"
 
 # This outputs some JSON data which includes the line that looks like this:
 #    "uploads": "UUqPZGFtBau8rm7wnScxdA3g",
@@ -133,13 +133,13 @@ uploadsId=$(echo $channelsOutput | sed 's/"uploads"/\'$'\n&/g' | grep -m 1 "uplo
 # Make sure the uploadsId is not empty.
 if test -z "$uploadsId" 
 then
-    logMessage "err" "The variable uploadsId came up empty. Error accessing API. Exiting program"
-    logMessage "err" "The channelsOutput was $( echo $channelsOutput | tr '\n' ' ' )"
+    LogMessage "err" "The variable uploadsId came up empty. Error accessing API. Exiting program"
+    LogMessage "err" "The channelsOutput was $( echo $channelsOutput | tr '\n' ' ' )"
     exit 1
 fi
 
 # Log the uploads playlist ID to the output.
-logMessage "dbg" "My Uploads playlist ID: $uploadsId"
+LogMessage "dbg" "My Uploads playlist ID: $uploadsId"
 
 # Get a list of videos in the "My Uploads" playlist, which includes both
 # public videos as well as unlisted videos (all my archived CrowCam videos are
@@ -185,7 +185,7 @@ do
     fi
     
     # Print the curl command we are about to use, in debug mode only.
-    logMessage "dbg" "curl -s $curlUrl"
+    LogMessage "dbg" "curl -s $curlUrl"
     
     # Perform the API query with curl.
     uploadsOneLoopOutput=""
@@ -274,7 +274,7 @@ fi
 # echo ""
 
 #Display number of videos found:
-logMessage "info" "${#videoIds[@]} videos found. Processing"
+LogMessage "info" "${#videoIds[@]} videos found. Processing"
 
 # Iterate through the array.
 for oneVideoId in "${videoIds[@]}"
@@ -286,7 +286,7 @@ do
     # Debugging - Output the results we got from the query about this video.
     # This output can be large on the screen, so only activate this line if
     # you need it.
-    #  logMessage "dbg" "$oneVideoOutput"
+    #  LogMessage "dbg" "$oneVideoOutput"
     
     # Parse out the video publication date. NOTE: The "publishedAt" date does
     # not necessarily seem to always be exactly the date it was streamed to
@@ -317,21 +317,21 @@ do
     # Throw an error if either the title or the date are blank.
     if test -z "$oneVideoDateString" 
     then
-        logMessage "err" "The variable oneVideoDateString came up empty. Error accessing API. Exiting program"
-        logMessage "err" "The oneVideoOutput was $( echo $oneVideoOutput | tr '\n' ' ' )"
+        LogMessage "err" "The variable oneVideoDateString came up empty. Error accessing API. Exiting program"
+        LogMessage "err" "The oneVideoOutput was $( echo $oneVideoOutput | tr '\n' ' ' )"
         exit 1
     fi
     if test -z "$oneVideoTitle" 
     then
-        logMessage "err" "The variable oneVideoTitle came up empty. Error accessing API. Exiting program"
-        logMessage "err" "The oneVideoOutput was $( echo $oneVideoOutput | tr '\n' ' ' )"
+        LogMessage "err" "The variable oneVideoTitle came up empty. Error accessing API. Exiting program"
+        LogMessage "err" "The oneVideoOutput was $( echo $oneVideoOutput | tr '\n' ' ' )"
         exit 1
     fi
 
     # Debugging - Output every video title and publication date before the date
     # calculations start to occur. This output can be quite large, so do not
     # activate this unless you really need it.
-    #  logMessage "dbg" "$oneVideoId - $oneVideoDateString - $oneVideoTitle"
+    #  LogMessage "dbg" "$oneVideoId - $oneVideoDateString - $oneVideoTitle"
 
     # Take the date string from the API results and make it a localized date
     # variable that we can do calculations upon.
@@ -393,12 +393,12 @@ do
     # Validate that we got a localized time by checking for a blank string.
     if [ -z "$videoDateTimeLocalized" ]
     then
-        logMessage "err" "Problem retrieving date of video. GMT Date string from web: $oneVideoDateString - Interpreted localized time: $videoDateTimeLocalized"
+        LogMessage "err" "Problem retrieving date of video. GMT Date string from web: $oneVideoDateString - Interpreted localized time: $videoDateTimeLocalized"
         exit 1
     fi
 
     # Debugging - log the localized date that we got. Usually leave disabled.
-    # logMessage "dbg" "Localized video date: $videoDateTimeLocalized"
+    # LogMessage "dbg" "Localized video date: $videoDateTimeLocalized"
 
     # Obtain the current date the same way, localized, so that we're
     # comparing apples to apples when we do our date math. I think this
@@ -429,13 +429,13 @@ do
     fi
 
     # Debugging - log current and past dates. Usually leave disabled.
-    # logMessage "dbg" "Current date:    $currentDate"
-    # logMessage "dbg" "Date $dateBufferDays days ago: $dateInThePast"
+    # LogMessage "dbg" "Current date:    $currentDate"
+    # LogMessage "dbg" "Date $dateBufferDays days ago: $dateInThePast"
 
     # Validate that we got a string of any kind, for the date in the past.
     if [ -z "$dateInThePast" ]
     then
-        logMessage "err" "Problem processing date. Current date: $currentDate - Attempted date-in-the-past calculation: $dateInThePast"
+        LogMessage "err" "Problem processing date. Current date: $currentDate - Attempted date-in-the-past calculation: $dateInThePast"
         exit 1
     fi
 
@@ -479,13 +479,13 @@ do
     fi
 
     # Debug output of the state of the variables we are comparing
-    logMessage "dbg" "Checking: $videoNeedsDeleting - $oneVideoId - $videoDateTimeLocalized - $dateInThePast - $oneVideoTitle"
+    LogMessage "dbg" "Checking: $videoNeedsDeleting - $oneVideoId - $videoDateTimeLocalized - $dateInThePast - $oneVideoTitle"
 
     # Delete the video if it deserves to be deleted.
     if [ "$videoNeedsDeleting" = true ]
     then
         # Log to the Synology log that we are deleting a video.
-        logMessage "info" "Title: $oneVideoTitle Id: $oneVideoId Date: $videoDateTimeLocalized - more than $dateBufferDays days old. Deleting $oneVideoTitle"
+        LogMessage "info" "Title: $oneVideoTitle Id: $oneVideoId Date: $videoDateTimeLocalized - more than $dateBufferDays days old. Deleting $oneVideoTitle"
 
         # Prepare a full string of the entire curl command for usage below.
         # Note: The following attempts were poor and did not work, I think
@@ -502,7 +502,7 @@ do
         curlFullString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/videos?id=$oneVideoId&access_token=$accessToken"
 
         # Log the curl string before we use it.
-        logMessage "dbg" "Curl command for deletion of video: $curlFullString"
+        LogMessage "dbg" "Curl command for deletion of video: $curlFullString"
 
         # Prepare a variable to contain the output from the deletion command.
         deleteVideoOutput=""
@@ -514,9 +514,9 @@ do
             deleteVideoOutput=$( $curlFullString )
 
             # Log the output from Curl
-            logMessage "dbg" "Curl deleteVideoOutput was: $deleteVideoOutput"
+            LogMessage "dbg" "Curl deleteVideoOutput was: $deleteVideoOutput"
         else
-            logMessage "dbg" "Debug mode - not actually doing a deletion"
+            LogMessage "dbg" "Debug mode - not actually doing a deletion"
         fi
 
         # If there was the word "error" in the deletion output, error out.
@@ -524,8 +524,8 @@ do
         # successful, I'm not sure why, so only test for the word "error".
         if [[ $deleteVideoOutput == *"error"* ]]
         then
-            logMessage "err" "The attempt to delete video $oneVideoId failed with an error. Error accessing API. Exiting program"
-            logMessage "err" "The deleteVideoOutput was $( echo $deleteVideoOutput | tr '\n' ' ' )"
+            LogMessage "err" "The attempt to delete video $oneVideoId failed with an error. Error accessing API. Exiting program"
+            LogMessage "err" "The deleteVideoOutput was $( echo $deleteVideoOutput | tr '\n' ' ' )"
             exit 1
         fi
     fi

@@ -65,22 +65,22 @@ source "$DIR/CrowCamHelperFunctions.sh"
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
-  logMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
+  LogMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
 
 # Log current script location and working directory.
-logMessage "dbg" "Script exists in directory: $DIR"
-logMessage "dbg" "Current working directory:  $(pwd)"
+LogMessage "dbg" "Script exists in directory: $DIR"
+LogMessage "dbg" "Current working directory:  $(pwd)"
 
 # Verify that the necessary external files exist.
 if [ ! -e "$clientIdJson" ]
 then
-  logMessage "err" "Missing file $clientIdJson"
+  LogMessage "err" "Missing file $clientIdJson"
   exit 1
 fi
 if [ ! -e "$crowcamTokens" ]
 then
-  logMessage "err" "Missing file $crowcamTokens"
+  LogMessage "err" "Missing file $crowcamTokens"
   exit 1
 fi
 
@@ -105,19 +105,19 @@ liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 
 # Debugging output. Only needed if you run into a nasty bug here.
 # Leave deactivated most of the time.
-# logMessage "dbg" "liveBroadcastOutput information: $liveBroadcastOutput"
+# LogMessage "dbg" "liveBroadcastOutput information: $liveBroadcastOutput"
 
 # Extract the boundStreamId which may be needed in order to find other
 # information later. 
 boundStreamId=""
 boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
-logMessage "dbg" "boundStreamId: $boundStreamId"
+LogMessage "dbg" "boundStreamId: $boundStreamId"
 
 # Make sure the boundStreamId is not empty.
 if test -z "$boundStreamId"
 then
-    logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
-    logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+    LogMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
+    LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
 
     exit 1
 fi
@@ -128,13 +128,13 @@ fi
 # insert the new cuepoint.
 broadcastId=""
 broadcastId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
-logMessage "dbg" "broadcastId: $broadcastId"
+LogMessage "dbg" "broadcastId: $broadcastId"
 
 # Make sure the broadcastId is not empty.
 if test -z "$broadcastId"
 then
-    logMessage "err" "The variable broadcastId came up empty. Error accessing YouTube API"
-    logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+    LogMessage "err" "The variable broadcastId came up empty. Error accessing YouTube API"
+    LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
 
     exit 1
 fi
@@ -142,13 +142,13 @@ fi
 # Extract the channelId which is needed in the JSON structure as well.
 channelId=""
 channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
-logMessage "dbg" "channelId: $channelId"
+LogMessage "dbg" "channelId: $channelId"
 
 # Make sure the channelId is not empty.
 if test -z "$channelId"
 then
-    logMessage "err" "The variable channelId came up empty. Error accessing YouTube API"
-    logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+    LogMessage "err" "The variable channelId came up empty. Error accessing YouTube API"
+    LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
 
     exit 1
 fi
@@ -165,7 +165,7 @@ fi
 # WORK IN PROGRESS - THIS CURRENTLY INSERTS THE CURRENT CLOCK TIME.
 # This might need to be different later.
 cuePointWallTime=$(date -u +"%FT%T.000Z")
-logMessage "dbg" "cuePointWallTime: $cuePointWallTime"
+LogMessage "dbg" "cuePointWallTime: $cuePointWallTime"
 
 # Build strings for writing the cuepoint to the video ID. A full JSON for a
 # cuepoint will look like this, but only some of these fields are used in this
@@ -196,14 +196,14 @@ curlData+="\"settings\": "
   curlData+="}"
 curlData+="}"
 
-# logMessage "dbg" "curlUrl: $curlUrl"
-# logMessage "dbg" "curlData: $curlData"
+# LogMessage "dbg" "curlUrl: $curlUrl"
+# LogMessage "dbg" "curlData: $curlData"
 
 
 # Perform the API call to add the cuePoint.
 # cuePointInsertionOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
 cuePointInsertionOutput=$( curl -s -m 20 -H "Content-Type: application/json" -d "$curlData" $curlUrl )
-logMessage "dbg" "Response from attempting to add the cuepoint: $cuePointInsertionOutput"
+LogMessage "dbg" "Response from attempting to add the cuepoint: $cuePointInsertionOutput"
 
 # WORK IN PROGRESS - The code above results in the error message:
 # "Insufficient Permission: Request had insufficient authentication scopes."

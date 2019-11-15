@@ -32,12 +32,12 @@
 # NOTE: I'm logging to the STDERR channel (>&2) as a work-around to a problem
 # where there doesn't appear to be a Bash-compatible way to combine console
 # logging *and* capturing STDOUT from a function call. Because if I log to
-# STDOUT, then if I call logMessage from within any of my functions which
+# STDOUT, then if I call LogMessage from within any of my functions which
 # return values to the caller, then the log message output becomes the return
 # data, and messes everything up. TO DO: Learn the correct way of doing both at
 # the same time in Bash.
 #------------------------------------------------------------------------------
-logMessage()
+LogMessage()
 {
   # Log message to shell console, only when we are in debug mode.
   if [ ! -z "$debugMode" ]
@@ -157,31 +157,31 @@ WebApiCall()
   # the web API which will save a new cookie file that we can use below.
   if ! [ -e $cookieFileName ]
   then
-    logMessage "dbg" "Cookie file not present - authenticating"
+    LogMessage "dbg" "Cookie file not present - authenticating"
     WebApiAuth
   fi
 
   # Make the web API call.
-  logMessage "dbg" "Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
+  LogMessage "dbg" "Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
                 webResult=$( wget -qO- $cookieParametersStandard "$webApiRootUrl/$1" )
-  logMessage "dbg" "Response: $webResult"
+  LogMessage "dbg" "Response: $webResult"
 
   # Check to make sure our call to the web API succeeded, if not, perform a
   # single re-auth and try again. This situation can occur if a cookie already
   # existed but it had expired and thus we needed to re-auth.
   if ! [[ $webResult == *"\"success\":true"* ]]
   then
-    logMessage "dbg" "The call to the Synology Web API failed. Attempting to re-authenticate"
+    LogMessage "dbg" "The call to the Synology Web API failed. Attempting to re-authenticate"
     WebApiAuth
-    logMessage "dbg" "Re-Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
+    LogMessage "dbg" "Re-Calling: wget -qO- $cookieParametersStandard \"$webApiRootUrl/$1\""
                      webResult=$( wget -qO- $cookieParametersStandard "$webApiRootUrl/$1" )
-    logMessage "dbg" "Response: $webResult"
+    LogMessage "dbg" "Response: $webResult"
   fi
 
   # Check to make sure our call to the web API succeeded, exit if not.
   if ! [[ $webResult == *"\"success\":true"* ]]
   then
-    logMessage "err" "The call to the Synology Web API failed. Exiting program"
+    LogMessage "err" "The call to the Synology Web API failed. Exiting program"
 
     # Work-around to problem of being unable to exit the script from within
     # this function. Send kill signal to top level PID and then exit
@@ -212,7 +212,7 @@ WebApiAuth()
 
   # Debugging output for local machine test runs. Do not use this under normal
   # circumstances - it prints the password in clear text.
-  # logMessage "dbg" "Logging into Web API: wget -qO- $cookieParametersAuth \"$webApiRootUrl/$authWebCall\""
+  # LogMessage "dbg" "Logging into Web API: wget -qO- $cookieParametersAuth \"$webApiRootUrl/$authWebCall\""
 
   # Make the web API call. The expected response from this call will be
   # {"success":true}. Note: The response is more detailed in version=3 but I
@@ -221,12 +221,12 @@ WebApiAuth()
   authResult=$( wget -qO- $cookieParametersAuth "$webApiRootUrl/$authWebCall" )
 
   # Output for local machine test runs.
-  logMessage "dbg" "Response: $authResult"
+  LogMessage "dbg" "Response: $authResult"
 
   # Check to make sure our call to the web API succeeded, exit if not.
   if ! [[ $authResult == *"\"success\":true"* ]]
   then
-    logMessage "err" "The call to authenticate with the Synology Web API failed. Exiting program. Response: $authResult"
+    LogMessage "err" "The call to authenticate with the Synology Web API failed. Exiting program. Response: $authResult"
 
     # Work-around to problem of being unable to exit the script from within
     # this function. Send kill signal to mid level PID and then exit
@@ -358,8 +358,8 @@ YouTubeApiAuth()
   # Make sure the clientId is not empty.
   if test -z "$clientId" 
   then
-      logMessage "err" "The variable clientId came up empty. Error parsing json file. Exiting program"
-      logMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
+      LogMessage "err" "The variable clientId came up empty. Error parsing json file. Exiting program"
+      LogMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
 
       # Work-around to problem of being unable to exit the script from within
       # this function. Send kill signal to top level PID and then exit
@@ -371,8 +371,8 @@ YouTubeApiAuth()
   # Make sure the clientSecret is not empty.
   if test -z "$clientSecret" 
   then
-      logMessage "err" "The variable clientSecret came up empty. Error parsing json file. Exiting program"
-      logMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
+      LogMessage "err" "The variable clientSecret came up empty. Error parsing json file. Exiting program"
+      LogMessage "dbg" "The clientIdOutput was $( echo $clientIdOutput | tr '\n' ' ' )"
 
       # Work-around to problem of being unable to exit the script from within
       # this function. Send kill signal to top level PID and then exit
@@ -390,7 +390,7 @@ YouTubeApiAuth()
   # Make sure the refreshToken is not empty.
   if test -z "$refreshToken" 
   then
-      logMessage "err" "The variable refreshToken came up empty. Error parsing tokens file. Exiting program"
+      LogMessage "err" "The variable refreshToken came up empty. Error parsing tokens file. Exiting program"
 
       # Work-around to problem of being unable to exit the script from within
       # this function. Send kill signal to top level PID and then exit
@@ -423,8 +423,8 @@ YouTubeApiAuth()
   # Make sure the Access Token is not empty.
   if test -z "$accessToken" 
   then
-      logMessage "err" "The variable accessToken came up empty. Error accessing YouTube API"
-      logMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
+      LogMessage "err" "The variable accessToken came up empty. Error accessing YouTube API"
+      LogMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
   
       # Fix GitHub issue #28 - Do not crash out of the program if we can't
       # retrieve the access token. Just print an error and let the calling
@@ -433,7 +433,7 @@ YouTubeApiAuth()
         # exit 1
   else
       # Log the access token to the output.
-      logMessage "dbg" "Access Token: $accessToken"
+      LogMessage "dbg" "Access Token: $accessToken"
   fi
 }
 

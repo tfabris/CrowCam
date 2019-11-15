@@ -185,7 +185,7 @@ TestModeComeBackOnRetry=1
 Test_Stream()
 {
   # Debugging message, leave commented out usually.
-  # logMessage "info" "Begin Test_Stream"
+  # LogMessage "info" "Begin Test_Stream"
   
   # When starting this function, assume the stream is up. It will be set to
   # false if the hysteresis loop below exits with definitive information that
@@ -200,12 +200,12 @@ Test_Stream()
   # false automatically.
   if [ "$NetworkIsUp" = true ]
   then
-    logMessage "dbg" "Network is up, checking if live stream is up"
+    LogMessage "dbg" "Network is up, checking if live stream is up"
   else
     # If the network is down, assume the stream must be down too, and stop
     # trying to do anything else here, just return back to the caller.
     StreamIsUp=false
-    logMessage "dbg" "Network is down, assuming live stream must also be down"
+    LogMessage "dbg" "Network is down, assuming live stream must also be down"
     return
   fi
 
@@ -267,13 +267,13 @@ Test_Stream()
       # Extract the boundStreamId which is needed in order to find other information.
       boundStreamId=""
       boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
-      logMessage "dbg" "boundStreamId: $boundStreamId"
+      LogMessage "dbg" "boundStreamId: $boundStreamId"
     
       # Make sure the boundStreamId is not empty.
       if test -z "$boundStreamId"
       then
-        logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
-        logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+        LogMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
+        LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
         
         # Bugfix to issue #37 - Do not bounce the stream if there is no valid
         # data to analyze, instead, flag that we did not get good API data.
@@ -287,9 +287,9 @@ Test_Stream()
         liveStreamsOutput=$( curl -s -m 20 $curlUrl )
   
         # Debugging output. Leave disabled most of the time.
-        #   logMessage "dbg" "Live Streams output response:"
-        #   logMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
-        #   logMessage "dbg" "----------------------------------------------------------"
+        #   LogMessage "dbg" "Live Streams output response:"
+        #   LogMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
+        #   LogMessage "dbg" "----------------------------------------------------------"
   
         # Get "streamStatus" from the results. Looking for the field "active" in
         # these results:
@@ -305,13 +305,13 @@ Test_Stream()
         #     ready – The stream has valid CDN settings.
         streamStatus=""
         streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
-        logMessage "dbg" "streamStatus: $streamStatus"
+        LogMessage "dbg" "streamStatus: $streamStatus"
 
         # Make sure the streamStatus is not empty.
         if test -z "$streamStatus"
         then
-          logMessage "err" "The variable streamStatus came up empty. Error accessing YouTube API"
-          logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+          LogMessage "err" "The variable streamStatus came up empty. Error accessing YouTube API"
+          LogMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
           
           # Bugfix to issue #37 - Do not bounce the stream if there is no valid
           # data to analyze, instead, flag that we did not get good API data.
@@ -321,7 +321,7 @@ Test_Stream()
           # other value means the stream is down at the current time.
           if [ "$streamStatus" != "active" ]
           then
-              logMessage "err" "The streamStatus is not active. Value retrieved was: $streamStatus"
+              LogMessage "err" "The streamStatus is not active. Value retrieved was: $streamStatus"
               GoodStreamInsideLoop=false
           fi
         fi
@@ -342,13 +342,13 @@ Test_Stream()
         #    noData – YouTube's live streaming backend servers do not have any information about the stream's health status.
         healthStatus=""
         healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
-        logMessage "dbg" "healthStatus: $healthStatus"
+        LogMessage "dbg" "healthStatus: $healthStatus"
     
         # Make sure the healthStatus is not empty.
         if test -z "$healthStatus" 
         then
-          logMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
-          logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+          LogMessage "err" "The variable healthStatus came up empty. Error accessing YouTube API"
+          LogMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
           
           # Bugfix to issue #37 - Do not bounce the stream if there is no valid
           # data to analyze, instead, flag that we did not get good API data.
@@ -364,7 +364,7 @@ Test_Stream()
           # stream, not just a low-bandwidth stream.
           if [ "$healthStatus" != "good" ] && [ "$healthStatus" != "ok" ] && [ "$healthStatus" != "bad" ]
           then
-              logMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
+              LogMessage "err" "The healthStatus is not good. Value retrieved was: $healthStatus"
               GoodStreamInsideLoop=false
           fi    
         fi
@@ -382,7 +382,7 @@ Test_Stream()
         #
         if [[ $liveStreamsOutput == *"videoIngestionFasterThanRealtime"* ]]
         then
-              logMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionFasterThanRealtime"
+              LogMessage "err" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionFasterThanRealtime"
               GoodStreamInsideLoop=false
         fi
   
@@ -392,7 +392,7 @@ Test_Stream()
           # Update 2019-05-27 - Do not bounce the stream due to the error
           # "videoIngestionStarved" because it cries wolf too frequently.
           # Only log the situation and allow the program to continue.
-          logMessage "dbg" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
+          LogMessage "dbg" "The configurationIssues contains a bad value. Value retrieved was: videoIngestionStarved. Will not act on this error due to this particular error message proving to be flaky sometimes"
         fi
       fi    
     fi
@@ -430,9 +430,9 @@ Test_Stream()
       # Related to issue #37: Change messaging if the API is being goofy today.
       if [ "$GoodApiDataRetrieved" = true ]
       then
-        logMessage "dbg" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
+        LogMessage "dbg" "The network is up, but the YouTube stream is down. Pausing to give it a chance to come up. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
       else
-        logMessage "dbg" "The network is up, but the YouTube stream test results are inconclusive. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
+        LogMessage "dbg" "The network is up, but the YouTube stream test results are inconclusive. Inner stream test loop, retry attempt $streamTestLoop of $NumberOfStreamTests . Sleeping $PauseBetweenStreamTests seconds before trying again"
       fi
       
       # Sleep between stream tests.
@@ -454,17 +454,17 @@ Test_Stream()
       # Related to issue #37: Change messaging if the API is being goofy today.
       if [ "$GoodApiDataRetrieved" = true ]
       then
-        logMessage "info" "Live stream came back up"
+        LogMessage "info" "Live stream came back up"
       else
-        logMessage "info" "Live stream test results are inconclusive"
+        LogMessage "info" "Live stream test results are inconclusive"
       fi
     else
-      logMessage "dbg" "Live stream is up"
+      LogMessage "dbg" "Live stream is up"
     fi
   fi
 
   # Debugging message, leave commented out usually.
-  # logMessage "info" "Done with Test_Stream" 
+  # LogMessage "info" "Done with Test_Stream" 
 }
 
 
@@ -490,7 +490,7 @@ Test_Stream()
 Test_Network()
 {
   # Debugging message, leave commented out usually.
-  # logMessage "info" "Beginning Test_Network" 
+  # LogMessage "info" "Beginning Test_Network" 
 
   # Special code for test mode to induce a fake network problem.
   if [ "$mainLoop" -eq "$TestModeFailOnLoop" ]
@@ -510,7 +510,7 @@ Test_Network()
   fi
 
   # Message for local test runs.
-  logMessage "dbg" "Testing $ThisTestSite - outer network test attempt $mainLoop of $NumberOfTests"
+  LogMessage "dbg" "Testing $ThisTestSite - outer network test attempt $mainLoop of $NumberOfTests"
 
   # Preset the global variable $NetworkIsUp to assume "true" unless proven
   # otherwise by the tests below.
@@ -548,11 +548,11 @@ Test_Network()
     # Note that there is a more serious message which appears in the log,
     # triggered elsewhere in the code, when the network is down, so a log
     # message for network failure is not needed here, only for success.
-    logMessage "dbg" "Network is up, outer network test attempt $mainLoop of $NumberOfTests"
+    LogMessage "dbg" "Network is up, outer network test attempt $mainLoop of $NumberOfTests"
   fi
 
   # Debugging message, leave commented out usually.
-  # logMessage "info" "Done with Test_Network"
+  # LogMessage "info" "Done with Test_Network"
 }
 
 
@@ -577,7 +577,7 @@ Test_Network()
 GetSunriseSunsetTimeFromGoogle()
 {
     # Debugging message, leave commented out usually.
-    # logMessage "info" "Beginning GetSunriseSunsetTimeFromGoogle" 
+    # LogMessage "info" "Beginning GetSunriseSunsetTimeFromGoogle" 
 
     # Create the query URL that we will use for Google.
     googleQueryUrl="http://www.google.com/search?q=$1%20$location"
@@ -638,7 +638,7 @@ GetSunriseSunsetTimeFromGoogle()
     echo $googleQueryResult | sed 's/w-answer-desktop/\'$'\n&/g' | grep -m 1 w-answer-desktop | grep -o '[0-9][0-9]*:[0-9][0-9] [AP]M'
 
     # Debugging message, leave commented out usually.
-    # logMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
+    # LogMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
 }
 
 
@@ -737,9 +737,9 @@ ChangeStreamState()
   # LAN. If not, then simply return from this function without doing anything.
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
-    logMessage "dbg" "Checking status of $featureName feature"
+    LogMessage "dbg" "Checking status of $featureName feature"
   else
-    logMessage "dbg" "$2. But we're not in a position where we can control the stream up/down state"
+    LogMessage "dbg" "$2. But we're not in a position where we can control the stream up/down state"
     return
   fi
 
@@ -766,13 +766,13 @@ ChangeStreamState()
   if [ "$currentStreamState" = true ] && [ $1 = "up" ]
   then
     # Message for local machine test runs.
-    logMessage "dbg" "$2. $featureName is up. It should be $1 at this time. Nothing to do"
+    LogMessage "dbg" "$2. $featureName is up. It should be $1 at this time. Nothing to do"
   fi
 
   # Behavior when stream is set to down, at a time when it should be up.
   if [ "$currentStreamState" = false ] && [ $1 = "up" ]
   then
-    logMessage "info" "$2. $featureName is down. It should be $1 at this time. Starting stream"
+    LogMessage "info" "$2. $featureName is down. It should be $1 at this time. Starting stream"
 
     # Bring the stream back up. Start it here by using the "Save" method to
     # set live_on=true. Response is expected to be {"success":true}.
@@ -785,14 +785,14 @@ ChangeStreamState()
     # the risk of starting up the stream but then immediately checking if the
     # stream is up (in the network test section), and discovering the wheels
     # weren't quite turning yet, and then raising a false alarm.
-    logMessage "dbg" "Sleeping briefly, to allow for stream startup"
+    LogMessage "dbg" "Sleeping briefly, to allow for stream startup"
     sleep 50
   fi
   
   # Behavior when stream is set to up, at a time when it should be down.
   if [ "$currentStreamState" = true ] && [ $1 = "down" ]
   then
-    logMessage "info" "$2. $featureName is up. It should be $1 at this time. Stopping stream"
+    LogMessage "info" "$2. $featureName is up. It should be $1 at this time. Stopping stream"
 
     # Stop the stream. Stop it here by using the "Save" method to set
     # live_on=false. Response is expected to be {"success":true}.
@@ -803,7 +803,7 @@ ChangeStreamState()
   if [ "$currentStreamState" = false ] && [ $1 = "down" ]
   then
     # Message for local machine test runs.
-    logMessage "dbg" "$2. $featureName is down. It should be $1 at this time. Nothing to do"
+    LogMessage "dbg" "$2. $featureName is down. It should be $1 at this time. Nothing to do"
   fi
 }
 
@@ -843,11 +843,11 @@ BounceTheStream()
   then
     # Stop the YouTube stream feature here by using the "Save" method to set
     # live_on=false. Response is expected to be {"success":true}.
-    logMessage "info" "Bouncing stream for $1 seconds"
+    LogMessage "info" "Bouncing stream for $1 seconds"
     WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
   else
     # In test mode, log something anyway.
-    logMessage "info" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
+    LogMessage "info" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
   fi
   
   # Wait a while to make sure it is really turned off. The number passed in
@@ -856,7 +856,7 @@ BounceTheStream()
   # YouTube, and long values (not sure how long, but 100+ seconds seems to
   # work in my experiments) will end the current stream and split it into a
   # different stream archive video segment on YouTube.
-  logMessage "dbg" "Pausing for $1 seconds, after bringing down the stream, before bringing it up again"
+  LogMessage "dbg" "Pausing for $1 seconds, after bringing down the stream, before bringing it up again"
   sleep $1
 
   # Write the bounceup time to our configuration file which tracks the startup
@@ -878,7 +878,7 @@ BounceTheStream()
   # Log that we're done. Note: This message is used both when the bounce
   # is "good", i.e., during a midday bounce, as well as when the bounce
   # is "bad", i.e., a stream error. So keep it at message type "info".
-  logMessage "info" "Done bouncing YouTube stream"
+  LogMessage "info" "Done bouncing YouTube stream"
 
   # If we had to bounce the stream, wait a little while before allowing the
   # program to continue to its exit point. This allows the stream to get
@@ -901,7 +901,7 @@ BounceTheStream()
   #
   # UP-UPDATE: Experimentation indicates that we still need a pause. See
   # GitHub Issue #17.
-  logMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
+  LogMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
   sleep 50
 }
 
@@ -928,7 +928,7 @@ WriteStreamStartTime()
   currentStreamStartTimeSeconds=$(TimeToSeconds $currentStreamStartTime)
 
   # Log
-  logMessage "dbg" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
+  LogMessage "dbg" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
 
   # Write the current time, in seconds, into the specified file.
   # Use "-n" to ensure there is no trailing newline character.
@@ -943,31 +943,31 @@ WriteStreamStartTime()
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
-  logMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
+  LogMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
 
 # Debugging message for logging script start/stop times. Leave commented out.
-# logMessage "info" "-------------------------- Starting script: $programname -------------------------"
+# LogMessage "info" "-------------------------- Starting script: $programname -------------------------"
 
 # Log current script location and working directory.
-logMessage "dbg" "Script exists in directory: $DIR"
-logMessage "dbg" "Current working directory:  $(pwd)"
+LogMessage "dbg" "Script exists in directory: $DIR"
+LogMessage "dbg" "Current working directory:  $(pwd)"
 
 
 # Verify that the necessary external files exist.
 if [ ! -e "$clientIdJson" ]
 then
-  logMessage "err" "Missing file $clientIdJson"
+  LogMessage "err" "Missing file $clientIdJson"
   exit 1
 fi
 if [ ! -e "$crowcamTokens" ]
 then
-  logMessage "err" "Missing file $crowcamTokens"
+  LogMessage "err" "Missing file $crowcamTokens"
   exit 1
 fi
 if [ ! -e "$apicreds" ]
 then
-  logMessage "err" "Missing file $apicreds"
+  LogMessage "err" "Missing file $apicreds"
   exit 1
 fi
 
@@ -978,7 +978,7 @@ fi
 read username password < "$apicreds"
 if [ -z "$username" ] || [ -z "$password" ]
 then
-  logMessage "err" "Problem obtaining API credentials from external file"
+  LogMessage "err" "Problem obtaining API credentials from external file"
 fi
 
 
@@ -1006,7 +1006,7 @@ currentServiceState=$( IsServiceUp )
 if [ "$currentServiceState" = false ]
 then
   # Output for local machine test runs.
-  logMessage "dbg" "$serviceName is not running. Exiting program"
+  LogMessage "dbg" "$serviceName is not running. Exiting program"
   exit 0
 fi
 
@@ -1110,7 +1110,7 @@ then
   if [ ! -f "$crowcamSunrise" ] || [ ! -f "$crowcamSunset" ] || [ "$( find "$crowcamSunrise" -mmin +$ageLimit )" != "" ] || [ "$( find "$crowcamSunset" -mmin +$ageLimit )" != "" ]
   then
     # Get more accurate sunrise/sunset results from Google if available.
-    logMessage "dbg" "Retrieving sunrise/sunset times from Google"
+    LogMessage "dbg" "Retrieving sunrise/sunset times from Google"
     googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
     googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
 
@@ -1118,13 +1118,13 @@ then
     if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
     then
       # Failure condition, did not retrieve values.
-      logMessage "err" "Problem obtaining sunrise/sunset from Google. Falling back to previously saved values: $sunrise/$sunset"
+      LogMessage "err" "Problem obtaining sunrise/sunset from Google. Falling back to previously saved values: $sunrise/$sunset"
     else
       # Success condition. If the Google responses were non-empty, use them
       # in place of the fallback values and write them to the fallback files.
       sunrise=$googleSunriseString
       sunset=$googleSunsetString
-      logMessage "info" "Retrieved sunrise/sunset times from Google: $sunrise/$sunset"
+      LogMessage "info" "Retrieved sunrise/sunset times from Google: $sunrise/$sunset"
       
       # If the Google responses were not empty, then write them into our fallback
       # files. Use "-n" to ensure they do not write a trailing newline character.
@@ -1141,7 +1141,7 @@ fi
 # sunrise or sunset times in these variables.
 if [ -z "$sunrise" ] || [ -z "$sunset" ]
 then
-  logMessage "err" "Problem obtaining sunrise/sunset values. Unable to obtain values from Google, and also unable to use fallback values"
+  LogMessage "err" "Problem obtaining sunrise/sunset values. Unable to obtain values from Google, and also unable to use fallback values"
   exit 1
 fi
 
@@ -1167,7 +1167,7 @@ stopServiceSeconds=$(($sunsetSeconds + $stopServiceOffset*60 ))
 totalStreamSeconds=$(($stopServiceSeconds - $startServiceSeconds))
 if [ $totalStreamSeconds -lt 1 ]  
 then  
-  logMessage "err" "Problem calculating sunrise/sunset values. Total stream length is $totalStreamSeconds seconds"  
+  LogMessage "err" "Problem calculating sunrise/sunset values. Total stream length is $totalStreamSeconds seconds"  
   exit 1  
 fi
 halfTimeSeconds=$(( ($totalStreamSeconds / 2) ))
@@ -1181,24 +1181,24 @@ midday=$(SecondsToTimeAmPm $middaySeconds)
 # the shorter one.
 if [ $halfTimeSeconds -lt $maxVideoLengthSeconds ]  
 then  
-  logMessage "dbg" "Using midday bounce length $(SecondsToTime $halfTimeSeconds) in place of maximum video length $(SecondsToTime $maxVideoLengthSeconds) to determine split points"  
+  LogMessage "dbg" "Using midday bounce length $(SecondsToTime $halfTimeSeconds) in place of maximum video length $(SecondsToTime $maxVideoLengthSeconds) to determine split points"  
   maxVideoLengthSeconds=$halfTimeSeconds
 fi  
 
 
 # Output - print the results of our calculations to the screen.
-logMessage "dbg" "Current time:    $currentTime    ($currentTimeSeconds seconds)"
-logMessage "dbg" "Approx Sunrise:  $sunrise  ($sunriseSeconds seconds, difference is $sunriseDifferenceSeconds)"
-logMessage "dbg" "Approx Midday:   $midday  ($middaySeconds seconds, difference is $middayDifferenceSeconds)"
-logMessage "dbg" "Approx Sunset:   $sunset  ($sunsetSeconds seconds, difference is $sunsetDifferenceSeconds)"
-logMessage "dbg" ""
-logMessage "dbg" "$( OutputTimeDifference $sunriseDifferenceSeconds $(SecondsToTime $sunriseDifferenceSeconds) Sunrise )"
-logMessage "dbg" "$( OutputTimeDifference $sunsetDifferenceSeconds $(SecondsToTime $sunsetDifferenceSeconds) Sunset )"
-logMessage "dbg" ""
-logMessage "dbg" "Will start the stream at about   $startServiceSeconds $(SecondsToTime $startServiceSeconds)"
-logMessage "dbg" "Will stop it for the night at    $stopServiceSeconds $(SecondsToTime $stopServiceSeconds)"
-logMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds $(SecondsToTime $totalStreamSeconds)"
-logMessage "dbg" ""
+LogMessage "dbg" "Current time:    $currentTime    ($currentTimeSeconds seconds)"
+LogMessage "dbg" "Approx Sunrise:  $sunrise  ($sunriseSeconds seconds, difference is $sunriseDifferenceSeconds)"
+LogMessage "dbg" "Approx Midday:   $midday  ($middaySeconds seconds, difference is $middayDifferenceSeconds)"
+LogMessage "dbg" "Approx Sunset:   $sunset  ($sunsetSeconds seconds, difference is $sunsetDifferenceSeconds)"
+LogMessage "dbg" ""
+LogMessage "dbg" "$( OutputTimeDifference $sunriseDifferenceSeconds $(SecondsToTime $sunriseDifferenceSeconds) Sunrise )"
+LogMessage "dbg" "$( OutputTimeDifference $sunsetDifferenceSeconds $(SecondsToTime $sunsetDifferenceSeconds) Sunset )"
+LogMessage "dbg" ""
+LogMessage "dbg" "Will start the stream at about   $startServiceSeconds $(SecondsToTime $startServiceSeconds)"
+LogMessage "dbg" "Will stop it for the night at    $stopServiceSeconds $(SecondsToTime $stopServiceSeconds)"
+LogMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds $(SecondsToTime $totalStreamSeconds)"
+LogMessage "dbg" ""
 
 # Decide the behavior if we need to stop the stream before sunrise.
 if [ $currentTimeSeconds -lt $startServiceSeconds ]
@@ -1235,18 +1235,18 @@ fi
 # can access the API on the local LAN.
 if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
 then
-  logMessage "dbg" "Checking status of $featureName feature"
+  LogMessage "dbg" "Checking status of $featureName feature"
 
   # in this mode it should be safe to perform the web api call.
   streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
   if ! [[ $streamStatus == *"\"live_on\":true"* ]]
   then
-    logMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
+    LogMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
     exit 0
   fi
   
 else
-  logMessage "dbg" "Performing network tests in debug mode, since we cannot check the status of $featureName feature"
+  LogMessage "dbg" "Performing network tests in debug mode, since we cannot check the status of $featureName feature"
 fi
 
 
@@ -1296,14 +1296,14 @@ secondsSinceCamstart=$(($currentTimeSeconds - $camstartSeconds))
 gracedEndOfDay=$(($stopServiceSeconds - $maxVideoLengthGracePeriod))
 
 # Display all values we will be using to base our stream split decision upon.
-logMessage "dbg" ""
-logMessage "dbg" "Camera was last started at                     $camstartSeconds $(SecondsToTime $camstartSeconds) on the clock"
-logMessage "dbg" "Elapsed time since camera was started          $secondsSinceCamstart $(SecondsToTime $secondsSinceCamstart) ago"
-logMessage "dbg" "Max stream length allowed                      $maxVideoLengthSeconds $(SecondsToTime $maxVideoLengthSeconds) long"
-logMessage "dbg" "Grace period length                            $maxVideoLengthGracePeriod $(SecondsToTime $maxVideoLengthGracePeriod) long"
-logMessage "dbg" "Current time (approximate)                     $currentTimeSeconds $(SecondsToTime $currentTimeSeconds) on the clock"
-logMessage "dbg" "End of broadcast day                           $stopServiceSeconds $(SecondsToTime $stopServiceSeconds) on the clock"
-logMessage "dbg" "End of broadcast with grace period subtracted  $gracedEndOfDay $(SecondsToTime $gracedEndOfDay) on the clock"
+LogMessage "dbg" ""
+LogMessage "dbg" "Camera was last started at                     $camstartSeconds $(SecondsToTime $camstartSeconds) on the clock"
+LogMessage "dbg" "Elapsed time since camera was started          $secondsSinceCamstart $(SecondsToTime $secondsSinceCamstart) ago"
+LogMessage "dbg" "Max stream length allowed                      $maxVideoLengthSeconds $(SecondsToTime $maxVideoLengthSeconds) long"
+LogMessage "dbg" "Grace period length                            $maxVideoLengthGracePeriod $(SecondsToTime $maxVideoLengthGracePeriod) long"
+LogMessage "dbg" "Current time (approximate)                     $currentTimeSeconds $(SecondsToTime $currentTimeSeconds) on the clock"
+LogMessage "dbg" "End of broadcast day                           $stopServiceSeconds $(SecondsToTime $stopServiceSeconds) on the clock"
+LogMessage "dbg" "End of broadcast with grace period subtracted  $gracedEndOfDay $(SecondsToTime $gracedEndOfDay) on the clock"
 
 # Decide if a stream bounce is needed, based on the length of the currently
 # recording video stream. Check if the total uptime of the current segment is
@@ -1317,10 +1317,10 @@ then
   if [ $currentTimeSeconds -ge $gracedEndOfDay ]
   then
     # We are within the grace period, don't bounce the stream.
-    logMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
+    LogMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
   else
     # The end of the day is not close enough. Bounce the stream.
-    logMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
+    LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
 
     # Perform the bounce, but only if we are not in debug mode.
     # Use the long bounce duration here, because we are deliberately trying
@@ -1329,14 +1329,14 @@ then
     then
       BounceTheStream $longBounceDuration
     else
-      logMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+      LogMessage "dbg" "(Skipping the actual bounce when in debug mode)"
     fi
   fi
 fi
 
 # Log a blank line in the debug console output to separate the midday bounce
 # reports from the remainder of the output.
-logMessage "dbg" ""
+LogMessage "dbg" ""
 
 
 #------------------------------------------------------------------------------
@@ -1398,19 +1398,19 @@ else
 
   # Debugging output. Only needed if you run into a nasty bug here.
   # Leave deactivated most of the time.
-  # logMessage "dbg" "Live Broadcast output information: $liveBroadcastOutput"
+  # LogMessage "dbg" "Live Broadcast output information: $liveBroadcastOutput"
 
   # Extract the boundStreamId which is needed in order to find the secret key.
   boundStreamId=""
   boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
-  logMessage "dbg" "boundStreamId: $boundStreamId"
+  LogMessage "dbg" "boundStreamId: $boundStreamId"
 fi
 
 # Make sure the boundStreamId is not empty.
 if test -z "$boundStreamId" 
 then
-  logMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
-  logMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+  LogMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
+  LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
   safeToFixStreamKey=false
 else
   # Obtain the stream key from the live stream details, now that we have the 
@@ -1429,7 +1429,7 @@ else
 
   # Debugging output. Only needed if you run into a nasty bug here.
   # Leave deactivated most of the time.
-  # logMessage "dbg" "Live Streams output information: $liveStreamsOutput"
+  # LogMessage "dbg" "Live Streams output information: $liveStreamsOutput"
 
   # Obtain the secret stream key that is currently being used by my broadcast.
   # Note: This variable is named a bit confusingly. It is called "streamName" in
@@ -1439,13 +1439,13 @@ else
   # API variable name to identify it.
   streamName=""
   streamName=$(echo $liveStreamsOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "streamName" | cut -d '"' -f4)
-  logMessage "dbg" "Secret YouTube stream name/key for this broadcast (aka streamName): $streamName"
+  LogMessage "dbg" "Secret YouTube stream name/key for this broadcast (aka streamName): $streamName"
 
   # Make sure the streamName is not empty.
   if test -z "$streamName" 
   then
-    logMessage "err" "The variable streamName came up empty. Error accessing YouTube API"
-    logMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
+    LogMessage "err" "The variable streamName came up empty. Error accessing YouTube API"
+    LogMessage "err" "The liveStreamsOutput was $( echo $liveStreamsOutput | tr '\n' ' ' )"
     safeToFixStreamKey=false
   fi
 fi
@@ -1454,24 +1454,24 @@ fi
 # sure that we're working on the correct stream.
 boundStreamTitle=""
 boundStreamTitle=$(echo $liveBroadcastOutput | sed 's/"title"/\'$'\n&/g' | grep -m 1 "title" | cut -d '"' -f4)
-logMessage "dbg" "boundStreamTitle: $boundStreamTitle"
+LogMessage "dbg" "boundStreamTitle: $boundStreamTitle"
 
 # Make sure the stream title is not empty.
 if test -z "$boundStreamTitle" 
 then
-  logMessage "err" "The variable boundStreamTitle came up empty. Error accessing YouTube API"
+  LogMessage "err" "The variable boundStreamTitle came up empty. Error accessing YouTube API"
   safeToFixStreamKey=false
 else
   # If the stream title is not empty, then make sure the title of the stream
   # is the one that we expect it to be. This fixes GitHub issue #27.
   if [[ "$titleToDelete" == "$boundStreamTitle" ]]
   then
-    logMessage "dbg" "Expected stream title $titleToDelete matches YouTube stream title $boundStreamTitle"
+    LogMessage "dbg" "Expected stream title $titleToDelete matches YouTube stream title $boundStreamTitle"
   else
     # Log a set of error messages if they do not match.
-    logMessage "err" "Expected stream title does not match YouTube stream title"
-    logMessage "err" "Expected name: $titleToDelete"
-    logMessage "err" "YouTube name:  $boundStreamTitle"
+    LogMessage "err" "Expected stream title does not match YouTube stream title"
+    LogMessage "err" "Expected name: $titleToDelete"
+    LogMessage "err" "YouTube name:  $boundStreamTitle"
     safeToFixStreamKey=false
   fi
 fi
@@ -1483,28 +1483,28 @@ fi
 # to go back to a visible/working state again without human intervention.
 privacyStatus=""
 privacyStatus=$(echo $liveBroadcastOutput | sed 's/"privacyStatus"/\'$'\n&/g' | grep -m 1 "privacyStatus" | cut -d '"' -f4)
-logMessage "dbg" "privacyStatus: $privacyStatus"
+LogMessage "dbg" "privacyStatus: $privacyStatus"
 if test -z "$privacyStatus"; then safeToFixStreamKey=false; fi
 
 # Make sure the privacyStatus is not empty.
 if test -z "$privacyStatus" 
 then
-  logMessage "err" "The variable privacyStatus came up empty. Error accessing YouTube API"
+  LogMessage "err" "The variable privacyStatus came up empty. Error accessing YouTube API"
   safeToFixStreamKey=false
 else
   # If privacyStatus is not empty, check to see if it is the desired value.
   if [[ "$desiredStreamVisibility" == "$privacyStatus" ]]
   then
-    logMessage "dbg" "Expected stream visibility $desiredStreamVisibility matches YouTube stream visibility $privacyStatus"
+    LogMessage "dbg" "Expected stream visibility $desiredStreamVisibility matches YouTube stream visibility $privacyStatus"
   else
     # Log an error message if they do not match.
-    logMessage "err" "Expected stream visibility does not match YouTube stream visibility. Expected visibility: $desiredStreamVisibility YouTube visibility: $privacyStatus"
+    LogMessage "err" "Expected stream visibility does not match YouTube stream visibility. Expected visibility: $desiredStreamVisibility YouTube visibility: $privacyStatus"
     
     # Retrieve the "id" field, so that the API command can identify which
     # video stream to update.
     thisStreamId=""
     thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
-    logMessage "dbg" "thisStreamId: $thisStreamId"
+    LogMessage "dbg" "thisStreamId: $thisStreamId"
     if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
 
     # In addition to retrieving privacyStatus and id, also retrieve all of
@@ -1534,72 +1534,72 @@ else
     #   "etag": "\"Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8\"",
     etag=""
     etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "etag" | cut -d '"' -f5 | cut -d '\' -f1)
-    logMessage "dbg" "etag: $etag"
+    LogMessage "dbg" "etag: $etag"
     if test -z "$etag"; then safeToFixStreamKey=false; fi
 
     channelId=""
     channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
-    logMessage "dbg" "channelId: $channelId"
+    LogMessage "dbg" "channelId: $channelId"
     if test -z "$channelId"; then safeToFixStreamKey=false; fi
     
     scheduledStartTime=""
     scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "scheduledStartTime" | cut -d '"' -f4)
-    logMessage "dbg" "scheduledStartTime: $scheduledStartTime"
+    LogMessage "dbg" "scheduledStartTime: $scheduledStartTime"
     if test -z "$scheduledStartTime"; then safeToFixStreamKey=false; fi
     
     actualStartTime=""
     actualStartTime=$(echo $liveBroadcastOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
-    logMessage "dbg" "actualStartTime: $actualStartTime"
+    LogMessage "dbg" "actualStartTime: $actualStartTime"
     if test -z "$actualStartTime"; then safeToFixStreamKey=false; fi
     
     isDefaultBroadcast=""
     isDefaultBroadcast=$(echo $liveBroadcastOutput | sed 's/"isDefaultBroadcast"/\'$'\n&/g' | grep -m 1 "isDefaultBroadcast" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "isDefaultBroadcast: $isDefaultBroadcast"
+    LogMessage "dbg" "isDefaultBroadcast: $isDefaultBroadcast"
     if test -z "$isDefaultBroadcast"; then safeToFixStreamKey=false; fi
 
     liveChatId=""
     liveChatId=$(echo $liveBroadcastOutput | sed 's/"liveChatId"/\'$'\n&/g' | grep -m 1 "liveChatId" | cut -d '"' -f4)
-    logMessage "dbg" "liveChatId: $liveChatId"
+    LogMessage "dbg" "liveChatId: $liveChatId"
     if test -z "$liveChatId"; then safeToFixStreamKey=false; fi
     
     boundStreamId=""
     boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
-    logMessage "dbg" "boundStreamId: $boundStreamId"
+    LogMessage "dbg" "boundStreamId: $boundStreamId"
     if test -z "$boundStreamId"; then safeToFixStreamKey=false; fi
 
     enableMonitorStream=""
     enableMonitorStream=$(echo $liveBroadcastOutput | sed 's/"enableMonitorStream"/\'$'\n&/g' | grep -m 1 "enableMonitorStream" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "enableMonitorStream: $enableMonitorStream"
+    LogMessage "dbg" "enableMonitorStream: $enableMonitorStream"
     if test -z "$enableMonitorStream"; then safeToFixStreamKey=false; fi
 
     broadcastStreamDelayMs=""
     broadcastStreamDelayMs=$(echo $liveBroadcastOutput | sed 's/"broadcastStreamDelayMs"/\'$'\n&/g' | grep -m 1 "broadcastStreamDelayMs" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "broadcastStreamDelayMs: $broadcastStreamDelayMs"
+    LogMessage "dbg" "broadcastStreamDelayMs: $broadcastStreamDelayMs"
     if test -z "$broadcastStreamDelayMs"; then safeToFixStreamKey=false; fi
 
     enableDvr=""
     enableDvr=$(echo $liveBroadcastOutput | sed 's/"enableDvr"/\'$'\n&/g' | grep -m 1 "enableDvr" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "enableDvr: $enableDvr"
+    LogMessage "dbg" "enableDvr: $enableDvr"
     if test -z "$enableDvr"; then safeToFixStreamKey=false; fi
 
     enableContentEncryption=""
     enableContentEncryption=$(echo $liveBroadcastOutput | sed 's/"enableContentEncryption"/\'$'\n&/g' | grep -m 1 "enableContentEncryption" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "enableContentEncryption: $enableContentEncryption"
+    LogMessage "dbg" "enableContentEncryption: $enableContentEncryption"
     if test -z "$enableContentEncryption"; then safeToFixStreamKey=false; fi
 
     enableEmbed=""
     enableEmbed=$(echo $liveBroadcastOutput | sed 's/"enableEmbed"/\'$'\n&/g' | grep -m 1 "enableEmbed" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "enableEmbed: $enableEmbed"
+    LogMessage "dbg" "enableEmbed: $enableEmbed"
     if test -z "$enableEmbed"; then safeToFixStreamKey=false; fi
 
     recordFromStart=""
     recordFromStart=$(echo $liveBroadcastOutput | sed 's/"recordFromStart"/\'$'\n&/g' | grep -m 1 "recordFromStart" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "recordFromStart: $recordFromStart"
+    LogMessage "dbg" "recordFromStart: $recordFromStart"
     if test -z "$recordFromStart"; then safeToFixStreamKey=false; fi
 
     startWithSlate=""
     startWithSlate=$(echo $liveBroadcastOutput | sed 's/"startWithSlate"/\'$'\n&/g' | grep -m 1 "startWithSlate" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    logMessage "dbg" "startWithSlate: $startWithSlate"
+    LogMessage "dbg" "startWithSlate: $startWithSlate"
     if test -z "$startWithSlate"; then safeToFixStreamKey=false; fi
 
     # Double check that it's safe to fix, before trying to fix. This variable
@@ -1737,9 +1737,9 @@ else
       #   curlData+="}"
 
       # Perform the fix.
-      logMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
-      logMessage "dbg" "curlData: $curlData"
-      logMessage "dbg" "curlUrl: $curlUrl"
+      LogMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
+      LogMessage "dbg" "curlData: $curlData"
+      LogMessage "dbg" "curlUrl: $curlUrl"
       streamVisibilityFixOutput=""
 
       # Important syntax note: In order to be able to update the stream
@@ -1759,7 +1759,7 @@ else
       # ...and even YouTube API's own example code for the Update
       # command.
       streamVisibilityFixOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
-      logMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
+      LogMessage "dbg" "Response from fix attempt streamVisibilityFixOutput: $streamVisibilityFixOutput"
 
       # Check the response for errors and log the error if there is one.
       # Here is an example of what an error response looks like:
@@ -1786,10 +1786,10 @@ else
       # contains the word "error" somewhere in it, it won't false-alarm. 
       if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
       then
-        logMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
+        LogMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
       fi
     else
-      logMessage "err" "Unsafe to fix stream visibility due to API issues"
+      LogMessage "err" "Unsafe to fix stream visibility due to API issues"
     fi
   fi
 fi
@@ -1815,13 +1815,13 @@ then
     # Extract the "key" from the Synology response which is needed in order to find the secret key.
     streamKey=""
     streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "key" | cut -d '"' -f4)
-    logMessage "dbg" "Local Synology stream key (needs to match YouTube stream name/key): $streamKey"
+    LogMessage "dbg" "Local Synology stream key (needs to match YouTube stream name/key): $streamKey"
 
     # Make sure the streamKey is not empty.
     if test -z "$streamKey" 
     then
-        logMessage "err" "The variable streamKey came up empty. Error accessing Synology API. Exiting program"
-        logMessage "err" "The streamKeyQuery was $( echo $streamKeyQuery | tr '\n' ' ' )"
+        LogMessage "err" "The variable streamKey came up empty. Error accessing Synology API. Exiting program"
+        LogMessage "err" "The streamKeyQuery was $( echo $streamKeyQuery | tr '\n' ' ' )"
         exit 1
     fi
 
@@ -1833,25 +1833,25 @@ then
     # different, then this step would immediately fix it anyway.
     if [[ "$streamKey" == "$streamName" ]]
     then
-      logMessage "dbg" "Local Synology stream key matches YouTube stream name/key"
+      LogMessage "dbg" "Local Synology stream key matches YouTube stream name/key"
     else
       # Log a set of error messages if they do not match.
-      logMessage "err" "Local Synology stream key does not match YouTube stream name/key"
-      logMessage "err" "Local Key:   $streamKey"
-      logMessage "err" "YouTube Key: $streamName"
+      LogMessage "err" "Local Synology stream key does not match YouTube stream name/key"
+      LogMessage "err" "Local Key:   $streamKey"
+      LogMessage "err" "YouTube Key: $streamName"
 
       # Write the new key to the Synology configuration automatically. Use the
       # Synology API's "Save" method to set "key=(the new key)". Response is
       # expected to be {"success":true} and will error out of the script if it
       # fails.
-      logMessage "info" "Updating local Synology stream name/key to be $streamName"
+      LogMessage "info" "Updating local Synology stream name/key to be $streamName"
       WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
     fi
   else
-    logMessage "dbg" "Not in a position to obtain the Stream Key of $featureName feature - Will not attempt the Stream Key fix procedure"
+    LogMessage "dbg" "Not in a position to obtain the Stream Key of $featureName feature - Will not attempt the Stream Key fix procedure"
   fi
 else
-  logMessage "err" "Unable to obtain all of the YouTube API stream data for $titleToDelete live stream - Will not attempt the Stream Key fix procedure"
+  LogMessage "err" "Unable to obtain all of the YouTube API stream data for $titleToDelete live stream - Will not attempt the Stream Key fix procedure"
 fi
 
 
@@ -1882,7 +1882,7 @@ do
     if [ "$mainLoop" -lt "$NumberOfTests" ]
     then
       # Message for local machine test runs.
-      logMessage "dbg" "Outer network test loop $mainLoop of $NumberOfTests - Sleeping $PauseBetweenTests seconds"
+      LogMessage "dbg" "Outer network test loop $mainLoop of $NumberOfTests - Sleeping $PauseBetweenTests seconds"
 
       # Sleep between network tests.
       sleep $PauseBetweenTests
@@ -1894,15 +1894,15 @@ do
     do
       # Pause before trying to check if the network is back up. In this case,
       # we pause every time, because the pause is before the network check.
-      logMessage "err" "Status - Network up: $NetworkIsUp - Network problem during outer network test loop $mainLoop of $NumberOfTests - Pausing $PauseBetweenTests seconds to wait for network to come back up. Inner restore attempt loop $restoreLoop of $MaxComebackRetries"
+      LogMessage "err" "Status - Network up: $NetworkIsUp - Network problem during outer network test loop $mainLoop of $NumberOfTests - Pausing $PauseBetweenTests seconds to wait for network to come back up. Inner restore attempt loop $restoreLoop of $MaxComebackRetries"
 
       # Pause before every network test when waiting for it to come back. 
       sleep $PauseBetweenTests
 
       # Test the network and stream again.
-      logMessage "dbg" "Testing network again"
+      LogMessage "dbg" "Testing network again"
       Test_Network
-      logMessage "dbg" "Status - Network up: $NetworkIsUp"
+      LogMessage "dbg" "Status - Network up: $NetworkIsUp"
 
       # Check if the network has come back up and break out of the retry loop
       # if the network is now up.
@@ -1932,10 +1932,10 @@ do
     if [ "$NetworkIsUp" = true ]
     then
       # Inform the user that we're bouncing the stream because the network is up.
-      logMessage "info" "Bouncing the YouTube stream since the network came back up, bouncing for $shortBounceDuration seconds"
+      LogMessage "info" "Bouncing the YouTube stream since the network came back up, bouncing for $shortBounceDuration seconds"
     else
       # Inform the user that we gave up trying.
-      logMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway, bouncing for $shortBounceDuration seconds"
+      LogMessage "err" "The network is not back up yet. Bouncing YouTube stream anyway, bouncing for $shortBounceDuration seconds"
     fi
     
     # Actually bounce the stream. Using the short bounce duration because maybe
@@ -1952,7 +1952,7 @@ do
     # around. Break out of the network test loop. NOTE: With the new code flow,
     # This line should not be hit because the program should have exited by
     # now. Adding an error message at this point to validate that assumption.
-    logMessage "err" "Unexpected program behavior. This program was expected to have exited before this line was reached"
+    LogMessage "err" "Unexpected program behavior. This program was expected to have exited before this line was reached"
     exit 1
     break
   fi
@@ -2004,7 +2004,7 @@ done
 #   tests cause a stream bounce, which also exits the program.
 if [ "$NetworkIsUp" = false ] 
 then
-    logMessage "err" "Unexpected program behavior. Reached a point in the code where the NetworkIsUp variable was expected to be true, but it was false"
+    LogMessage "err" "Unexpected program behavior. Reached a point in the code where the NetworkIsUp variable was expected to be true, but it was false"
     exit 1
 fi
 
@@ -2013,13 +2013,13 @@ fi
 Test_Stream
 
 # Log the status of network and stream.
-logMessage "dbg" "Status - Network up: $NetworkIsUp - Stream up: $StreamIsUp"
+LogMessage "dbg" "Status - Network up: $NetworkIsUp - Stream up: $StreamIsUp"
 
 # If the stream is down, then bounce the stream.
 if [ "$StreamIsUp" = false ] 
 then
   # Inform the user that we're bouncing the stream.
-  logMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down"
+  LogMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down"
   
   # Bounce the stream. Use the short bounce duration because we are
   # experimenting with the idea that the "VideoIngestionFasterThanRealtime"
@@ -2039,7 +2039,7 @@ then
 fi
     
 # Debugging message for logging script start/stop times. Leave commented out.
-# logMessage "info" "-------------------------- Ending script: $programname -------------------------"
+# LogMessage "info" "-------------------------- Ending script: $programname -------------------------"
 
 
 

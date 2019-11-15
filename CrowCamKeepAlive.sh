@@ -91,22 +91,22 @@ fi
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
-  logMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
+  LogMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
 
 # Log current script location and working directory.
-logMessage "dbg" "Script exists in directory: $DIR"
-logMessage "dbg" "Current working directory:  $(pwd)"
+LogMessage "dbg" "Script exists in directory: $DIR"
+LogMessage "dbg" "Current working directory:  $(pwd)"
 
 # Verify that the necessary external files exist.
 if [ ! -e "$apicreds" ]
 then
-  logMessage "err" "Missing file $apicreds"
+  LogMessage "err" "Missing file $apicreds"
   exit 1
 fi
 if [ ! -e "$executable" ]
 then
-  logMessage "err" "Missing file $executable"
+  LogMessage "err" "Missing file $executable"
   exit 1
 fi
 
@@ -116,13 +116,13 @@ fi
 read username password < "$apicreds"
 if [ -z "$username" ] || [ -z "$password" ]
 then
-  logMessage "err" "Problem obtaining API credentials from external file"
+  LogMessage "err" "Problem obtaining API credentials from external file"
 fi
 
 # Randomly pause between 0 and X seconds. This is an attempt to prevent this
 # program from running afoul of the YouTube bot detectors. Probably won't help.
 pauseSeconds=$(( ( RANDOM % $pauseSecondsUpperBound )  + 1 ))
-logMessage "dbg" "Pausing for a random amount of seconds (in this case $pauseSeconds seconds) before performing tasks"
+LogMessage "dbg" "Pausing for a random amount of seconds (in this case $pauseSeconds seconds) before performing tasks"
 sleep $pauseSeconds
 
 # ----------------------------------------------------------------------------
@@ -149,7 +149,7 @@ currentServiceState=$( IsServiceUp )
 if [ "$currentServiceState" = false ]
 then
   # Output for local machine test runs.
-  logMessage "dbg" "$serviceName is not running. Exiting program"
+  LogMessage "dbg" "$serviceName is not running. Exiting program"
   exit 0
 fi
 
@@ -165,7 +165,7 @@ then
   # "live_on":false,"rtmp_path":"rtmp://a.rtmp.youtube.com/live2",
   # "stream_profile":0},"success":true}. We are looking specifically for
   # "live_on":false or "live_on":true here. 
-  logMessage "dbg" "Checking status of $featureName feature"
+  LogMessage "dbg" "Checking status of $featureName feature"
   streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
 
   # If the stream is not set to be "up" right now, then do nothing and exit the
@@ -173,11 +173,11 @@ then
   # check if the stream is up, look for "live_on"=true in the response string.
   if ! [[ $streamStatus == *"\"live_on\":true"* ]]
   then
-    logMessage "dbg" "Live stream is not currently turned on. Will not perform the Keep Alive operation on the stream"
+    LogMessage "dbg" "Live stream is not currently turned on. Will not perform the Keep Alive operation on the stream"
     exit 0
   fi
 else
-  logMessage "dbg" "We are not in a position to check the live stream status. Performing the Keep Alive operation on the stream in debug/test mode"
+  LogMessage "dbg" "We are not in a position to check the live stream status. Performing the Keep Alive operation on the stream in debug/test mode"
 fi
 
 # -----------------------------------------------------------------------------
@@ -189,13 +189,13 @@ executableUpdateUrl="https://yt-dl.org/downloads/latest/$executableFilenameOnly"
 rm -f "$executable.temp"
 
 # Download the update file. It is simply the actual loose executable file.
-logMessage "dbg" "wget $executableUpdateUrl -q -O $executable.temp"
+LogMessage "dbg" "wget $executableUpdateUrl -q -O $executable.temp"
                   wget $executableUpdateUrl -q -O "$executable.temp"
 
 # Check to make sure that some file was downloaded at all.
 if [ ! -f "$executable.temp" ]
 then
-  logMessage "err" "Error: Unable to download $executableFilenameOnly. File did not exist after download. Will not update the file"
+  LogMessage "err" "Error: Unable to download $executableFilenameOnly. File did not exist after download. Will not update the file"
 else
   # Check to make sure the file is nonzero and it is not an HTML error.
   # File size if the file is successful will be either about 1758665 bytes on
@@ -204,10 +204,10 @@ else
   # to see if the file is large enough.
   minimumsize=1000000
   actualsize=$(wc -c <"$executable.temp")
-  logMessage "dbg" "Downloaded file was $actualsize bytes"
+  LogMessage "dbg" "Downloaded file was $actualsize bytes"
   if [ $actualsize -ge $minimumsize ]; then
     # Log download success.
-    logMessage "dbg" "File $executableFilenameOnly was successfully downloaded, copying into place"
+    LogMessage "dbg" "File $executableFilenameOnly was successfully downloaded, copying into place"
     
     # Copy the file into its final resting place. The "\" before "cp" unaliases the
     # command and forces it to work without prompting for an overwrite. More info
@@ -217,14 +217,14 @@ else
     \cp "$executable.temp" "$executable"
 
     # Set the file permissions on the copied file.
-    logMessage "dbg" "chmod 770 $executable"
+    LogMessage "dbg" "chmod 770 $executable"
                       chmod 770 "$executable"
 
     # Post-clean the temporary download file, but only in the success case.
     # In the failure case, leave the file behind for forensics.
     rm -f "$executable.temp"
   else
-    logMessage "err" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file"
+    LogMessage "err" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file"
   fi
 fi
 
@@ -238,7 +238,7 @@ rm -f $tempFile
 rm -f $tempFile.part
 
 # Log that we will be doing our task.
-logMessage "dbg" "Downloading $youTubeUrl"
+LogMessage "dbg" "Downloading $youTubeUrl"
 
 # Download the video from YouTube for a few seconds.
 #
@@ -281,7 +281,7 @@ logMessage "dbg" "Downloading $youTubeUrl"
 #
 # Old commands:
 #
-#    logMessage "dbg" "timeout -s 2 -k $secondsToDownload $secondsToDownload \"$executable\"" --hls-prefer-native --external-downloader wget $youTubeUrl -o $tempFile"
+#    LogMessage "dbg" "timeout -s 2 -k $secondsToDownload $secondsToDownload \"$executable\"" --hls-prefer-native --external-downloader wget $youTubeUrl -o $tempFile"
 #                      timeout -s 2 -k $secondsToDownload $secondsToDownload "$executable" --hls-prefer-native --external-downloader wget $youTubeUrl -o $tempFile 
 # 
 # New work-around:
@@ -290,7 +290,7 @@ logMessage "dbg" "Downloading $youTubeUrl"
 #
 #                  -g, --get-url Simulate, quiet but print URL
 #
-logMessage "dbg" "\"$executable\" $youTubeUrl -g"
+LogMessage "dbg" "\"$executable\" $youTubeUrl -g"
         finalUrl=$("$executable" $youTubeUrl -g )
 
 # Debugging - You can retrieve and log error messages from the output by
@@ -305,13 +305,13 @@ logMessage "dbg" "\"$executable\" $youTubeUrl -g"
 errorStatus=$?
 if [[ $errorStatus != 0 ]]
 then
-  logMessage "err" "$executable finished with exit code $errorStatus"
+  LogMessage "err" "$executable finished with exit code $errorStatus"
 fi
 
 # Bail out of program with an error if finalUrl is blank.
 if [ -z "$finalUrl" ]
 then
-  logMessage "err" "No final URL was obtained from $executable. Exiting program"
+  LogMessage "err" "No final URL was obtained from $executable. Exiting program"
   exit 1
 fi
 
@@ -325,11 +325,11 @@ fi
 if [[ $debugMode == *"Mac"* ]]
 then
   # MacOs version of running the download (no "timeout" command exists on Mac).
-  logMessage "dbg" "wget $finalUrl -q -O $tempFile --timeout=10"
+  LogMessage "dbg" "wget $finalUrl -q -O $tempFile --timeout=10"
                     wget $finalUrl -q -O $tempFile --timeout=10
 else
   # Standard way of running the download, using timeout to limit its length.
-  logMessage "dbg" "timeout -s 2 -k $secondsToDownload $secondsToDownload wget $finalUrl -q -O $tempFile --timeout=10"
+  LogMessage "dbg" "timeout -s 2 -k $secondsToDownload $secondsToDownload wget $finalUrl -q -O $tempFile --timeout=10"
                     timeout -s 2 -k $secondsToDownload $secondsToDownload wget $finalUrl -q -O $tempFile --timeout=10
 fi
 
@@ -340,9 +340,9 @@ then
   rm -f $tempFile
   rm -f $tempFile.part
 else
-  logMessage "dbg" "Debug mode - downloaded file (if any) is left in $tempFile"
+  LogMessage "dbg" "Debug mode - downloaded file (if any) is left in $tempFile"
 fi
 
 # Log completion of task.
-logMessage "dbg" "Complete"
+LogMessage "dbg" "Complete"
 
