@@ -185,7 +185,7 @@ do
     fi
     
     # Print the curl command we are about to use, in debug mode only.
-    LogMessage "dbg" "curl -s $curlUrl"
+    # LogMessage "dbg" "curl -s $curlUrl"   # Do not log strings which contain credentials or access tokens, even in debug mode.
     
     # Perform the API query with curl.
     uploadsOneLoopOutput=""
@@ -502,7 +502,7 @@ do
         curlFullString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/videos?id=$oneVideoId&access_token=$accessToken"
 
         # Log the curl string before we use it.
-        LogMessage "dbg" "Curl command for deletion of video: $curlFullString"
+        # LogMessage "dbg" "Curl command for deletion of video: $curlFullString"  # Do not log strings which contain credentials or access tokens, even in debug mode.
 
         # Prepare a variable to contain the output from the deletion command.
         deleteVideoOutput=""

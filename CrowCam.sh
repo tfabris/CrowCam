@@ -1739,7 +1739,7 @@ else
       # Perform the fix.
       LogMessage "info" "Fixing privacyStatus to be $desiredStreamVisibility"
       LogMessage "dbg" "curlData: $curlData"
-      LogMessage "dbg" "curlUrl: $curlUrl"
+      # LogMessage "dbg" "curlUrl: $curlUrl" # Do not log strings which contain credentials or access tokens.
       streamVisibilityFixOutput=""
 
       # Important syntax note: In order to be able to update the stream

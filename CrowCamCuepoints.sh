@@ -196,6 +196,7 @@ curlData+="\"settings\": "
   curlData+="}"
 curlData+="}"
 
+# Do not log strings which contain credentials or access tokens, even in debug mode.
 # LogMessage "dbg" "curlUrl: $curlUrl"
 # LogMessage "dbg" "curlData: $curlData"
 

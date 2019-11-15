@@ -424,7 +424,7 @@ YouTubeApiAuth()
   if test -z "$accessToken" 
   then
       LogMessage "err" "The variable accessToken came up empty. Error accessing YouTube API"
-      LogMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"
+      # LogMessage "dbg" "The accessTokenOutput was $( echo $accessTokenOutput | tr '\n' ' ' )"     # Do not log strings which contain credentials or access tokens, even in debug mode.
   
       # Fix GitHub issue #28 - Do not crash out of the program if we can't
       # retrieve the access token. Just print an error and let the calling
@@ -433,7 +433,8 @@ YouTubeApiAuth()
         # exit 1
   else
       # Log the access token to the output.
-      LogMessage "dbg" "Access Token: $accessToken"
+      # LogMessage "dbg" "Access Token: $accessToken" # Do not log strings which contain credentials or access tokens, even in debug mode.
+      LogMessage "dbg" "Access Token retrieved."
   fi
 }
 
