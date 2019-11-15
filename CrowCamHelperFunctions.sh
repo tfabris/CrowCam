@@ -39,13 +39,10 @@
 #------------------------------------------------------------------------------
 LogMessage()
 {
-  # Log message to shell console, only when we are in debug mode.
-  if [ ! -z "$debugMode" ]
-  then
-    # Echo to STDERR on purpose, and add the period on purpose, to mimic the 
-    # behavior of the Synology log entry, below.
-    echo "$programname - $2." >&2
-  fi
+  # Log message to shell console. Echo to STDERR on purpose, and add a period
+  # on purpose, to mimic the behavior of the Synology log entry, which adds
+  # its own period.
+  echo "$programname - $2." >&2
 
   # Only log to synology if the log level is not "dbg"
   if ! [ "$1" = dbg ]

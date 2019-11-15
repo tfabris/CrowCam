@@ -436,11 +436,6 @@ Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
 only log its intentions in debug mode, but won't actually clean up any files.
 
-If you see the error message "synologset1: command not found", it most likely
-means that you are trying to debug one of the scripts on your local PC, but
-you have forgotten to set the debugMode= flag to the appropriate setting in 
-the script.
-
 
 Resources
 ------------------------------------------------------------------------------
