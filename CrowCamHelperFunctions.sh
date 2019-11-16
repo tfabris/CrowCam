@@ -431,7 +431,7 @@ YouTubeApiAuth()
   else
       # Log the access token to the output.
       # LogMessage "dbg" "Access Token: $accessToken" # Do not log strings which contain credentials or access tokens, even in debug mode.
-      LogMessage "dbg" "Access Token retrieved."
+      LogMessage "dbg" "Access Token retrieved"
   fi
 }
 

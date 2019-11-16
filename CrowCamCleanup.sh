@@ -153,22 +153,22 @@ nextPageToken=""
 # which query multiple pages of the youtube channel's "My Uploads" playlist.
 uploadsOutput=""
 
-# Create a limited-length FOR loop to paginate. The reason that this FOR loop
-# is limited, is because, if this script is running against a YouTube channel
-# with too many pages, I want to limit the number of pages it churns through
-# during any single run, so that it doesn't run forever and doesn't
-# over-consume Google API quota limits. Since this program queries the video
-# details of each video in this playlist, having too many pages worth of
-# queries will quickly overstep the Google quota limits. Ideally we should run
-# this script well before midnight each night (since Google resets the quota at
-# midnight Pacific time for me).
-for (( c=1; c<=3; c++ ))
+# Paginate through all pages of the youtube channel's saved videos. Set an
+# upper limit of the number of pages. Originally the number of pages was
+# limited to 3 pages to prevent Google quota overruns. However this code is
+# now using a better method to retrieve the video details, and it no longer
+# needs the strict limit because it's getting the job done with much fewer
+# queries. So now the limit is set to 100 pages, which, at 50 videos each, is
+# 5000 "kept" videos.
+for (( c=1; c<=100; c++ ))
 do
     # Create the base url for the Curl command to query the API for the videos
     # in the "My Uploads" playlist. NOTE: Must use maxResults=50 parameter
-    # because the default number of search results is only 5 items, and we want
-    # to get as many items per page as possible. 50/page is the max allowed.
-    curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$uploadsId&maxResults=50&part=contentDetails&mine=true&access_token=$accessToken"
+    # because the default number of search results is only 5 items, and we
+    # want to get as many items per page as possible. 50/page is the max
+    # allowed. Update: Query for "snippet" instead of "contentDetails" so that
+    # we can get all video details without any later re-queries.
+    curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$uploadsId&maxResults=50&part=snippet&mine=true&access_token=$accessToken"
 
     # If a prior loop resulted in a "next page" pagination token, use it on
     # this loop. If the token is nonblank, then assume we got a page token on
@@ -188,6 +188,7 @@ do
     # LogMessage "dbg" "curl -s $curlUrl"   # Do not log strings which contain credentials or access tokens, even in debug mode.
     
     # Perform the API query with curl.
+    LogMessage "dbg" "Querying API page $c"
     uploadsOneLoopOutput=""
     uploadsOneLoopOutput=$( curl -s $curlUrl )
 
@@ -211,12 +212,17 @@ do
     fi
 done
 
+# Output the entire set of concatenated JSON data retrievals into a file on
+# the hard disk for later processing.
+echo "$uploadsOutput" > "$DIR/crowcam-videodata"
+
 # Log the output results. Not usually needed. Leave deactivated usually.
 # echo " "
 # echo  "Output from the query of the Uploads playlist:"
 # echo  $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId"
 # echo " "
 
+# OLD METHOD:
 # Convert the contents of the output into an array that we can use. The sub-
 # sections of the statements below work as follows:
 #
@@ -257,6 +263,9 @@ done
 #    https://stackoverflow.com/a/9294015/3621748
 # But then that alternate array-read method broke when testing on Windows
 # platform, so now I have to do the read differently depending on platform:
+#
+# TO DO: After ensuring the new details retrieval method works on all
+# platforms, convert the retrieval of Video IDs to the new method.
 if [[ $debugMode == *"Win"* ]]
 then
     # This version works on Windows, but not on Mac - no "readarray" on Mac.
@@ -267,64 +276,95 @@ else
     read -a videoIds <<< $textListOfVideoIds
 fi
 
+# NEW METHOD:
+# Set up empty arrays to hold the video details. These three arrays will build
+# the video details list in order, so all three arrays will have the same
+# ordering.
+titles=()
+publishedAts=()
+
+# TO DO: After ensuring the new details retrieval method works on all
+# platforms, convert the retrieval of Video IDs to the new method.
+# videoIds=()
+
+# New method for retrieving video details by looping through all of the lines
+# in the JSON output and adding the matching lines to the arrays as we find
+# them. This special syntax uses <<< to redirect input into this loop at the
+# end "do" statement down below.
+LogMessage "dbg" "Processing JSON results from the API queries, this may take a moment"
+while IFS= read -r line
+do
+    lineResult=$( echo $line | sed 's/"title"/\'$'\n&/g' | grep "title" | cut -d '"' -f4 )
+    if ! [ -z "$lineResult" ]
+    then
+      titles+=( "$lineResult" )
+    fi
+
+    lineResult=$( echo $line | sed 's/"publishedAt"/\'$'\n&/g' | grep "publishedAt" | cut -d '"' -f4)
+    if ! [ -z "$lineResult" ]
+    then
+      publishedAts+=( "$lineResult" )
+    fi
+
+    # TO DO: After ensuring the new details retrieval method works on all
+    # platforms, convert the retrieval of Video IDs to the new method.
+    # lineResult=$( echo $line | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+    # if ! [ -z "$lineResult" ]
+    # then
+    #   videoIds+=( "$lineResult" )
+    # fi
+done <<< "$uploadsOutput"
+
+# Log the number of videos found:
+LogMessage "info" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+
+# Error out of the program if the count is zero.
+if [ "${#videoIds[@]}" = "0" ]
+then
+   LogMessage "err" "Error - Video count is zero, either there are no videos in the channel or a parsing error has occurred"
+   exit 1
+else
+   LogMessage "dbg" "Count is nonzero, continuing to process"
+fi
+
+# Error out of the program if all three numbers do not match exactly.
+if [ "${#videoIds[@]}" = "${#titles[@]}" ] && [ "${#titles[@]}" = "${#publishedAts[@]}" ];
+then
+   LogMessage "dbg" "All three counts are equal, continuing to process"
+else
+   LogMessage "err" "Error - Data counts for video details did not match. A parsing error has occurred"
+   exit 1
+fi
+
 # Debugging - Print the array. No need to do this unless you encounter
 # some kind of nasty unexpected bug. Leave this commented out usually.
-# echo "Video IDs in the uploads directory in the channel:"
-# printf "%s\n" "${videoIds[@]}"
-# echo ""
+# for ((i = 0; i < ${#videoIds[@]}; i++))
+# do
+#     echo "${videoIds[$i]} ${publishedAts[$i]} ${titles[$i]}"
+# done
+# LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
 
-#Display number of videos found:
-LogMessage "info" "${#videoIds[@]} videos found. Processing"
+# Iterate through the array and delete any old videos which have not been renamed.
+for ((i = 0; i < ${#videoIds[@]}; i++))
+do    
+    oneVideoDateString=${publishedAts[$i]}
+    oneVideoTitle=${titles[$i]}
+    oneVideoId=${videoIds[$i]}
 
-# Iterate through the array.
-for oneVideoId in "${videoIds[@]}"
-do
-    curlUrl="https://www.googleapis.com/youtube/v3/videos?part=snippet&id=$oneVideoId&access_token=$accessToken"
-    oneVideoOutput=""
-    oneVideoOutput=$( curl -s $curlUrl )
-    
-    # Debugging - Output the results we got from the query about this video.
-    # This output can be large on the screen, so only activate this line if
-    # you need it.
-    #  LogMessage "dbg" "$oneVideoOutput"
-    
-    # Parse out the video publication date. NOTE: The "publishedAt" date does
-    # not necessarily seem to always be exactly the date it was streamed to
-    # the server. Initial investigation seems to indicate that it might be the
-    # date that the video title was recently edited. For example if I changed
-    # the video's title, then the "publishedAt" date will become the date I
-    # changed the title. I *think*, not sure. In any case, I don't have any
-    # other date value that I can use. The "snippet" output which contains the
-    # title has only one datecode in the output, and that's "publishedAt", so
-    # that's what we're stuck with. This should be OK since I only intend to
-    # delete files whose titles have not been edited yet. Also the buffer
-    # period will only be a few days, so if I edit the title and then edit it
-    # back, the file will still eventually get deleted.
-    oneVideoDateString=""
-    oneVideoDateString=$(echo $oneVideoOutput | sed 's/"publishedAt"/\'$'\n&/g' | grep -m 1 "publishedAt" | cut -d '"' -f4)
-    
-    # Parse out the video title.
-    #
-    # NOTE - The title's listed twice, once under "snippet", once under
-    # "localized". So we MUST use the -m 1 parameter to grep in this case, so
-    # that only the first match is returned. Elsewhere in the code, the -m 1
-    # parameter doesn't do much, because there's only ever one result returned
-    # of the thing I'm grepping for. But in this case it's critical because
-    # more than one will always be returned.
-    oneVideoTitle=""
-    oneVideoTitle=$(echo $oneVideoOutput | sed 's/"title"/\'$'\n&/g' | grep -m 1 "title" | cut -d '"' -f4)
-
-    # Throw an error if either the title or the date are blank.
+    # Throw an error if any of the values are blank.
     if test -z "$oneVideoDateString" 
     then
         LogMessage "err" "The variable oneVideoDateString came up empty. Error accessing API. Exiting program"
-        LogMessage "err" "The oneVideoOutput was $( echo $oneVideoOutput | tr '\n' ' ' )"
         exit 1
     fi
     if test -z "$oneVideoTitle" 
     then
         LogMessage "err" "The variable oneVideoTitle came up empty. Error accessing API. Exiting program"
-        LogMessage "err" "The oneVideoOutput was $( echo $oneVideoOutput | tr '\n' ' ' )"
+        exit 1
+    fi
+    if test -z "$oneVideoId" 
+    then
+        LogMessage "err" "The variable oneVideoId came up empty. Error accessing API. Exiting program"
         exit 1
     fi
 
