@@ -129,7 +129,7 @@ MaxComebackRetries=40
 # There are two values here: shortBounceDuration, used when certain issues
 # can be repaired with a fast bounce, and longBounceDuration, used when we are
 # trying to seriously split the stream into separate sections.
-shortBounceDuration=5
+shortBounceDuration=2
 longBounceDuration=135
 
 # Set this global variable to a starting integer value. There is a possible
