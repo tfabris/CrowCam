@@ -264,17 +264,16 @@ echo "$uploadsOutput" > "$DIR/crowcam-videodata"
 # But then that alternate array-read method broke when testing on Windows
 # platform, so now I have to do the read differently depending on platform:
 #
-# TO DO: After ensuring the new details retrieval method works on all
-# platforms, convert the retrieval of Video IDs to the new method.
-if [[ $debugMode == *"Win"* ]]
-then
-    # This version works on Windows, but not on Mac - no "readarray" on Mac.
-    readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-else
-    # This version works on MacOS, Synology, and in SH, but not on Windows.
-    textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-    read -a videoIds <<< $textListOfVideoIds
-fi
+# OLD METHOD - DO NOT USE ANY MORE:
+# if [[ $debugMode == *"Win"* ]]
+# then
+#     # This version works on Windows, but not on Mac - no "readarray" on Mac.
+#     readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+# else
+#     # This version works on MacOS, Synology, and in SH, but not on Windows.
+#     textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
+#     read -a videoIds <<< $textListOfVideoIds
+# fi
 
 # NEW METHOD:
 # Set up empty arrays to hold the video details. These three arrays will build
@@ -282,10 +281,7 @@ fi
 # ordering.
 titles=()
 publishedAts=()
-
-# TO DO: After ensuring the new details retrieval method works on all
-# platforms, convert the retrieval of Video IDs to the new method.
-# videoIds=()
+videoIds=()
 
 # New method for retrieving video details by looping through all of the lines
 # in the JSON output and adding the matching lines to the arrays as we find
@@ -294,25 +290,23 @@ publishedAts=()
 LogMessage "dbg" "Processing JSON results from the API queries, this may take a moment"
 while IFS= read -r line
 do
-    lineResult=$( echo $line | sed 's/"title"/\'$'\n&/g' | grep "title" | cut -d '"' -f4 )
+    lineResult=$( echo $line | grep '"title"' | cut -d '"' -f4 )
     if ! [ -z "$lineResult" ]
     then
       titles+=( "$lineResult" )
     fi
 
-    lineResult=$( echo $line | sed 's/"publishedAt"/\'$'\n&/g' | grep "publishedAt" | cut -d '"' -f4)
+    lineResult=$( echo $line | grep '"publishedAt"' | cut -d '"' -f4)
     if ! [ -z "$lineResult" ]
     then
       publishedAts+=( "$lineResult" )
     fi
 
-    # TO DO: After ensuring the new details retrieval method works on all
-    # platforms, convert the retrieval of Video IDs to the new method.
-    # lineResult=$( echo $line | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-    # if ! [ -z "$lineResult" ]
-    # then
-    #   videoIds+=( "$lineResult" )
-    # fi
+    lineResult=$( echo $line | grep '"videoId"' | cut -d '"' -f4)
+    if ! [ -z "$lineResult" ]
+    then
+      videoIds+=( "$lineResult" )
+    fi
 done <<< "$uploadsOutput"
 
 # Log the number of videos found:
