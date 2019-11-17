@@ -53,7 +53,7 @@ titleToDelete="CrowCam"
 #
 # Set this to the number of days you wish to keep old videos before deletion.
 #
-dateBufferDays=8
+dateBufferDays=9
 
 
 # Desired visibility/privacy of the live stream. Most live streams are set to

@@ -212,10 +212,6 @@ do
     fi
 done
 
-# Output the entire set of concatenated JSON data retrievals into a file on
-# the hard disk for later processing.
-echo "$uploadsOutput" > "$DIR/crowcam-videodata"
-
 # Log the output results. Not usually needed. Leave deactivated usually.
 # echo " "
 # echo  "Output from the query of the Uploads playlist:"
@@ -564,3 +560,10 @@ do
         fi
     fi
 done
+
+# Output the entire set of concatenated JSON data retrievals into a file on
+# the hard disk for later processing. Do this last, so that if any of the
+# tests/checks/validations above have failed, then this file does not get
+# written. This helps to ensure that the file is a good file which represents
+# accurate data.
+echo "$uploadsOutput" > "$DIR/crowcam-videodata"
