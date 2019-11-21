@@ -305,8 +305,17 @@ do
     fi
 done <<< "$uploadsOutput"
 
-# Log the number of videos found:
-LogMessage "info" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+# Log the number of videos found. But only log this late at night. All the
+# extra logs fill up the Synology log too much, too much noise. But I want to
+# know if it's working in general, so I want a log sometimes. I compromise by
+# printing it to the Synology log only during the midnight hour.
+currentHour=$( date +"%H" )
+if [ "$currentHour" = "00" ]
+then
+    LogMessage "info" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+else
+     LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+fi
 
 # Error out of the program if the count is zero.
 if [ "${#videoIds[@]}" = "0" ]
