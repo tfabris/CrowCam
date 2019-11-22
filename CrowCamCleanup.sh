@@ -337,8 +337,9 @@ do
     uploadsOutput="$uploadsOutput $uploadsOneLoopOutput"
 
     # If the next page token is blank, it means we have reached the last page
-    # and can exit the loop.
-    if [ -z "$nextPageToken" ]
+    # and can exit the loop. Also exit the loop if we are in debug mode - Only
+    # process the first page when we're in debug mode, to speed it up.
+    if [ -z "$nextPageToken" ] || [ ! -z "$debugMode" ]
     then
         # We have reached the last page, exit the paginiation loop.
         break
@@ -360,7 +361,8 @@ done
 # is not present on MacOS X... Wow this is tougher than it should be):
 #                 readarray -t videoIds < <(
 # Insert a newline into the output before each occurrence of "videoId".
-# (Special version of command with \'$' allows it to work on Mac OS.)
+# (Special version of command with \'$' allows it to work on Mac OS.
+# explanation here: https://stackoverflow.com/a/11163357)
 #                 sed 's/"videoId"/\'$'\n&/g'
 # Use only the lines containing "videoId" (for example, not the first line).
 #                 grep "videoId"
@@ -478,7 +480,18 @@ fi
 
 # Iterate through the array and delete any old videos which have not been renamed.
 for ((i = 0; i < ${#videoIds[@]}; i++))
-do    
+do
+    # In debug mode, process only a limited number of the entries, to speed up
+    # debugging and use less quota.
+    if [ ! -z "$debugMode" ]
+    then
+      if [ "$i" -gt 15 ]
+      then
+        LogMessage "dbg" "Debug mode: Early exit the processing loop"
+        break
+      fi
+    fi
+
     oneVideoDateString=${publishedAts[$i]}
     oneVideoTitle=${titles[$i]}
     oneVideoId=${videoIds[$i]}
@@ -498,6 +511,50 @@ do
     then
         LogMessage "err" "The variable oneVideoId came up empty. Error accessing API. Exiting program"
         exit 1
+    fi
+
+    # Secondary query for the video actual recording start date/time and end
+    # date/time. Needed because for God's sake, "publishedAt" sucks.
+    # PublishedAt contains a weird tweaked value which is rarely exact, and is
+    # sometimes flat out wrong, such as sometimes it is the date you added the
+    # video to a playlist. This additional query eats 2 additional quota for
+    # each video, so this is experimental at the current time, and if we
+    # implement this, then we have to reduce the number of cleanups per day.
+    # The number of cleanups per day could be very low (for example, 1) but
+    # I'm also piggybacking on this query to get data for an entirely
+    # different thing where I build a web page out of this data. I need the
+    # exact times if I want to build that web page accurately.
+    curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"     # if ! [ -z "$lineResult" ]
+    liveStreamingDetailsOutput=""
+    liveStreamingDetailsOutput=$( curl -s $curlUrl )
+
+    # Debugging output. Only needed if you run into a nasty bug here.
+    # Leave deactivated most of the time.
+    # LogMessage "dbg" "Live streaming details output information: $liveStreamingDetailsOutput"
+
+    # Parse the actual start/stop times out of the details output.
+    actualStartTime=""
+    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+    actualEndTime=""
+    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+
+    # If the video is not a live streaming video, then the actual start and
+    # end times will come out blank. If they're not blank, though, then there is
+    # stuff we can do.
+    if [ ! -z "$actualStartTime" ] && [ ! -z "$actualEndTime" ]
+    then
+      # Use a string replacement to write these values into the video data
+      # string that I'm already scheduled to write to the disk, essentially
+      # adding new JSON into the pattern that isn't originally there. This SED
+      # command is doing the following (see https://ss64.com/osx/sed.html):
+      #    (Overall structure is s/regex/replacement/flags)
+      #   "   "              Surround sed command with doublequotes so that the variables work.
+      #   \" \"              (several places) - escape the literal doublequotes in spots.
+      #    s/                Substitute the regex with a replacement.    
+      #   /\"$oneVideoId\"/  Regex to find quote, the video id, and a quote.
+      #   /& (replacement)/  Begin the replacement string by filling in the contents of the found regex.
+      #   /g                 Flag to replace all occurrences (I only expect one, but it won't work without a flag).
+      uploadsOutput=$( sed "s/\"$oneVideoId\"/&,\"actualStartTime\": \"$actualStartTime\", \"actualEndTime\": \"$actualEndTime\"/g" <<< $uploadsOutput )
     fi
 
     # Debugging - Output every video title and publication date before the date
