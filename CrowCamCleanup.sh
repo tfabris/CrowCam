@@ -112,9 +112,8 @@ then
     exit 1
 fi
 
-# Get the channel information so that I can find the ID of the playlist of
-# "My Uploads".
-curlUrl="https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true&access_token=$accessToken"
+# Get the channel information so that I can find the ID of the playlist.
+curlUrl="https://www.googleapis.com/youtube/v3/channels?part=contentDetails,id&mine=true&access_token=$accessToken"
 channelsOutput=""
 channelsOutput=$( curl -s $curlUrl )
 
@@ -122,7 +121,8 @@ channelsOutput=$( curl -s $curlUrl )
 # Leave deactivated most of the time.
 # LogMessage "dbg" "Channels output information: $channelsOutput"
 
-# This outputs some JSON data which includes the line that looks like this:
+# QUERY FOR DEFAULT PLAYLISTS ("uploads"):
+# channelsOutput contains JSON which includes the line that looks like this:
 #    "uploads": "UUqPZGFtBau8rm7wnScxdA3g",
 # Parse out the uploads playlist ID string from that line. Some systems that I
 # developed this on didn't have "jq" installed in them, so I am using commands
@@ -130,7 +130,8 @@ channelsOutput=$( curl -s $curlUrl )
 uploadsId=""
 uploadsId=$(echo $channelsOutput | sed 's/"uploads"/\'$'\n&/g' | grep -m 1 "uploads" | cut -d '"' -f4)
 
-# Make sure the uploadsId is not empty.
+# Make sure the uploadsId is not empty. Whether we use it or not, it should be
+# obtained, and it indicates a query or parse error if it's not obtained.
 if test -z "$uploadsId" 
 then
     LogMessage "err" "The variable uploadsId came up empty. Error accessing API. Exiting program"
@@ -138,12 +139,144 @@ then
     exit 1
 fi
 
-# Log the uploads playlist ID to the output.
-LogMessage "dbg" "My Uploads playlist ID: $uploadsId"
+# User may choose, in the config file, to clean out their default "uploads"
+# playlist, or to clean out one of their user-created playlists.
+# Interestingly, I have to use a completely different set of queries to find
+# the list of user-created playlists. It's much more complex than finding the
+# uploads playlist.
+if [ "$playlistToClean" = "uploads" ]
+then
+    # Simple - we have the uploads ID and we'll just use it. Assign it to our
+    # target ID and skip the query for custom playlists.
+    playlistTargetId="$uploadsId"
+else
+  # QUERY FOR USER-CREATED PLAYLISTS:
+  # This outputs some JSON data which includes the Channel ID which I need, in
+  # order to retrieve ALL the playlists in the next query. The "channels" list,
+  # above, specifically its "&mine=true" parameter, gets all the default
+  # playlists like "uploads", but does not include user-created playlists like
+  # "CrowCam Archives". So parse the channelId out of the results.
+  channelId=""
+  channelId=$(echo $channelsOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
 
-# Get a list of videos in the "My Uploads" playlist, which includes both
-# public videos as well as unlisted videos (all my archived CrowCam videos are
-# unlisted, but this should work either way).
+  # Make sure the channelId is not empty.
+  if test -z "$channelId" 
+  then
+      LogMessage "err" "The variable channelId came up empty. Error accessing API. Exiting program"
+      LogMessage "err" "The channelsOutput was $( echo $channelsOutput | tr '\n' ' ' )"
+      exit 1
+  fi
+
+  # Query for a list of all playlists in the channel. This will include more
+  # than just the default playlists.
+  curlUrl="https://www.googleapis.com/youtube/v3/playlists?part=contentDetails,snippet&channelId=$channelId&access_token=$accessToken"
+  playlistsOutput=""
+  playlistsOutput=$( curl -s $curlUrl )
+
+  # Debugging output. Only needed if you run into a nasty bug here.
+  # Leave deactivated most of the time.
+  # LogMessage "dbg" "Playlists output information: $playlistsOutput"
+
+  # This outputs some JSON data which includes sections that looks like this
+  # (several of these):
+  #
+  # "id": "PLqi-Lr1hPBOUuBgMvsDMY2K3iUg6nBZAV",
+  #  "snippet": {
+  #   "publishedAt": "2019-11-19T20:23:06.000Z",
+  #   "channelId": "UCqPZGFtBau8rm7wnScxdA3g",
+  #   "title": "CrowCam Archives",
+  #   "description": "",
+  #
+  # Parse each of the "id" and "title" into lists, and then find the one ID the
+  # list that matches the playlist title that we want.
+  playlistIds=()
+  playlistTitles=()
+
+  # Loop through all of the lines in the JSON output and add the matching lines
+  # to the arrays as we find them. This special syntax uses <<< to redirect
+  # input into this loop at the end "do" statement down below.
+  while IFS= read -r line
+  do
+      lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4)
+      if ! [ -z "$lineResult" ]
+      then
+        playlistIds+=( "$lineResult" )
+      fi
+
+      lineResult=$( echo $line | grep '"title"' | cut -d '"' -f4 )
+      if ! [ -z "$lineResult" ]
+      then
+        # Special trick: There are two "title" entries in the full output,
+        # they're the same title. I can't have them both in the list, since this
+        # list has to match the IDs list 1:1. So check to see if the last entry
+        # in the list is the same as the current entry, and don't add it if so.
+        # Also only do the check if we are more than zero items into the array,
+        # to prevent a "bad array subscript" error message.
+        if [ "${#playlistTitles[@]}" -gt "0" ]
+        then
+          if ! [ "$lineResult" =  "${playlistTitles[ ${#playlistTitles[@]} - 1 ]}" ]
+          then
+            playlistTitles+=( "$lineResult" )
+          fi
+        else
+          # If we're on item number 0 in the list then we automatically add it
+          # without checking it first.
+          playlistTitles+=( "$lineResult" )
+        fi
+      fi
+  done <<< "$playlistsOutput"
+
+  # Error out of the program if the count is zero.
+  if [ "${#playlistIds[@]}" = "0" ]
+  then
+     LogMessage "err" "Error - Playlist count is zero, either there are no playlists in the channel or a parsing error has occurred"
+     exit 1
+  else
+     LogMessage "dbg" "Playlist count is nonzero, continuing to process"
+  fi
+
+  # Log playlist counts.
+  LogMessage "dbg" "${#playlistIds[@]} videoIds, ${#playlistTitles[@]} titles found"
+
+  # Error out of the program if playlist ID and Title counts do not match exactly.
+  if [ "${#playlistIds[@]}" = "${#playlistTitles[@]}" ]
+  then
+     LogMessage "dbg" "Playlist counts are equal, continuing to process"
+  else
+     LogMessage "err" "Error - Data counts for playlists did not match. A parsing error has occurred"
+     exit 1
+  fi
+
+  # Loop through and find the one playlist we want.
+  playlistTargetId=""
+  for ((i = 0; i < ${#playlistIds[@]}; i++))
+  do
+      # Debugging - Print the playlists as we go. No need to do this unless you encounter
+      # some kind of nasty unexpected bug. Leave this commented out usually.
+      LogMessage "dbg" "Found playlist: ${playlistIds[$i]} ${playlistTitles[$i]}"
+
+      # Compare our desired playlist title that we want to clean, with the
+      # playlist title in this loop. If they match, it's our thing!
+      if [ "${playlistTitles[$i]}" = "$playlistToClean" ]
+      then
+          # Assign the located ID (same index number as the tile) to playlist ID
+          # variable which will be used for querying all the items in that
+          # playlist.
+          playlistTargetId="${playlistIds[$i]}"
+      fi
+  done
+fi
+
+# Make sure the playlistTargetId is not empty.
+if test -z "$playlistTargetId" 
+then
+    LogMessage "err" "The variable playlistTargetId came up empty. Error accessing API. Exiting program"
+    LogMessage "err" "The playlistsOutput was $( echo $playlistsOutput | tr '\n' ' ' )"
+    exit 1
+fi
+
+# Log the playlist ID that we found.
+LogMessage "dbg" "Using playlist ID: $playlistTargetId Title: $playlistToClean"
 
 # Bugfix for GitHub issue #51 - Implement pagination in the query. Start by
 # initializing the variable which will be keeping track of the pagination.
@@ -168,7 +301,7 @@ do
     # want to get as many items per page as possible. 50/page is the max
     # allowed. Update: Query for "snippet" instead of "contentDetails" so that
     # we can get all video details without any later re-queries.
-    curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$uploadsId&maxResults=50&part=snippet&mine=true&access_token=$accessToken"
+    curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$playlistTargetId&maxResults=50&part=snippet&mine=true&access_token=$accessToken"
 
     # If a prior loop resulted in a "next page" pagination token, use it on
     # this loop. If the token is nonblank, then assume we got a page token on
