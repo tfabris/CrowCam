@@ -58,6 +58,10 @@ source "$DIR/crowcam-config"
 # functions that are used in multiple scripts.
 source "$DIR/CrowCamHelperFunctions.sh"
 
+# Filenames for data files this program reads or writes.
+videoData="crowcam-videodata"
+videoRealTimestamps="crowcam-realtimestamps"
+
 # When in test mode, reduce the number of days of buffer so that we can see
 # the code actually try to delete an old video. For example, the "real" code
 # might be currently running and installed on the Synology, and now you're
@@ -524,7 +528,7 @@ do
     # I'm also piggybacking on this query to get data for an entirely
     # different thing where I build a web page out of this data. I need the
     # exact times if I want to build that web page accurately.
-    curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"     # if ! [ -z "$lineResult" ]
+    curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"
     liveStreamingDetailsOutput=""
     liveStreamingDetailsOutput=$( curl -s $curlUrl )
 
@@ -765,4 +769,4 @@ done
 # tests/checks/validations above have failed, then this file does not get
 # written. This helps to ensure that the file is a good file which represents
 # accurate data.
-echo "$uploadsOutput" > "$DIR/crowcam-videodata"
+echo "$uploadsOutput" > "$DIR/$videoData"

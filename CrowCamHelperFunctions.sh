@@ -63,6 +63,104 @@ LogMessage()
 }
 
 
+
+#------------------------------------------------------------------------------
+# Function: Get the real start and stop times of a given video.
+#
+# Parameters: $1   The YouTube Video ID of the video you want.
+# Returns:         A string containing the data in the following format:
+#                      - The video ID
+#                      - A space
+#                      - The actual start time 
+#                      - A space
+#                      - The actual end time
+#
+# Notes:  Times are in ISO 8601 (YYYY-MM-DDThh:mm:ss.sZ) format.
+#         Variables do not contain quote characters or spaces, so you can just
+#         do a "read" statement to process them like this:
+#
+#             timeResponseString=$( GetRealTimes $oneVideoId )
+#             read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+#
+# This will pull the information from the cache file $videoRealTimestamps if
+# present in the file, and if not, it will query the YouTube API and then write
+# the data to the cache file if not present.
+#
+# Make sure you have successfully set the access token by calling the function
+# YouTubeApiAuth before calling this function.
+#------------------------------------------------------------------------------
+GetRealTimes()
+{
+  # Make sure the first parameter is not empty. If so, just return nothing.
+  if [ ! -z $1 ]
+  then
+    oneVideoId=$1
+    cacheReturn=""
+    # https://stackoverflow.com/a/2427987/3621748 - Sometimes the YouTube
+    # strings begin with a dash, which Grep interprets as a parameter instead
+    # of a string. A double dash (--) is used in bash built-in commands and
+    # many other commands to signify the end of command options, after which
+    # only positional parameters are accepted.
+    cacheReturn=$( grep -w -- "$oneVideoId" "$DIR/$videoRealTimestamps" )
+    
+    # Check if something was returned from the cache.
+    if [ -z "$cacheReturn" ]
+    then
+      # If nothing was returned from the cache, query the API for it.
+      curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"
+      liveStreamingDetailsOutput=""
+      liveStreamingDetailsOutput=$( curl -s $curlUrl )
+      
+      # Debugging output. Only needed if you run into a nasty bug here.
+      # Leave deactivated most of the time.
+      # LogMessage "dbg" "Live streaming details output information: $liveStreamingDetailsOutput"      
+      
+
+      # Parse the actual start/stop times out of the details output.
+      actualStartTime=""
+      actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+      actualEndTime=""
+      actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+
+      # If the video is not a live streaming video, or it is not found, then
+      # the actual start and end times will come out blank. If they are blank,
+      # then return nothing and do nothing else. If they are unblank, write
+      # them to the file.
+      if [ ! -z "$actualStartTime" ] && [ ! -z "$actualEndTime" ]
+      then
+        echo "$oneVideoId $actualStartTime $actualEndTime" >> "$DIR/$videoRealTimestamps"
+        echo "$oneVideoId $actualStartTime $actualEndTime"
+      fi
+    else
+      # If there was a value found in the cache, return it.
+      echo "$cacheReturn"
+    fi
+  fi
+}
+
+#------------------------------------------------------------------------------
+# Function: Clean start and stop times from the cache file.
+#
+# Parameters: $1   The YouTube Video ID of the video you want to clear.
+# Returns:         Nothing.
+#
+# This will erase the line from the cache file which contains the video ID.
+# Remember to call this function any time you delete a file, so that cruft
+# doesn't build up.
+#------------------------------------------------------------------------------
+DeleteRealTimes()
+{
+    oneVideoId=$1
+    LogMessage "dbg" "Cleaning $1 out of the cache."
+
+    # The SED technique at https://stackoverflow.com/a/5410784/3621748 didn't
+    # work, so doing this instead https://stackoverflow.com/a/5413132/3621748.
+    grep -v -w -- "$oneVideoId" "$DIR/$videoRealTimestamps" > "$DIR/$videoRealTimestamps.temp"
+    mv "$DIR/$videoRealTimestamps.temp" "$DIR/$videoRealTimestamps"
+}
+
+
+
 #------------------------------------------------------------------------------
 # Function: Check if Synology Surveillance Station service is up.
 # 

@@ -6,6 +6,8 @@ crowcam-sunrise
 crowcam-sunset
 crowcam-camstart
 crowcam-videodata
+crowcam-realtimestamps
+crowcam-realtimestamps.bak
 youtube-dl
 youtube-dl.exe
 ffmpeg
