@@ -198,7 +198,7 @@ else
 
   # Loop through all of the lines in the JSON output and add the matching lines
   # to the arrays as we find them. This special syntax uses <<< to redirect
-  # input into this loop at the end "do" statement down below.
+  # input into this loop at the end of the "do" statement down below.
   while IFS= read -r line
   do
       lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4)
@@ -240,7 +240,7 @@ else
   fi
 
   # Log playlist counts.
-  LogMessage "dbg" "${#playlistIds[@]} videoIds, ${#playlistTitles[@]} titles found"
+  LogMessage "dbg" "${#playlistIds[@]} playlistIds, ${#playlistTitles[@]} playlistTitles found"
 
   # Error out of the program if playlist ID and Title counts do not match exactly.
   if [ "${#playlistIds[@]}" = "${#playlistTitles[@]}" ]
@@ -255,8 +255,7 @@ else
   playlistTargetId=""
   for ((i = 0; i < ${#playlistIds[@]}; i++))
   do
-      # Debugging - Print the playlists as we go. No need to do this unless you encounter
-      # some kind of nasty unexpected bug. Leave this commented out usually.
+      # Debugging - Print the playlists as we go.
       LogMessage "dbg" "Found playlist: ${playlistIds[$i]} ${playlistTitles[$i]}"
 
       # Compare our desired playlist title that we want to clean, with the
@@ -411,11 +410,9 @@ done
 # fi
 
 # NEW METHOD:
-# Set up empty arrays to hold the video details. These three arrays will build
-# the video details list in order, so all three arrays will have the same
-# ordering.
+# Set up empty arrays to hold the video details. These arrays will build the
+# video details list in order, so the arrays will have the same ordering.
 titles=()
-publishedAts=()
 videoIds=()
 
 # New method for retrieving video details by looping through all of the lines
@@ -429,12 +426,6 @@ do
     if ! [ -z "$lineResult" ]
     then
       titles+=( "$lineResult" )
-    fi
-
-    lineResult=$( echo $line | grep '"publishedAt"' | cut -d '"' -f4)
-    if ! [ -z "$lineResult" ]
-    then
-      publishedAts+=( "$lineResult" )
     fi
 
     lineResult=$( echo $line | grep '"videoId"' | cut -d '"' -f4)
@@ -451,9 +442,9 @@ done <<< "$uploadsOutput"
 currentHour=$( date +"%H" )
 if [ "$currentHour" = "00" ]
 then
-    LogMessage "info" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+    LogMessage "info" "${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 else
-     LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+     LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 fi
 
 # Error out of the program if the count is zero.
@@ -465,8 +456,8 @@ else
    LogMessage "dbg" "Count is nonzero, continuing to process"
 fi
 
-# Error out of the program if all three numbers do not match exactly.
-if [ "${#videoIds[@]}" = "${#titles[@]}" ] && [ "${#titles[@]}" = "${#publishedAts[@]}" ];
+# Error out of the program if all numbers do not match exactly.
+if [ "${#videoIds[@]}" = "${#titles[@]}" ]
 then
    LogMessage "dbg" "All three counts are equal, continuing to process"
 else
@@ -478,34 +469,28 @@ fi
 # some kind of nasty unexpected bug. Leave this commented out usually.
 # for ((i = 0; i < ${#videoIds[@]}; i++))
 # do
-#     echo "${videoIds[$i]} ${publishedAts[$i]} ${titles[$i]}"
+#     echo "${videoIds[$i]} ${titles[$i]}"
 # done
-# LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles, ${#publishedAts[@]} publishedAts found. Processing"
+# LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 
 # Iterate through the array and delete any old videos which have not been renamed.
 for ((i = 0; i < ${#videoIds[@]}; i++))
 do
-    # In debug mode, process only a limited number of the entries, to speed up
-    # debugging and use less quota.
+    # In debug mode, process only a limited number of the entries.
     if [ ! -z "$debugMode" ]
     then
-      if [ "$i" -gt 15 ]
+      if [ "$i" -gt 45 ]
       then
         LogMessage "dbg" "Debug mode: Early exit the processing loop"
         break
       fi
     fi
 
-    oneVideoDateString=${publishedAts[$i]}
+    # Set the current loop's data to easier-to-read variables.
     oneVideoTitle=${titles[$i]}
     oneVideoId=${videoIds[$i]}
 
     # Throw an error if any of the values are blank.
-    if test -z "$oneVideoDateString" 
-    then
-        LogMessage "err" "The variable oneVideoDateString came up empty. Error accessing API. Exiting program"
-        exit 1
-    fi
     if test -z "$oneVideoTitle" 
     then
         LogMessage "err" "The variable oneVideoTitle came up empty. Error accessing API. Exiting program"
@@ -518,33 +503,35 @@ do
     fi
 
     # Secondary query for the video actual recording start date/time and end
-    # date/time. Needed because for God's sake, "publishedAt" sucks.
-    # PublishedAt contains a weird tweaked value which is rarely exact, and is
-    # sometimes flat out wrong, such as sometimes it is the date you added the
-    # video to a playlist. This additional query eats 2 additional quota for
-    # each video, so this is experimental at the current time, and if we
-    # implement this, then we have to reduce the number of cleanups per day.
-    # The number of cleanups per day could be very low (for example, 1) but
-    # I'm also piggybacking on this query to get data for an entirely
-    # different thing where I build a web page out of this data. I need the
-    # exact times if I want to build that web page accurately.
-    curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"
-    liveStreamingDetailsOutput=""
-    liveStreamingDetailsOutput=$( curl -s $curlUrl )
+    # date/time. Needed because for God's sake, "publishedAt" sucks. Though
+    # the data set we already retrieved at this point already has the
+    # "publishedAt" value, and I was originally using that value, I found it
+    # had a real accuracy problem. PublishedAt contains a weird tweaked value
+    # which is rarely exact, and is sometimes flat out wrong, such as: It's
+    # either several hours early, right on time, or several hours late. It's a
+    # different value depending on whether you're viewing the video from the
+    # "uploads" playlist or from a custom playlist. If you view it from a
+    # custom playlist, then it is the date you added the video to a playlist.
+    # So we have to bite the bullet and perform a secondary query to get some
+    # better date values. This additional query eats 2 additional quota for
+    # each video, but, to alleviate that, I'm now caching the results in a
+    # file, so it won't end up eating a super ton of quota very much.
+    timeResponseString=""
+    timeResponseString=$( GetRealTimes "$oneVideoId" )
 
-    # Debugging output. Only needed if you run into a nasty bug here.
-    # Leave deactivated most of the time.
-    # LogMessage "dbg" "Live streaming details output information: $liveStreamingDetailsOutput"
+    # Debug output.
+    # LogMessage "dbg" "Response: $oneVideoId: $timeResponseString"
 
-    # Parse the actual start/stop times out of the details output.
-    actualStartTime=""
-    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
-    actualEndTime=""
-    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+    # Place the cache responses into variables.
+    read -r throwawayVideoId actualStartTime actualEndTime <<< "$timeResponseString"
 
-    # If the video is not a live streaming video, then the actual start and
-    # end times will come out blank. If they're not blank, though, then there is
-    # stuff we can do.
+    # Debug output. Display the output of the variables (compare with string
+    # response above, weird spacing is so it lines up).
+    # LogMessage "dbg" "Values:   $throwawayVideoId              $actualStartTime $actualEndTime"
+
+    # If the video is not an archived copy of a live streaming video, then the
+    # actual start and end times will come out blank. If they're not blank,
+    # though, then there is stuff we can do.
     if [ ! -z "$actualStartTime" ] && [ ! -z "$actualEndTime" ]
     then
       # Use a string replacement to write these values into the video data
@@ -559,7 +546,17 @@ do
       #   /& (replacement)/  Begin the replacement string by filling in the contents of the found regex.
       #   /g                 Flag to replace all occurrences (I only expect one, but it won't work without a flag).
       uploadsOutput=$( sed "s/\"$oneVideoId\"/&,\"actualStartTime\": \"$actualStartTime\", \"actualEndTime\": \"$actualEndTime\"/g" <<< $uploadsOutput )
+    else
+      # If we did not get an actual start time or an actual end time, then
+      # skip to the next iteration of the loop, because we don't want to
+      # touch any videos that we can't positively identify the time of
+      # recording of the video at all.
+      LogMessage "dbg" "Could not get actual video start time - Skipping cleanup of $oneVideoId - $oneVideoTitle"
+      continue
     fi
+
+    # Assign the variable I'll be using in the date calculations below.
+    oneVideoDateString=$actualStartTime
 
     # Debugging - Output every video title and publication date before the date
     # calculations start to occur. This output can be quite large, so do not
@@ -743,6 +740,9 @@ do
         # Don't delete the video if we are in debug mode.
         if [ -z "$debugMode" ]
         then
+            # Remove the item from the cache before we delete it.
+            DeleteRealTimes "$oneVideoId"
+
             # Perform the actual deletion.
             deleteVideoOutput=$( $curlFullString )
 

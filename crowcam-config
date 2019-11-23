@@ -54,7 +54,7 @@ titleToDelete="CrowCam"
 # Update this value to be either "uploads" or the name the playlist where you
 # want to clean out old videos named $titleToDelete.
 # 
-playlistToClean="uploads"
+playlistToClean="CrowCam Archives"
 
 # The number of days in the past that we will let old videos live before
 # cleaning them up. For example, if this number is 5, and a video named

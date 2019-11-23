@@ -63,7 +63,6 @@ LogMessage()
 }
 
 
-
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.
 #
@@ -91,11 +90,13 @@ LogMessage()
 #------------------------------------------------------------------------------
 GetRealTimes()
 {
-  # Make sure the first parameter is not empty. If so, just return nothing.
+  # Make sure the first parameter is not empty. If it's not empty, the begin
+  # processing the cache file and try to read a value from it based on the ID.
   if [ ! -z $1 ]
   then
     oneVideoId=$1
     cacheReturn=""
+
     # https://stackoverflow.com/a/2427987/3621748 - Sometimes the YouTube
     # strings begin with a dash, which Grep interprets as a parameter instead
     # of a string. A double dash (--) is used in bash built-in commands and
@@ -106,7 +107,8 @@ GetRealTimes()
     # Check if something was returned from the cache.
     if [ -z "$cacheReturn" ]
     then
-      # If nothing was returned from the cache, query the API for it.
+      # If nothing was returned from the cache, query the API for that data.
+      LogMessage "dbg" "Cache miss: $oneVideoId"
       curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"
       liveStreamingDetailsOutput=""
       liveStreamingDetailsOutput=$( curl -s $curlUrl )
@@ -114,7 +116,6 @@ GetRealTimes()
       # Debugging output. Only needed if you run into a nasty bug here.
       # Leave deactivated most of the time.
       # LogMessage "dbg" "Live streaming details output information: $liveStreamingDetailsOutput"      
-      
 
       # Parse the actual start/stop times out of the details output.
       actualStartTime=""
@@ -125,7 +126,8 @@ GetRealTimes()
       # If the video is not a live streaming video, or it is not found, then
       # the actual start and end times will come out blank. If they are blank,
       # then return nothing and do nothing else. If they are unblank, write
-      # them to the file.
+      # them to the file and also echo them to the standard output to return
+      # them back to the caller of this function.
       if [ ! -z "$actualStartTime" ] && [ ! -z "$actualEndTime" ]
       then
         echo "$oneVideoId $actualStartTime $actualEndTime" >> "$DIR/$videoRealTimestamps"
@@ -158,7 +160,6 @@ DeleteRealTimes()
     grep -v -w -- "$oneVideoId" "$DIR/$videoRealTimestamps" > "$DIR/$videoRealTimestamps.temp"
     mv "$DIR/$videoRealTimestamps.temp" "$DIR/$videoRealTimestamps"
 }
-
 
 
 #------------------------------------------------------------------------------
