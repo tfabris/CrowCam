@@ -412,6 +412,7 @@ done
 # NEW METHOD:
 # Set up empty arrays to hold the video details. These arrays will build the
 # video details list in order, so the arrays will have the same ordering.
+playlistItemIds=()
 titles=()
 videoIds=()
 
@@ -422,6 +423,12 @@ videoIds=()
 LogMessage "dbg" "Processing JSON results from the API queries, this may take a moment"
 while IFS= read -r line
 do
+    lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4 )
+    if ! [ -z "$lineResult" ]
+    then
+      playlistItemIds+=( "$lineResult" )
+    fi
+
     lineResult=$( echo $line | grep '"title"' | cut -d '"' -f4 )
     if ! [ -z "$lineResult" ]
     then
@@ -442,9 +449,9 @@ done <<< "$uploadsOutput"
 currentHour=$( date +"%H" )
 if [ "$currentHour" = "00" ]
 then
-    LogMessage "info" "${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+    LogMessage "info" "${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 else
-     LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+     LogMessage "dbg" "${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 fi
 
 # Error out of the program if the count is zero.
@@ -457,9 +464,9 @@ else
 fi
 
 # Error out of the program if all numbers do not match exactly.
-if [ "${#videoIds[@]}" = "${#titles[@]}" ]
+if [ "${#videoIds[@]}" = "${#titles[@]}" ] && [ "${#titles[@]}" = "${#playlistItemIds[@]}" ];
 then
-   LogMessage "dbg" "All three counts are equal, continuing to process"
+   LogMessage "dbg" "All counts are equal, continuing to process"
 else
    LogMessage "err" "Error - Data counts for video details did not match. A parsing error has occurred"
    exit 1
@@ -469,9 +476,9 @@ fi
 # some kind of nasty unexpected bug. Leave this commented out usually.
 # for ((i = 0; i < ${#videoIds[@]}; i++))
 # do
-#     echo "${videoIds[$i]} ${titles[$i]}"
+#     echo "${playlistItemIds[$i]} ${videoIds[$i]} ${titles[$i]}"
 # done
-# LogMessage "dbg" "${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+# LogMessage "dbg" "${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 
 # Iterate through the array and delete any old videos which have not been renamed.
 for ((i = 0; i < ${#videoIds[@]}; i++))
@@ -489,6 +496,7 @@ do
     # Set the current loop's data to easier-to-read variables.
     oneVideoTitle=${titles[$i]}
     oneVideoId=${videoIds[$i]}
+    onePlaylistItemsId=${playlistItemIds[$i]}
 
     # Throw an error if any of the values are blank.
     if test -z "$oneVideoTitle" 
@@ -737,6 +745,13 @@ do
         # Prepare a variable to contain the output from the deletion command.
         deleteVideoOutput=""
 
+        # Do the same for deleting the item from the playlist. The video
+        # disappears from the "uploads" playlist automatically, but if the
+        # playlist is a custom playlist, then it sits there as a "deleted
+        # video" entry unless we do this.
+        deletePlaylistItemOutput=""
+        curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemsId&access_token=$accessToken"
+
         # Don't delete the video if we are in debug mode.
         if [ -z "$debugMode" ]
         then
@@ -748,6 +763,21 @@ do
 
             # Log the output from Curl
             LogMessage "dbg" "Curl deleteVideoOutput was: $deleteVideoOutput"
+
+            # Do the same for the playlist item. However, don't bother to try
+            # to clean out the playlistItem if the cleaning target is the
+            # "uploads" folder, because that one automatically disappears from
+            # the list of uploads as soon as the video is deleted. Whereas,
+            # with a custom playlist, then you need to pull the item out of
+            # the playlist too.
+            if [ "$playlistToClean" = "uploads" ]
+            then
+              LogMessage "dbg" "Playlist is $playlistToClean - not deleting playlist item"
+            else
+              LogMessage "dbg" "Playlist is $playlistToClean - Deleting playlist item $onePlaylistItemsId"
+              deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
+              LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
+            fi
         else
             LogMessage "dbg" "Debug mode - not actually doing a deletion"
         fi

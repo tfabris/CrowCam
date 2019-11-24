@@ -52,6 +52,22 @@ then
     exit 1
 fi
 
+playlistItemIds=( "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi4zMDg5MkQ5MEVDMEM1NTg2" "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi41Mzk2QTAxMTkzNDk4MDhF" "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi5EQUE1NTFDRjcwMDg0NEMz" "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi4yMUQyQTQzMjRDNzMyQTMy" )
+for ((i = 0; i < ${#playlistItemIds[@]}; i++))
+do
+    onePlaylistItemsId=${playlistItemIds[$i]}
+
+    deletePlaylistItemOutput=""
+    curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemsId&access_token=$accessToken"
+
+    LogMessage "dbg" "curlFullPlaylistItemString will be: $curlFullPlaylistItemString"
+
+    deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
+    LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
+done
+
+exit 0
+
 # Create a list of video IDs to use for testing the behavior of the new functions.
 videoIds=( "xRlO9D3xigU" "-k9E41Xtv5s" "feA8mkTI1-s" "HzcqJp0AqDU" "fN8Xj7PkUHY" "ptOU01miz7s" "_LrYCdxnE7A" )
 
