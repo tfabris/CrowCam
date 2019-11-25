@@ -121,6 +121,55 @@ exit 0
 
 
 # ----------------------------------------------------------------------------
+# Test: Attempt to write recordingDate value with a detailed timestamp,
+# instead of just the date and 00:00.000z for time (which is what you get
+# if you update the recordingDate in the GUI). Answer: Doesn't work! This code
+# succeeds and writes the value, however, only the date gets updated, the time
+# remains stuck at 00:00.000z after the update. Also note: the values
+# actualStartTime and actualEndTime are not available to be written to, so
+# that is also out of the question.
+# ----------------------------------------------------------------------------
+
+videoIds=( "1C9UhZiPaQk" )
+for ((i = 0; i < ${#videoIds[@]}; i++))
+do
+    LogMessage "dbg" "--------------------------------------------------"
+    oneVideoId=${videoIds[$i]}
+    valueToWrite="2019-07-10T14:22:34.000Z"
+    
+      curlData=""
+      curlData+="{"
+        curlData+="\"id\": \"$oneVideoId\","
+        curlData+="\"recordingDetails\": "
+          curlData+="{"
+            curlData+="\"recordingDate\": \"$valueToWrite\""
+          curlData+="}"
+      curlData+="}"
+    
+    curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails,recordingDetails&id=$oneVideoId&access_token=$accessToken"
+    liveStreamingDetailsOutput=""
+    liveStreamingDetailsOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+    
+    # Debugging output.
+    LogMessage "dbg" "Live streaming details output information: $liveStreamingDetailsOutput"      
+
+    # Parse the actual times out of the details output.
+    actualStartTime=""
+    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+    actualEndTime=""
+    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+    recordingDate=""
+    recordingDate=$(echo $liveStreamingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "recordingDate" | cut -d '"' -f4)
+
+    # Display the output of the variables .
+    LogMessage "dbg" "Values: oneVideoId: $oneVideoId - actualStartTime: $actualStartTime - actualEndTime: $actualEndTime - recordingDate: $recordingDate"
+    LogMessage "dbg" "--------------------------------------------------"
+done
+
+exit 0
+
+
+# ----------------------------------------------------------------------------
 # Test: Validate the caching code for actualStartTime/actualEndTime.
 # ----------------------------------------------------------------------------
 
