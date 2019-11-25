@@ -1,10 +1,38 @@
 #!/bin/bash
 
-# -----------------------------------------------------------------------------
-# Work in progress test file.
+#------------------------------------------------------------------------------
+# TestFile.sh - A script for experimenting with CrowCam features and API calls.
+#------------------------------------------------------------------------------
+# Please see the accompanying file REAMDE.md for setup instructions. Web Link:
+#        https://github.com/tfabris/CrowCam/blob/master/README.md
 #
-# Tests functions which manage the cache files of video real time stamps.
-# -----------------------------------------------------------------------------
+# The scripts in this project don't work "out of the box", they need some
+# configuration. All details are found in README.md, so please look there
+# and follow the instructions.
+#------------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------
+# Workaround to allow exiting a Bash script from inside a function call. See
+# this EmpegBBS post for details of how this works and why it's needed:
+# https://empegbbs.com/ubbthreads.php/topics/371554
+# Note: the functions which call these traps are in CrowCamHelperFunctions.sh
+# ----------------------------------------------------------------------------
+# Set a trap to receive a TERM signal from a function, and execute the code
+# block "exit 1", in the context of the top-level of this Bash script, as soon
+# as it receives the TERM signal.
+trap "exit 1" TERM
+
+# Create an exported environment variable named "TOP_PID" and populate it with
+# the PID of this top-level Bash script. Use "$$" to identify the top level
+# PID of this script. The function will use "$TOP_PID" to identify which PID to
+# send the TERM signal to, once a program exit is desired.
+export TOP_PID=$$
+
+
+# ----------------------------------------------------------------------------
+# Startup configuration variables 
+# ----------------------------------------------------------------------------
 
 # Configure debug mode for testing this script. Set this value to blank "" for
 # running in the final functional mode on the Synology Task Scheduler.
@@ -34,6 +62,12 @@ source "$DIR/CrowCamHelperFunctions.sh"
 videoData="crowcam-videodata"
 videoRealTimestamps="crowcam-realtimestamps"
 
+
+
+# ----------------------------------------------------------------------------
+# Main Script Code Body
+# ----------------------------------------------------------------------------
+
 # Log the current test mode state, if activated.
 if [ ! -z "$debugMode" ]
 then
@@ -52,10 +86,12 @@ then
     exit 1
 fi
 
-# Create a list of video IDs to use for testing the behavior of the new functions.
-videoIds=( "1C9UhZiPaQk" "-k9E41Xtv5s" )
 
-# Loop through the list of test items.
+# ----------------------------------------------------------------------------
+# Test: Query recordingDate as well as actualStartTime
+# ----------------------------------------------------------------------------
+
+videoIds=( "1C9UhZiPaQk" "-k9E41Xtv5s" )
 for ((i = 0; i < ${#videoIds[@]}; i++))
 do
     LogMessage "dbg" "--------------------------------------------------"
@@ -83,9 +119,12 @@ done
 
 exit 0
 
-videoIds=( "1C9UhZiPaQk" "-k9E41Xtv5s" "feA8mkTI1-s" "HzcqJp0AqDU" "fN8Xj7PkUHY" "ptOU01miz7s" "_LrYCdxnE7A" )
 
-# Loop through the list of test items.
+# ----------------------------------------------------------------------------
+# Test: Validate the caching code for actualStartTime/actualEndTime.
+# ----------------------------------------------------------------------------
+
+videoIds=( "1C9UhZiPaQk" "-k9E41Xtv5s" "feA8mkTI1-s" "HzcqJp0AqDU" "fN8Xj7PkUHY" "ptOU01miz7s" "_LrYCdxnE7A" )
 for ((i = 0; i < ${#videoIds[@]}; i++))
 do
     oneVideoId=${videoIds[$i]}
@@ -104,6 +143,11 @@ do
 done
 
 exit 0
+
+
+# ----------------------------------------------------------------------------
+# Test: Validate the cache cleaning code for actualStartTime/actualEndTime.
+# ----------------------------------------------------------------------------
 
 # Pause the program before testing the cache cleaning features.
 read -n1 -r -p "Press space to clean the cache..." key
@@ -124,6 +168,11 @@ do
 done
 
 exit 0
+
+
+# ----------------------------------------------------------------------------
+# Test: Deletion of playlist items.
+# ----------------------------------------------------------------------------
 
 playlistItemIds=( "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi4zMDg5MkQ5MEVDMEM1NTg2" "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi41Mzk2QTAxMTkzNDk4MDhF" "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi5EQUE1NTFDRjcwMDg0NEMz" "UExxaS1McjFoUEJPVXVCZ012c0RNWTJLM2lVZzZuQlpBVi4yMUQyQTQzMjRDNzMyQTMy" )
 for ((i = 0; i < ${#playlistItemIds[@]}; i++))

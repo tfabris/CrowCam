@@ -403,8 +403,9 @@ situations:
   Synology log entries which indicate that the script is bouncing the "Live
   Broadcast" feature to restart the failed stream.
 - Late at night, you should see a Synology log entry which lists how many
-  files are in the playlist on your YouTube channel, being analyzed, and a
-  message for any old archived livestream files which are being deleted.
+  files are in the playlist on your YouTube channel, being analyzed. You will
+  occasionally see a message for any old archived livestream files which are
+  being deleted.
 - If the scripts encounter any major error, the errors should be reported in
   the Synology log.
 
