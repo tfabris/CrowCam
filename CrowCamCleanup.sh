@@ -496,7 +496,7 @@ do
     # Set the current loop's data to easier-to-read variables.
     oneVideoTitle=${titles[$i]}
     oneVideoId=${videoIds[$i]}
-    onePlaylistItemsId=${playlistItemIds[$i]}
+    onePlaylistItemId=${playlistItemIds[$i]}
 
     # Throw an error if any of the values are blank.
     if test -z "$oneVideoTitle" 
@@ -750,7 +750,7 @@ do
         # playlist is a custom playlist, then it sits there as a "deleted
         # video" entry unless we do this.
         deletePlaylistItemOutput=""
-        curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemsId&access_token=$accessToken"
+        curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemId&access_token=$accessToken"
 
         # Don't delete the video if we are in debug mode.
         if [ -z "$debugMode" ]
@@ -774,7 +774,7 @@ do
             then
               LogMessage "dbg" "Playlist is $playlistToClean - not deleting playlist item"
             else
-              LogMessage "dbg" "Playlist is $playlistToClean - Deleting playlist item $onePlaylistItemsId"
+              LogMessage "dbg" "Playlist is $playlistToClean - Deleting playlist item $onePlaylistItemId"
               deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
               LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
             fi
@@ -789,6 +789,14 @@ do
         then
             LogMessage "err" "The attempt to delete video $oneVideoId failed with an error. Error accessing API. Exiting program"
             LogMessage "err" "The deleteVideoOutput was $( echo $deleteVideoOutput | tr '\n' ' ' )"
+            exit 1
+        fi
+
+        # Do the same for the playlist deletion.
+        if [[ $deletePlaylistItemOutput == *"error"* ]]
+        then
+            LogMessage "err" "The attempt to delete playlist item $onePlaylistItemId failed with an error. Error accessing API. Exiting program"
+            LogMessage "err" "The deletePlaylistItemOutput was $( echo $deletePlaylistItemOutput | tr '\n' ' ' )"
             exit 1
         fi
     fi
