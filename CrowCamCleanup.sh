@@ -538,9 +538,16 @@ do
     # LogMessage "dbg" "Values:   $throwawayVideoId              $actualStartTime $actualEndTime"
 
     # If the video is not an archived copy of a live streaming video, then the
-    # actual start and end times will come out blank. If they're not blank,
-    # though, then there is stuff we can do.
-    if [ ! -z "$actualStartTime" ] && [ ! -z "$actualEndTime" ]
+    # actual start time will come out blank. If not blank, though, then write
+    # that value into the video data string for later use by another project.
+    # Note that the actualEndTime will sometimes be blank, in the case of 
+    # uploaded videos which were not "live" videos. In thatƒ case, the
+    # actualEndTime will be blank and the actualStartTime will be the
+    # recordingDate with a midnight UTC value (00:00:00.000Z). It is OK to
+    # write a blank actualEndTime value to my video data, so that the other
+    # project which consumes the values will know the difference, because
+    # actualEndTime will be blank/null/zero in that case. 
+    if [ ! -z "$actualStartTime" ]
     then
       # Use a string replacement to write these values into the video data
       # string that I'm already scheduled to write to the disk, essentially
@@ -555,10 +562,9 @@ do
       #   /g                 Flag to replace all occurrences (I only expect one, but it won't work without a flag).
       uploadsOutput=$( sed "s/\"$oneVideoId\"/&,\"actualStartTime\": \"$actualStartTime\", \"actualEndTime\": \"$actualEndTime\"/g" <<< $uploadsOutput )
     else
-      # If we did not get an actual start time or an actual end time, then
-      # skip to the next iteration of the loop, because we don't want to
-      # touch any videos that we can't positively identify the time of
-      # recording of the video at all.
+      # If we did not get an actual time, then skip to the next iteration of
+      # the loop, because we don't want to touch any videos that we can't
+      # positively identify the time of recording of the video at all.
       LogMessage "dbg" "Could not get actual video start time - Skipping cleanup of $oneVideoId - $oneVideoTitle"
       continue
     fi

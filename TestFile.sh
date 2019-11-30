@@ -39,8 +39,8 @@ export TOP_PID=$$
 debugMode=""         # True final runtime mode for Synology.
 # debugMode="Synology" # Test on Synology SSH prompt, console or redirect output.
 # debugMode="MacHome"  # Test on Mac at home, LAN connection to Synology.
-# debugMode="MacAway"  # Test on Mac away from home, no connection to Synology.
-debugMode="WinAway"  # In the jungle, the mighty jungle.
+debugMode="MacAway"  # Test on Mac away from home, no connection to Synology.
+# debugMode="WinAway"  # In the jungle, the mighty jungle.
 
 # Program name used in log messages.
 programname="CrowCam Test File"
@@ -88,10 +88,77 @@ fi
 
 
 # ----------------------------------------------------------------------------
+# Test: Validate the caching code for actualStartTime/actualEndTime.
+# ----------------------------------------------------------------------------
+
+videoIds=(
+          "1C9UhZiPaQk" # uploaded video - "slug on camera...".
+          "-k9E41Xtv5s" # Video ID with hyphen - "Three squirrels..."
+          "feA8mkTI1-s" # Deleted video
+          "HzcqJp0AqDU" # Regular video - "Much drama..."
+          "fN8Xj7PkUHY" # Regular video - "Crow family..."
+          "ptOU01miz7s" # Regular video - "Infrared squirrel..."
+          "_LrYCdxnE7A" # Regular video - "Squirrel lays a hand on..."
+          "tGEHJvDEX-8" # Uploaded video - "Raccoon climbs up..."
+          )
+for ((i = 0; i < ${#videoIds[@]}; i++))
+do
+    oneVideoId=${videoIds[$i]}
+
+    # Test reading an item from the cache. The GetRealTimes function will read
+    # the data from the YouTube API if there is a cache miss.
+    timeResponseString=""
+    timeResponseString=$( GetRealTimes "$oneVideoId" )
+    LogMessage "dbg" "Response: $oneVideoId: $timeResponseString"
+
+    # Place the cache responses into variables, test making sure this works.
+    read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+
+    # Display the output of the variables (compare with string response above).
+    LogMessage "dbg" "Values:   $oneVideoId              $actualStartTime $actualEndTime"
+done
+
+exit 0
+
+
+# ----------------------------------------------------------------------------
+# Test: Validate the cache cleaning code for actualStartTime/actualEndTime.
+# ----------------------------------------------------------------------------
+
+videoIds=(
+          "1C9UhZiPaQk" # uploaded video - "slug on camera...".
+          "feA8mkTI1-s" # Deleted video
+          )
+
+# Pause the program before testing the cache cleaning features.
+read -n1 -r -p "Press space to clean the cache..." key
+
+# Loop through each item in the test list and clean the cache.
+for ((i = 0; i < ${#videoIds[@]}; i++))
+do
+    # Break out of the loop early to make sure it's partially deleting,
+    # as expected. Comment out this section to prune all entries in the test.
+    if [ "$i" -gt "3" ]
+    then
+        break
+    fi
+    
+    # Perform the cache item deletion.
+    oneVideoId=${videoIds[$i]}
+    DeleteRealTimes "$oneVideoId"
+done
+
+exit 0
+
+
+# ----------------------------------------------------------------------------
 # Test: Query recordingDate as well as actualStartTime
 # ----------------------------------------------------------------------------
 
-videoIds=( "1C9UhZiPaQk" "-k9E41Xtv5s" )
+videoIds=(
+          "1C9UhZiPaQk" # uploaded video - "slug on camera...".
+          "-k9E41Xtv5s" # Video ID with hyphen - "Three squirrels..."
+          )
 for ((i = 0; i < ${#videoIds[@]}; i++))
 do
     LogMessage "dbg" "--------------------------------------------------"
@@ -164,56 +231,6 @@ do
     # Display the output of the variables .
     LogMessage "dbg" "Values: oneVideoId: $oneVideoId - actualStartTime: $actualStartTime - actualEndTime: $actualEndTime - recordingDate: $recordingDate"
     LogMessage "dbg" "--------------------------------------------------"
-done
-
-exit 0
-
-
-# ----------------------------------------------------------------------------
-# Test: Validate the caching code for actualStartTime/actualEndTime.
-# ----------------------------------------------------------------------------
-
-videoIds=( "1C9UhZiPaQk" "-k9E41Xtv5s" "feA8mkTI1-s" "HzcqJp0AqDU" "fN8Xj7PkUHY" "ptOU01miz7s" "_LrYCdxnE7A" )
-for ((i = 0; i < ${#videoIds[@]}; i++))
-do
-    oneVideoId=${videoIds[$i]}
-
-    # Test reading an item from the cache. The GetRealTimes function will read
-    # the data from the YouTube API if there is a cache miss.
-    timeResponseString=""
-    timeResponseString=$( GetRealTimes "$oneVideoId" )
-    LogMessage "dbg" "Response: $oneVideoId: $timeResponseString"
-
-    # Place the cache responses into variables, test making sure this works.
-    read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
-
-    # Display the output of the variables (compare with string response above).
-    LogMessage "dbg" "Values:   $oneVideoId              $actualStartTime $actualEndTime"
-done
-
-exit 0
-
-
-# ----------------------------------------------------------------------------
-# Test: Validate the cache cleaning code for actualStartTime/actualEndTime.
-# ----------------------------------------------------------------------------
-
-# Pause the program before testing the cache cleaning features.
-read -n1 -r -p "Press space to clean the cache..." key
-
-# Loop through each item in the test list and clean the cache.
-for ((i = 0; i < ${#videoIds[@]}; i++))
-do
-    # Break out of the loop early to make sure it's partially deleting,
-    # as expected. Comment out this section to prune all entries in the test.
-    if [ "$i" -gt "3" ]
-    then
-        break
-    fi
-    
-    # Perform the cache item deletion.
-    oneVideoId=${videoIds[$i]}
-    DeleteRealTimes "$oneVideoId"
 done
 
 exit 0

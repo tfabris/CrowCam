@@ -66,27 +66,58 @@ LogMessage()
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.
 #
-# Parameters: $1   The YouTube Video ID of the video you want.
-# Returns:         A string containing the data in the following format:
-#                      - The video ID
-#                      - A space
-#                      - The actual start time 
-#                      - A space
-#                      - The actual end time
-#
-# Notes:  Times are in ISO 8601 (YYYY-MM-DDThh:mm:ss.sZ) format.
-#         Variables do not contain quote characters or spaces, so you can just
-#         do a "read" statement to process them like this:
-#
-#             timeResponseString=$( GetRealTimes $oneVideoId )
-#             read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
-#
 # This will pull the information from the cache file $videoRealTimestamps if
 # present in the file, and if not, it will query the YouTube API and then write
 # the data to the cache file if not present.
 #
 # Make sure you have successfully set the access token by calling the function
 # YouTubeApiAuth before calling this function.
+#
+# Parameters: $1   The YouTube Video ID of the video you want.
+# Returns:         One of the following sets of output:
+#
+#                  If there is a cache miss, and no timing values retrieved:
+#                      - No return value
+#
+#                  If cache file or API contains actualStartTime/actualEndTime,
+#                  returns a string containing the data in the following format:
+#                      - The video ID
+#                      - A space
+#                      - The actual start time 
+#                      - A space
+#                      - The actual end time
+#
+#                  If cache file or API contains no actualStartTime/actualEndTime,
+#                  but it does contain a recordingDate time, then it returns
+#                  a string containing the data in the following format:
+#                      - The video ID
+#                      - A space
+#                      - The recording date, with a timestamp of midnight UTC.
+#
+# Notes:  Times are in ISO 8601 (YYYY-MM-DDThh:mm:ss.sZ) format.
+#
+#         Variables do not contain quote characters or spaces, so you can just
+#         do a "read" statement to process them like this:
+#
+#             timeResponseString=$( GetRealTimes $oneVideoId )
+#             read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+#
+#         ActualStartTime and actualEndTime will exist on archives of "live"
+#         videos. If video contains an actualStartTime and actualEndTime then
+#         both of those time values will be returned from this function.
+#
+#         RecordingDate will exist on "uploaded" videos. If video contains
+#         only a recordingDate value, then only one time value will be
+#         returned from this function (i.e., the actualEndTime retrieved from
+#         the "read" statement will be blank, and the retrieved
+#         actualStartTime value will instead be the recordingDate value).
+#
+#         The recordingDate value will contain the date, but its timestamp
+#         will always be midnight UTC, in other words "00:00:00.000Z".
+#
+#         The recordingDate will only be useful if the video owner has entered
+#         the correct recording date value into the video details by hand.
+#
 #------------------------------------------------------------------------------
 GetRealTimes()
 {
@@ -124,14 +155,77 @@ GetRealTimes()
       actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
 
       # If the video is not a live streaming video, or it is not found, then
-      # the actual start and end times will come out blank. If they are blank,
-      # then return nothing and do nothing else. If they are unblank, write
-      # them to the file and also echo them to the standard output to return
-      # them back to the caller of this function.
-      if [ ! -z "$actualStartTime" ] && [ ! -z "$actualEndTime" ]
+      # the actual start and end times will come out blank. 
+      if [ ! -z "$actualStartTime" ] || [ ! -z "$actualEndTime" ]
       then
+        # If the start and end times are unblank, write them to the file and
+        # also echo them to the standard output to return them back to the
+        # caller of this function.
         echo "$oneVideoId $actualStartTime $actualEndTime" >> "$DIR/$videoRealTimestamps"
         echo "$oneVideoId $actualStartTime $actualEndTime"
+      else
+        # If the start and end times were blank, check to see if the video is
+        # not found at all, which can happen if the video was deleted yet
+        # still remains in the playlist. If the video is not found then the
+        # response string will contain this exact string value within it:
+        #     "totalResults": 0
+        # If the video is found, then I expect it to find only one result:
+        #     "totalResults": 1
+        # To check this, cannot do my usual retrieval of a value like this, it
+        # doesn't work due to totalResults integer not surrounded by quotes.
+        #     totalResults=$(echo $liveStreamingDetailsOutput | sed 's/"totalResults"/\'$'\n&/g' | grep -m 1 "totalResults" | cut -d '"' -f4)
+        # So just check for the whole string.
+        if [[ "$liveStreamingDetailsOutput" == *"\"totalResults\": 1"* ]]
+        then
+          # If the start and end times were blank, but the the video did in
+          # fact exist, then it is likely an "uploaded video" instead of a
+          # live video. Perform a secondary API query to retrieve the
+          # "recordingDate" value in lieu of the actualStartTime value.  
+          LogMessage "dbg" "Did not find start or end times for video $oneVideoId - performing secondary query of API for recordingDate"
+          curlUrl="https://www.googleapis.com/youtube/v3/videos?part=recordingDetails&id=$oneVideoId&access_token=$accessToken"
+          recordingDetailsOutput=""
+          recordingDetailsOutput=$( curl -s $curlUrl )
+
+          # Debugging output. Only needed if you run into a nasty bug here.
+          # Leave deactivated most of the time.
+          # LogMessage "dbg" "Recording details output information: $recordingDetailsOutput"  
+
+          # Extract the recording date value from the API query results. Note:
+          # In order for this value to be useful, the owner of this video must
+          # have correctly filled out, by hand, the recording date in the
+          # YouTube settings for this video. If untouched, the recording date
+          # will be inaccurate.
+          recordingDate=""
+          recordingDate=$(echo $recordingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "recordingDate" | cut -d '"' -f4)
+
+          # Check if we successfully retrieved a recordingDate for this video.
+          if [ ! -z "$recordingDate" ]
+          then
+            # If the recording date is unblank, write it to the file and also
+            # echo it to the standard output to return it back to the caller
+            # of this function. This forces, into the cache file, and into the
+            # return from the cache file, the recordingDate value in place of
+            # the actualStartTime value. Also, it leaves the actualEndTime
+            # value blank. Note: recordingDate is the date only, and always
+            # has a time-of-day stamp of midnight UTC (00:00:00.000Z).
+            LogMessage "dbg" "Substituting into the cache: Using recordingDate from video $oneVideoId in place of actualStartTime. Value: $recordingDate"
+            echo "$oneVideoId $recordingDate" >> "$DIR/$videoRealTimestamps"
+            echo "$oneVideoId $recordingDate"
+          else
+            # If the video was found in the playlist, but it had neither a
+            # recording date nor an actual start time, it might be an
+            # "upcoming" video, for example it may be the channel's main live
+            # video stream, either online or offline. I have already confirmed
+            # that this state occurs for upcoming videos which are offline.
+            # TODO: confirm if this state occurs for the channel's main online
+            # live stream, for example, I wonder if an online live stream has
+            # an actualStartTime but doesn't yet contain an actualEndTime, or
+            # if they are both blank until the live stream finishes.
+            LogMessage "dbg" "Did not find a recordingDate from video $oneVideoId - video may be an upcoming scheduled video"
+          fi
+        else
+          LogMessage "dbg" "Video was not found in search: $oneVideoId - Video may have been deleted" 
+        fi
       fi
     else
       # If there was a value found in the cache, return it.
