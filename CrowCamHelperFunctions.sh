@@ -87,6 +87,12 @@ LogMessage()
 #                      - A space
 #                      - The actual end time
 #
+#                  If cache file or API contains actualStartTime but no end time,
+#                  returns a string containing the data in the following format:
+#                      - The video ID
+#                      - A space
+#                      - The actual start time
+#
 #                  If cache file or API contains no actualStartTime/actualEndTime,
 #                  but it does contain a recordingDate time, then it returns
 #                  a string containing the data in the following format:
@@ -113,10 +119,16 @@ LogMessage()
 #         actualStartTime value will instead be the recordingDate value).
 #
 #         The recordingDate value will contain the date, but its timestamp
-#         will always be midnight UTC, in other words "00:00:00.000Z".
+#         will always be midnight UTC, 0Zulu, in other words "00:00:00.000Z".
 #
 #         The recordingDate will only be useful if the video owner has entered
 #         the correct recording date value into the video details by hand.
+#
+#         Live "in-progress" live streams will contain an actualStartTime but
+#         no end time. The way to tell the difference between a live video and
+#         an upload is the 0Zulu timestamp described above. This is not 100%
+#         perfect because you can have a live video which happened to start at
+#         exactly 0Zulu.
 #
 #------------------------------------------------------------------------------
 GetRealTimes()
@@ -134,6 +146,53 @@ GetRealTimes()
     # many other commands to signify the end of command options, after which
     # only positional parameters are accepted.
     cacheReturn=$( grep -w -- "$oneVideoId" "$DIR/$videoRealTimestamps" )
+
+    # Address a secondary problem mentioned in issue #58 - refresh any cache
+    # returns which might be a stale entry for a partially-broadcast
+    # in-progress live stream, i.e., a video with a start time but no end time
+    # that's not an "uploaded" video. The idea is to prevent the cache getting
+    # "stuck" on a video which is start-time-only because it doesn't re-query
+    # later when the video finally gets its end time.
+    if [ ! -z "$cacheReturn" ]
+    then
+      # Get the cache return into variables.
+      read -r throwawayVideoId actualStartTime actualEndTime <<< "$cacheReturn"
+
+      # If there's an end time, it's a good cache entry that doesn't need to
+      # be refreshed, so we don't need to do anything. Only refresh the data
+      # if we don't have an end time.
+      if [ -z "$actualEndTime" ]
+      then
+        # In situations where the start time contains a 0Zulu date, it is
+        # likely to be an uploaded video and doesn't need to be refreshed.
+        # However, there is a slim chance that it's a live video that by pure
+        # chance happened to start at 0Zulu and needs a refresh. But most of
+        # the time it's going to be an uploaded video if it's got a 0Zulu.
+        if [[ $actualStartTime == *"T00:00:00.000Z"* ]]
+        then
+          # TODO: Check the $actualStartTime here, and if the timestamp is
+          # less than 24hrs in the past, invalidate this cache entry too.
+          # Otherwise do nothing and print a debug log entry. This will
+          # prevent a situation where a video which happens to have started at
+          # 0Zulu gets stuck without a refreshed end time. (Currently I'm JUST
+          # printing the debug log entry until the 24hrs-check code is done.)
+          LogMessage "dbg" "Cache hit: $oneVideoId - 0Zulu - This is an uploaded video"
+        else
+          # If the $actualStartTime is a valid timestamp (not 0Zulu), and
+          # there is no end time, then this is definitely a live video which
+          # hasn't finished playing yet. 
+          LogMessage "dbg" "Cache invalidate: $oneVideoId - Start: $actualStartTime End: (none) - Likely a live video in progress"
+          
+          # Invalidate the cache entry by doing the following: Delete the
+          # cache entry from the file, clear out the cacheReturn variable, and
+          # let the code fall through to the next section with an empty
+          # cacheReturn. This way the query code below can try again as if it
+          # were a fresh cache entry.
+          DeleteRealTimes "$oneVideoId"
+          cacheReturn=""
+        fi       
+      fi
+    fi
     
     # Check if something was returned from the cache.
     if [ -z "$cacheReturn" ]
@@ -247,7 +306,7 @@ GetRealTimes()
 DeleteRealTimes()
 {
     oneVideoId=$1
-    LogMessage "dbg" "Cleaning $1 out of the cache."
+    LogMessage "dbg" "Cleaning $1 out of the cache"
 
     # The SED technique at https://stackoverflow.com/a/5410784/3621748 didn't
     # work, so doing this instead https://stackoverflow.com/a/5413132/3621748.
