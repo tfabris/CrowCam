@@ -349,13 +349,25 @@ GetRealTimes()
         # the time it's going to be an uploaded video if it's got a 0Zulu.
         if [[ $actualStartTime == *"T00:00:00.000Z"* ]]
         then
-          # TODO: Check the $actualStartTime here, and if the timestamp is
-          # less than 24hrs in the past, invalidate this cache entry too.
-          # Otherwise do nothing and print a debug log entry. This will
-          # prevent a situation where a video which happens to have started at
-          # 0Zulu gets stuck without a refreshed end time. (Currently I'm JUST
-          # printing the debug log entry until the 24hrs-check code is done.)
-          LogMessage "dbg" "Cache hit: $oneVideoId - 0Zulu - This is an uploaded video"
+          # If the timestamp is less than 24hrs in the past, invalidate this
+          # cache entry too. Otherwise do nothing and print a debug log entry.
+          # This will prevent a situation where a video which happens to have
+          # started at 0Zulu gets stuck without a refreshed end time.
+          isVideoOld=$( IsOlderThan "$actualStartTime" 1 )
+          if [ "$isVideoOld" = true ]
+          then
+            LogMessage "dbg" "Cache hit: $oneVideoId - 0Zulu - This is an uploaded video"
+          else
+            LogMessage "info" "Cache invalidate - Special rare case of young 0Zulu video - $oneVideoId - Start: $actualStartTime End: (none)"
+            
+            # Invalidate the cache entry by doing the following: Delete the
+            # cache entry from the file, clear out the cacheReturn variable, and
+            # let the code fall through to the next section with an empty
+            # cacheReturn. This way the query code below can try again as if it
+            # were a fresh cache entry.
+            DeleteRealTimes "$oneVideoId"
+            cacheReturn=""
+          fi
         else
           # If the $actualStartTime is a valid timestamp (not 0Zulu), and
           # there is no end time, then this is definitely a live video which
