@@ -420,9 +420,16 @@ videoIds=()
 # in the JSON output and adding the matching lines to the arrays as we find
 # them. This special syntax uses <<< to redirect input into this loop at the
 # end "do" statement down below.
+jsonLineCount=0
 LogMessage "dbg" "Processing JSON results from the API queries, this may take a moment"
 while IFS= read -r line
 do
+    ((jsonLineCount++))
+    if [ $(($jsonLineCount % 1000)) = 0 ]
+    then
+      LogMessage "dbg" "Processing line $jsonLineCount"
+    fi
+
     lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4 )
     if ! [ -z "$lineResult" ]
     then
@@ -498,6 +505,44 @@ do
     then
         LogMessage "err" "The variable oneVideoId came up empty. Error accessing API. Exiting program"
         exit 1
+    fi
+
+    # Work-around for issue #59. If any video is found with the title
+    # "Deleted video", it means that there was a deleted video that ended up
+    # in the playlist somehow, without being removed from the playlist.
+    # Remove it from the playlist now, and skip to the next item.
+    if [ "$oneVideoTitle" = "Deleted video" ]
+    then
+      # Don't delete the playlist item if we are in debug mode.
+      if [ -z "$debugMode" ]
+      then
+          # Remove the item from the cache if it happens to be in there.
+          DeleteRealTimes "$oneVideoId"
+
+          # Delete the playlist item. Note that in this section of the code,
+          # we will only see something titled "Deleted video" in a custom
+          # playlist, since deleted videos automatically disappear from the
+          # "uploads" playlist.
+          deletePlaylistItemOutput=""
+          curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemId&access_token=$accessToken"
+          LogMessage "err" "Playlist $playlistToClean contained a video, $oneVideoId named $oneVideoTitle. Deleting playlist item $onePlaylistItemId"
+          deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
+          LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
+          if [[ $deletePlaylistItemOutput == *"error"* ]]
+          then
+              LogMessage "err" "The attempt to delete playlist item $onePlaylistItemId failed with an error. Error accessing API. Exiting program"
+              LogMessage "err" "The deletePlaylistItemOutput was $( echo $deletePlaylistItemOutput | tr '\n' ' ' )"
+              exit 1
+          fi
+
+          # Continue to the next item in the loop. If the video is already
+          # deleted, then no further processing is needed besides cleaning
+          # the cache and removing the item from the playlist.
+          continue         
+      else
+          LogMessage "dbg" "Debug mode - Playlist $playlistToClean contained a video, $oneVideoId named $oneVideoTitle. Playlist item: $onePlaylistItemId. Debug mode, so not deleting this playlist item"
+          continue
+      fi
     fi
 
     # Secondary query for the video actual recording start date/time and end
@@ -622,18 +667,13 @@ do
             # Remove the item from the cache before we delete it.
             DeleteRealTimes "$oneVideoId"
 
-            # Perform the actual deletion.
-            deleteVideoOutput=$( $curlFullString )
-
-            # Log the output from Curl
-            LogMessage "dbg" "Curl deleteVideoOutput was: $deleteVideoOutput"
-
-            # Do the same for the playlist item. However, don't bother to try
-            # to clean out the playlistItem if the cleaning target is the
-            # "uploads" folder, because that one automatically disappears from
-            # the list of uploads as soon as the video is deleted. Whereas,
-            # with a custom playlist, then you need to pull the item out of
-            # the playlist too.
+            # Delete the playlist item. See if issue #59 can be alleviated by
+            # deleting the playlist item before the actual file deletion.
+            # However, don't bother to try to clean out the playlistItem if
+            # the cleaning target is the "uploads" folder, because that one
+            # automatically disappears from the list of uploads as soon as the
+            # video is deleted. Whereas, with a custom playlist, then you need
+            # to pull the item out of the playlist too.
             if [ "$playlistToClean" = "uploads" ]
             then
               LogMessage "dbg" "Playlist is $playlistToClean - not deleting playlist item"
@@ -642,6 +682,11 @@ do
               deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
               LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
             fi
+
+            # Perform the actual video deletion.
+            deleteVideoOutput=$( $curlFullString )
+            LogMessage "dbg" "Curl deleteVideoOutput was: $deleteVideoOutput"
+
         else
             LogMessage "dbg" "Debug mode - not actually doing a deletion"
         fi
@@ -649,18 +694,18 @@ do
         # If there was the word "error" in the deletion output, error out.
         # NOTE: Sometimes the response is blank when the deletion is
         # successful, I'm not sure why, so only test for the word "error".
-        if [[ $deleteVideoOutput == *"error"* ]]
-        then
-            LogMessage "err" "The attempt to delete video $oneVideoId failed with an error. Error accessing API. Exiting program"
-            LogMessage "err" "The deleteVideoOutput was $( echo $deleteVideoOutput | tr '\n' ' ' )"
-            exit 1
-        fi
-
-        # Do the same for the playlist deletion.
         if [[ $deletePlaylistItemOutput == *"error"* ]]
         then
             LogMessage "err" "The attempt to delete playlist item $onePlaylistItemId failed with an error. Error accessing API. Exiting program"
             LogMessage "err" "The deletePlaylistItemOutput was $( echo $deletePlaylistItemOutput | tr '\n' ' ' )"
+            exit 1
+        fi
+
+        # Do the same for the video deletion.
+        if [[ $deleteVideoOutput == *"error"* ]]
+        then
+            LogMessage "err" "The attempt to delete video $oneVideoId failed with an error. Error accessing API. Exiting program"
+            LogMessage "err" "The deleteVideoOutput was $( echo $deleteVideoOutput | tr '\n' ' ' )"
             exit 1
         fi
     fi
