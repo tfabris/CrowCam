@@ -88,6 +88,47 @@ fi
 
 
 # ----------------------------------------------------------------------------
+# Test: Validate new time comparison function.
+# ----------------------------------------------------------------------------
+
+videoIds=(
+          "IDmfSWhAST0" # Live in progress video at the time I ran the test.
+          "waE1oHY2S-8" # Yesterday's afternoon video at the time I ran the test.
+          "mscSq9g5uKQ" # Yesterday's morning video at the time I ran the test.
+          "vyFp5-eQChY" # Day before yesterday, afternoon, at the time I ran the test.
+          "GshDu58Y7aE" # Day before yesterday, morning, at the time I ran the test.
+          "1C9UhZiPaQk" # uploaded video - "slug on camera...".
+          "-k9E41Xtv5s" # Video ID with hyphen - "Three squirrels..."
+          "feA8mkTI1-s" # Deleted video
+          "HzcqJp0AqDU" # Regular video - "Much drama..."
+          "fN8Xj7PkUHY" # Regular video - "Crow family..."
+          "ptOU01miz7s" # Regular video - "Infrared squirrel..."
+          "_LrYCdxnE7A" # Regular video - "Squirrel lays a hand on..."
+          "tGEHJvDEX-8" # Uploaded video - "Raccoon climbs up..."
+          )
+for ((i = 0; i < ${#videoIds[@]}; i++))
+do
+    oneVideoId=${videoIds[$i]}
+
+    # Test reading an item from the cache. The GetRealTimes function will read
+    # the data from the YouTube API if there is a cache miss.
+    timeResponseString=""
+    timeResponseString=$( GetRealTimes "$oneVideoId" )
+
+    # Place the cache responses into variables, test making sure this works.
+    read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+
+    # Get return value from the tested function.
+    isItOld=$( IsOlderThan $actualStartTime 1 )
+
+    # Display the output of the variable.
+    LogMessage "dbg" "isItOld:  $isItOld  $actualStartTime  $oneVideoId"
+done
+
+exit 0
+
+
+# ----------------------------------------------------------------------------
 # Test: Validate the caching code for actualStartTime/actualEndTime.
 # ----------------------------------------------------------------------------
 

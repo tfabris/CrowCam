@@ -62,6 +62,185 @@ LogMessage()
   fi
 }
 
+#------------------------------------------------------------------------------
+# Function: Check if a certain date string is older than X number of days.
+#
+# Parameters:  $1 - The date string you want to check, in ISO 8601 UTC
+#                   format, like this: "2019-03-17T03:17:07.000Z"
+#
+#              $2 - The number of days back that you want to know if it's
+#                   older than. For instance if you want to know if the date
+#                   string is at least 3 days old, then pass in 3 for this.
+#
+# Returns:          true if older than, false if younger than or if bad input.
+#------------------------------------------------------------------------------
+IsOlderThan()
+{
+    oneVideoDateString="$1"
+    dateDistanceDays="$2"
+
+    # Fail out of function if there was bad input. This can happen on purpose,
+    # for example if the function is part of a larger loop that gets fed a
+    # blank time string, so fail gracefully.
+    if [ -z "$oneVideoDateString" ]
+    then
+      returnValue=false
+      echo $returnValue
+      return -1
+    fi
+    if [ -z "$dateDistanceDays" ]
+    then
+      returnValue=false
+      echo $returnValue
+      return -1
+    fi
+
+    # Take the date string from the API results and make it a localized date
+    # variable that we can do calculations upon.
+    #
+    # NOTE: MAC OS PROBLEM:
+    #
+    # At this point, the inputted date looks something like this, taken
+    # straight from the output from the YouTube API:
+    #    "2019-03-17T03:17:07.000Z"
+    #
+    # The above is an ISO 8601 Greenwich date, and we need to convert it to a
+    # local time date so that it looks more like this:
+    #    "Sat Mar 16 20:17:07 PDT 2019"
+    #
+    # The problem is that I also want to be able to run/test this code on Mac,
+    # and the Mac's date command doesn't work the same way as the date command
+    # on Linux. In addition to the parameters being totally different (the -d
+    # parameter means something completely different on Mac than on Linux),
+    # the input string is illegal on Mac OS. Even specifying an input
+    # format on Mac also has a little problem with it:
+    #       -j    Don't try to set the system clock with this date. Required
+    #             on Mac OS, so you don't mess up the system.
+    #       -f    Specify the input format.
+    #
+    #                 -j -f "%Y-%m-%dT%H:%M:%S"
+    # 
+    # That allows the input to work, but is ignoring the milliseconds, and 
+    # ignoring the Z at the end (which indicates it's a GMT date). With that
+    # input format, it responds with:
+    #    "Ignoring 5 extraneous characters in date string (.000Z)"
+    #
+    # That means it's entirely interpreting it as a local date, but I need it
+    # interpreted as a Greenwich date.
+    #
+    # I've Googled around, and I can't find a documented way to get Mac to
+    # interpret that input string as a GMT date instead of a local date. I
+    # could install Gnu versions of linux commands, then use GDATE, but I
+    # don't want to force people to do that, I want this to work with as
+    # little system modification as possible. Besides, this is only so that I
+    # can use my Mac as a debugging platform, it's not critical for the final
+    # runtime mode on the Synolgy.
+    #
+    # So what I'm going to do here, for now, is to just accept the fact that
+    # the date is going to be several hours off when debugging on Mac. This
+    # allows for software code flow testing and debugging, though one must
+    # keep in mind that a given date will be considered "old" at a different
+    # cutoff time than in the actual runtime mode.
+    if [[ $debugMode == *"Mac"* ]]
+    then
+        # Mac version - Inaccurate due to failure to interpret GMT zone. Also
+        # add ".000Z" to the format string to avoid the extra error message:
+        # "Warning: Ignoring 5 extraneous characters in date string (.000Z)"
+        videoDateTimeLocalized=$(date -j -f "%Y-%m-%dT%H:%M:%S.000Z" "$oneVideoDateString")
+    else
+        # Linux version - Accurate, but only works on Linux.
+        videoDateTimeLocalized=$(date -d "$oneVideoDateString")
+    fi
+
+    # Validate that we got a localized time by checking for a blank string.
+    if [ -z "$videoDateTimeLocalized" ]
+    then
+      LogMessage "err" "Problem retrieving date of video. GMT Date string from web: $oneVideoDateString - Interpreted localized time: $videoDateTimeLocalized"
+      returnValue=false
+      echo $returnValue
+      return -1
+    fi
+
+    # Debugging - log the localized date that we got. Usually leave disabled.
+    # LogMessage "dbg" "Localized video date: $videoDateTimeLocalized"
+
+    # Obtain the current date the same way, localized, so that we're
+    # comparing apples to apples when we do our date math. I think this
+    # command, when it's just "date" like this, has more or less the same
+    # output on Linux and Mac (I think).
+    currentDate=$(date)
+
+    # Create a date that is an arbitrary distance in the past (based on the
+    # days inputted into this function). Of course the syntax has to be
+    # different for Mac OS, because the "date" command is different...
+    if [[ $debugMode == *"Mac"* ]]
+    then
+        # Mac version.
+        # Have to build a separate string for this parameter because it has
+        # some characters (the - and the d) slammed right up against my
+        # variable, so it makes the process of concatenating the strings
+        # trickier than I want it to be. This was the first way I tried
+        # doing this which worked, I tried several other methods all of
+        # which failed. I'm trying to build a string that says "-5d" where
+        # the "5" is the contents of my variable.
+        dateSubtractionString="-"
+        dateSubtractionString+="$dateDistanceDays"
+        dateSubtractionString+="d"
+        dateInThePast=$( date -j -v $dateSubtractionString )
+    else
+        # Linux version.
+        dateInThePast=$(date -d "$currentDate-$dateDistanceDays days")
+    fi
+
+    # Debugging - log current and past dates. Usually leave disabled.
+    # LogMessage "dbg" "Current date:    $currentDate"
+    # LogMessage "dbg" "Date $dateDistanceDays days ago: $dateInThePast"
+
+    # Validate that we got a string of any kind, for the date in the past.
+    if [ -z "$dateInThePast" ]
+    then
+        LogMessage "err" "Problem processing date. Current date: $currentDate - Attempted date-in-the-past calculation: $dateInThePast"
+        returnValue=false
+        echo $returnValue
+        return -1
+    fi
+
+    # Compare the arbitrary date in the past with the video's date. Only delete
+    # videos which are X days old, where X is the number of days of our buffer.
+    # For instance if dateDistanceDays is 5, then only delete videos older than
+    # 5 days.
+    #
+    # Start by creating a variable to decide the behavior. Fail safe with a
+    # "false" default value before moving on to the calculations.
+    returnValue=false
+
+    # The date calculations have different syntax depending on whether you're
+    # running on Mac or Linux.
+    if [[ $debugMode == *"Mac"* ]]
+    then
+        # Mac version - A full command line parameter reference is found if
+        # you type "man date" in a Mac OS shell, but I'm having trouble with
+        # finding a command to input/interpret the date from a string
+        # without ALSO specifying the detailed formatting of that string. So
+        # I'm specifying the input string format here and praying that the Mac
+        # formats it the same on every system. Of course I know it's not, so
+        # this isn't going to work everywhere. Luckily it's for debugging
+        # only, so any issues that happen can get worked out in time.
+        if (( $(date -j -f "%a %b %d %H:%M:%S %Z %Y" "$videoDateTimeLocalized" +%s) < $(date -j -f "%a %b %d %H:%M:%S %Z %Y" "$dateInThePast" +%s) ))
+        then
+            returnValue=true
+        fi
+    else
+        # Linux version.
+        if (( $(date -d "$videoDateTimeLocalized" +%s) < $(date -d "$dateInThePast" +%s) ))
+        then
+            returnValue=true
+        fi
+    fi
+
+    # Return true or false result from the function
+    echo $returnValue
+}
 
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.
