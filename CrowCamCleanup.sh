@@ -483,16 +483,6 @@ fi
 # Iterate through the array and delete any old videos which have not been renamed.
 for ((i = 0; i < ${#videoIds[@]}; i++))
 do
-    # In debug mode, process only a limited number of the entries.
-    if [ ! -z "$debugMode" ]
-    then
-      if [ "$i" -gt 45 ]
-      then
-        LogMessage "dbg" "Debug mode: Early exit the processing loop"
-        break
-      fi
-    fi
-
     # Set the current loop's data to easier-to-read variables.
     oneVideoTitle=${titles[$i]}
     oneVideoId=${videoIds[$i]}
@@ -541,7 +531,7 @@ do
     # actual start time will come out blank. If not blank, though, then write
     # that value into the video data string for later use by another project.
     # Note that the actualEndTime will sometimes be blank, in the case of 
-    # uploaded videos which were not "live" videos. In thatƒ case, the
+    # uploaded videos which were not "live" videos. In that case, the
     # actualEndTime will be blank and the actualStartTime will be the
     # recordingDate with a midnight UTC value (00:00:00.000Z). It is OK to
     # write a blank actualEndTime value to my video data, so that the other
@@ -551,7 +541,9 @@ do
     then
       # Use a string replacement to write these values into the video data
       # string that I'm already scheduled to write to the disk, essentially
-      # adding new JSON into the pattern that isn't originally there. This SED
+      # adding new JSON into the pattern that isn't originally there. I'm not
+      # even writing it into the correct place in the JSON structure, I'm just
+      # finding a spot near the videoId and stuffing it in there. This SED
       # command is doing the following (see https://ss64.com/osx/sed.html):
       #    (Overall structure is s/regex/replacement/flags)
       #   "   "              Surround sed command with doublequotes so that the variables work.
