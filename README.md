@@ -372,7 +372,7 @@ each task should have the following settings:
 - Schedule: Frequency: 
     - CrowCam Controller: Frequency: "Every 5 Minutes"
     - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
-    - CrowCam Cleanup:    Frequency: "Every Hour" 
+    - CrowCam Cleanup:    Frequency: "Every 30 Minutes" 
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
   for a task that runs every 5 minutes, the highest run time available will be
