@@ -717,3 +717,20 @@ done
 # written. This helps to ensure that the file is a good file which represents
 # accurate data.
 echo "$uploadsOutput" > "$DIR/$videoData"
+
+# Trigger secondary script to upload the video data to my secondary project,
+# if the project exists on the hard disk parallel to this project.
+if [ ! -z "$debugMode" ]
+then
+  uploadScript="$DIR/../UploadFiles/UploadFiles.sh"
+  if [ ! -e "$uploadScript" ]
+  then
+    LogMessage "dbg" "Missing file $uploadScript"
+  else
+    LogMessage "dbg" "Launching file $uploadScript"
+    bash "$uploadScript"
+  fi
+else
+  LogMessage "dbg" "Debug mode - Not trying to launch file $uploadScript"
+fi
+
