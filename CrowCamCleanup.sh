@@ -720,9 +720,9 @@ echo "$uploadsOutput" > "$DIR/$videoData"
 
 # Trigger secondary script to upload the video data to my secondary project,
 # if the project exists on the hard disk parallel to this project.
-if [ ! -z "$debugMode" ]
+uploadScript="$DIR/../UploadFiles/UploadFiles.sh"
+if [ -z "$debugMode" ]
 then
-  uploadScript="$DIR/../UploadFiles/UploadFiles.sh"
   if [ ! -e "$uploadScript" ]
   then
     LogMessage "dbg" "Missing file $uploadScript"
