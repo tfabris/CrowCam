@@ -355,6 +355,6 @@ cookieFileName="wgetcookies.txt"
 #
 # Do not change this value.
 #
-TestSite="google.com"
+TestSite=8.8.8.8
 
 
