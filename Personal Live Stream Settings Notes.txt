@@ -76,19 +76,20 @@ IP Camera - Edit - Device Settings - Video
 
 Video format: H.264
 Audio format: AAC
-Field of View: 4mp
+Field of View: (N/A on Dahua camera)
 Stream profile: All three set to "Stream 1"
-"Stream 1" settings - Resolution: 1080p
+"Stream 1" settings - Resolution: 1920x1080
 "Stream 1" settings - Frame Rate: 30
 "Stream 1" settings - Bitrate: Constant
-"Stream 1" settings - Bitrate KBPS: 2048
+"Stream 1" settings - Bitrate KBPS: 2500
 
 IP Camera - Edit - Device Settings - Advanced
 
 Use a speaker: Unchecked
-Transport Protocol: UDP
+Transport Protocol: Auto
 Keep alive method: OPTIONS (Default)
 Streaming information source: RSTP
+Enable PTZ control: Checked
 
 IP Camera - Edit - Recording Settings - Recording
 
@@ -108,34 +109,96 @@ Truncate video every: 240 minutes
 When space or time limit is reached: Remove old archives
 Other recording settings: All set to "High Quality"
 
+IP Camera - Edit - Optimization - Advanced
+
+    Force Restart when camera is disconnected: Enabled
+    Restart after (mins): 5
+    (Automatic restart schedule is left up to the camera.)
+
 IP Camera - Edit - Event Detection - Motion
 
 Detection source: By Surveillance Station
 Edit Detection Area: (hand-customized area)
 Sensitivity: 87
 Threshold: 5
-Ignore short lived motion: 2 seconds
+Ignore short lived motion: 5 seconds
 
 
-Reolink Camera Settings
------------------------
+Dahua Camera Settings - Web UI - 192.168.0.185
+----------------------------------------------
 
-Display - Quality - Clear
+Setting - Conditions - Backlight
 
-Resolution: 1080p
-Frame rate: 30fps
-Max bitrate 2048 kbps
+    With "Profile: Day" and "Profile: Normal" selected,
+        Mode: SSA 
+    With "Profile: Night" selected, 
+        Mode: Off
 
-Display
+Setting - Conditions - Zoom and Focus
 
-Anti-Flicker: Auto
-Exposure: Auto
-White Balance: Auto
-Day and Night: Auto
-Backlight: Dynamic (custom setting)
-3D DNR: On
+    Set the zoom to the correct level and pres Auto Focus.
 
-Settings
+Setting - Video - Main Stream
 
-Record Audio: On
-Infrared lights: On
+    (Encoder settings are coming from Synology)
+
+Setting - Video - Sub Stream
+
+    Enabled: Unchecked (do not use a sub stream).
+
+Setting - Video - Overlay
+
+    Time Title - Enable - Week Display
+
+    Note: For full functionality you must use a Chrome browser and install an
+    run a chrome "App" (not a plugin, but an App) called the NACL WEB PLUGIN
+    (It is still not a plugin but an app, despite its name). These types of
+    apps in Chrome are about to be disabled in Chrome so this is a bad thing,
+    but at least I can configure some things this way, like the position of
+    the timestamp on the screen by dragging it on the screen in the NACL web
+    plugin.
+
+Setting - Audio - Main Stream
+
+    Encode mode: AAC
+    Sampling Frequency 48000
+
+Setting - Audio - Sub Stream
+    
+    Enable: Unchecked
+
+Setting - Audio - Attribute
+
+    AudioIn Type: Mic
+    Noise Filter: Disable
+    Microphone Volume: 85
+
+Setting - Network - TCP/IP
+
+    Host Name: DahuaCrowCam
+    Mode: DHCP
+
+Setting - Network - UPnP
+
+    Enable: Unchecked
+
+Setting - Network - Multicast
+
+    Enable: Unchecked
+
+Setting - System - General
+
+    Name: DahuaCrowCam
+
+Setting - System - General - Date&Time
+
+    Time Zone: GMT-08:00 (It defaults to +8:00 so make sure this is fixed.)
+    NTP Server: pool.ntp.org
+    Port: 123
+    Interval: 10
+
+Setting - System - Auto Maintain
+
+    Auto Reboot: Everyday 02:55
+
+
