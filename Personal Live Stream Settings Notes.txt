@@ -161,7 +161,7 @@ Setting - Video - Overlay
 Setting - Audio - Main Stream
 
     Encode mode: AAC
-    Sampling Frequency 48000
+    Sampling Frequency 16000
 
 Setting - Audio - Sub Stream
     
