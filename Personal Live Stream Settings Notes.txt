@@ -193,6 +193,11 @@ Setting - System - General
 Setting - System - General - Date&Time
 
     Time Zone: GMT-08:00 (It defaults to +8:00 so make sure this is fixed.)
+    Time Format: 12-Hour
+    DST: Checked
+    DST Type: Week
+    Start Time: March, 2nd week, Sunday, 2am
+    End Time: November, 1st week, Sunday, 2am
     NTP Server: pool.ntp.org
     Port: 123
     Interval: 10
