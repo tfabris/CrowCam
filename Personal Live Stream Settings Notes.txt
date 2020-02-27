@@ -127,6 +127,11 @@ Ignore short lived motion: 5 seconds
 Dahua Camera Settings - Web UI - 192.168.0.185
 ----------------------------------------------
 
+Setting - Conditions - Picture
+
+    With "Profile: Day" and "Profile: Normal" selected,
+        Saturation: 75   (compensates for Backlight below)
+
 Setting - Conditions - Backlight
 
     With "Profile: Day" and "Profile: Normal" selected,
