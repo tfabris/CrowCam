@@ -49,7 +49,7 @@ titleToDelete="CrowCam"
 # be periodically cleaned out of old videos. Can be "uploads" if desired
 # ("uploads" is the internal code name for the default "My Videos" playlist),
 # but it can also be a custom user-created playlist name, if you've configured
-# your videos to be automaticaly added to a particular playlist.
+# your videos to be automatically added to a particular playlist.
 #
 # Update this value to be either "uploads" or the name the playlist where you
 # want to clean out old videos named $titleToDelete.
@@ -109,7 +109,7 @@ location=""
 # Set these to your desired start and stop offset values.
 # 
 startServiceOffset=-15
-stopServiceOffset=-90
+stopServiceOffset=-10
 
 
 # Maximum length, in seconds, that a video streaming segment is allowed to get,
