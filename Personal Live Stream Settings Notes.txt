@@ -109,13 +109,6 @@ Truncate video every: 240 minutes
 When space or time limit is reached: Remove old archives
 Other recording settings: All set to "High Quality"
 
-
-IP Camera - Edit - Optimization - General
-
-Network time server: Surveillance Station
-Force Synchronization every: 1 hours
-
-
 IP Camera - Edit - Optimization - Advanced
 
     Force Restart when camera is disconnected: Enabled
@@ -210,7 +203,7 @@ Setting - System - General - Date&Time
     DST Type: Week
     Start Time: March, 2nd week, Sunday, 2am
     End Time: November, 1st week, Sunday, 2am
-    NTP Server: 192.168.0.88
+    NTP Server: pool.ntp.org
     Port: 123
     Interval: 10
 
