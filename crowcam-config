@@ -108,8 +108,8 @@ location=""
 #
 # Set these to your desired start and stop offset values.
 # 
-startServiceOffset=-15
-stopServiceOffset=-10
+startServiceOffset=-20
+stopServiceOffset=-20
 
 
 # Maximum length, in seconds, that a video streaming segment is allowed to get,
