@@ -38,9 +38,9 @@ export TOP_PID=$$
 # running in the final functional mode on the Synology Task Scheduler.
 debugMode=""         # True final runtime mode for Synology.
 # debugMode="Synology" # Test on Synology SSH prompt, console or redirect output.
-# debugMode="MacHome"  # Test on Mac at home, LAN connection to Synology.
+debugMode="MacHome"  # Test on Mac at home, LAN connection to Synology.
 # debugMode="MacAway"  # Test on Mac away from home, no connection to Synology.
-debugMode="WinAway"  # In the jungle, the mighty jungle.
+# debugMode="WinAway"  # In the jungle, the mighty jungle.
 
 # Program name used in log messages.
 programname="CrowCam Cuepoints"
@@ -83,6 +83,112 @@ then
   LogMessage "err" "Missing file $crowcamTokens"
   exit 1
 fi
+if [ ! -e "$apicreds" ]
+then
+  LogMessage "err" "Missing file $apicreds"
+  exit 1
+fi
+
+# Get API creds out of the external file, assert values are non-blank.
+# TO DO: Learn the correct linux-supported method for storing and retrieving a
+# username and password in an encrypted way.
+read username password < "$apicreds"
+if [ -z "$username" ] || [ -z "$password" ]
+then
+  LogMessage "err" "Problem obtaining API credentials from external file"
+fi
+
+
+
+#------------------------------------------------------------------------------
+# Retrieve recent event information from Synology API.
+#------------------------------------------------------------------------------
+
+# Work in progress. Attempt to retrieve the recent history of motion detection
+# events from Synology. This is the first experiment to see if I can query
+# this at all? This does not work yet. Link to docs:
+# https://global.download.synology.com/download/Document/Software/DeveloperGuide/Package/SurveillanceStation/All/enu/Surveillance_Station_Web_API.pdf
+# Example from docs:
+# "2.3.21.8 ListHistory method"
+# GET /webapi/entry.cgi?start=0&api="SYNO.SurveillanceStation.ActionRule"&limit=100&version="1"&method="ListHistory"
+# This produces no results, so, not using this.
+
+# Example from docs:
+# "2.3.11.6 CountByCategory method"
+# GET /webapi/entry.cgi?locked=0&version="4"&blIncludeSnapshot=true&cameraIds=""&evtSrcType=2&reason=""&api="SYNO.SurveillanceStation.Recording"&evtSrcId=-1&toTime=0&limit=0&fromTime=0&method="CountByCategory"&timezoneOffset=480&includeAllCam=true
+#
+# Note: Not that many parameters are needed. The code below, using fewer
+# parameters than the example, produces the total count of events that
+# occurred on each date, with the breakdown of how many occurred in the AM and
+# the PM of each date, as well as the total for the queried time range.
+#
+# {
+#   "data":{
+#     "date":{
+#       "-1":53,
+#                (... other entries omitted here ...)
+#       "2020/05/03":{
+#         "-1":8,
+#         "am":4,
+#         "pm":4
+#       }
+#     },
+#     "evt_cam":{
+#       "0":{
+#         "-1":53,
+#         "2-CrowCam":53
+#       },
+#       "-1":53
+#     },
+#     "recCntTmstmp":47375347270,
+#     "total":53
+#   },
+#   "success":true
+# }
+
+# Create a query to see how many events occurred in the last X time period.
+# Set a time range that is X seconds ago (300 = 5 minutes ago for example).
+howLongAgoInSeconds=9600
+toTime=$( date +%s )
+fromTime=$(( $toTime -  $howLongAgoInSeconds))
+
+# Get current system's timezone offset from Zulu based on current system
+# timezone config. Lower case "%z" returns a value that looks like "-0700"
+# (for PDT, which is my example).
+timzoneZuluOffset=$( date +%z )
+
+# Convert that into minutes of timezone offset from UTC, because the Synology
+# API expects the "timezoneOffset" variable to be in minutes. First step is to
+# get this into decimal hours using this great technique:
+# https://unix.stackexchange.com/a/434133
+timezoneOffsetHours=$( date +%z | sed -E 's/^([+-])(..)(..)/scale=2;0\1(\2 + \3\/60)/' | bc )
+timezoneOffset=$( echo "$timezoneOffsetHours * 60" | bc )
+LogMessage "dbg" "Current system timezone offset: ZuluCode: $timzoneZuluOffset  - Hours: $timezoneOffsetHours  - Minutes: $timezoneOffset"
+
+# Perform the API query to look for events in that time range with that time offset.
+eventCount=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.Recording&version=4&method=CountByCategory&limit=100&locked=0&timezoneOffset=$timezoneOffset&fromTime=$fromTime&toTime=$toTime" )
+
+# Parse the count of "total": out of that output:
+totalRecentEvents=""
+totalRecentEvents=$(echo $eventCount | sed 's/"total"/\'$'\n&/g' | grep -m 1 "total" | cut -d ':' -f2 | cut -d '}' -f1)
+LogMessage "dbg" "totalRecentEvents: $totalRecentEvents"
+
+# Currently the above experimental code does not produce the results that I
+# want. The query works, and if I make the time range large enough, it
+# produces a nonzero count of events. However querying recent motion events
+# (in the last few minutes) produces a "0" result even if something happened
+# within the last couple of minutes. This is both with, and without, the
+# timezoneOffset parameter being included. To do: get to the bottom of this.
+
+# Debugging - Quit early while I am doing experiments with the APIs.
+exit 0
+
+
+
+
+#------------------------------------------------------------------------------
+# Write a cuepoint marker to the live/current/active YouTube video stream.
+#------------------------------------------------------------------------------
 
 # Authenticate with the YouTube API and receive the Access Token which allows
 # us to make YouTube API calls. Retrieves the $accessToken variable.
