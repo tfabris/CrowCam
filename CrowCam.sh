@@ -272,8 +272,8 @@ Test_Stream()
       # Make sure the boundStreamId is not empty.
       if test -z "$boundStreamId"
       then
-        LogMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
-        LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+        LogMessage "err" "The variable boundStreamId came up empty, inside Test_Stream. Error accessing YouTube API"
+        LogMessage "err" "The liveBroadcastOutput, inside Test_Stream, was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
         
         # Bugfix to issue #37 - Do not bounce the stream if there is no valid
         # data to analyze, instead, flag that we did not get good API data.
@@ -743,24 +743,9 @@ ChangeStreamState()
     return
   fi
 
-  # The response of this call will list all data for the YouTube live
-  # stream upload as it is configured in Surveillance Station "Live Broadcast"
-  # screen. The response will look something like this:
-  # {"data":{"cam_id":1,"connect":false,"key":"xxxx-xxxx-xxxx-xxxx",
-  # "live_on":false,"rtmp_path":"rtmp://a.rtmp.youtube.com/live2",
-  # "stream_profile":0},"success":true}. We are looking specifically for
-  # "live_on":false or "live_on":true here. 
-  streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
-
-  # Set the variable that tracks the current stream up/down state based on the
-  # response to the API call above. To check if the stream is up, look for
-  # "live_on"=true in the response string.
-  if [[ $streamStatus == *"\"live_on\":true"* ]]
-  then
-    currentStreamState="true"
-  else
-    currentStreamState="false"
-  fi
+  # Check if the video stream to YouTube is currently turned on or not, and
+  # place that value into a variable for using multiple times below.
+  currentStreamState=$( IsStreamRunning )
 
   # Behavior when stream is set to up, at a time when it should be up.
   if [ "$currentStreamState" = true ] && [ $1 = "up" ]
@@ -772,12 +757,10 @@ ChangeStreamState()
   # Behavior when stream is set to down, at a time when it should be up.
   if [ "$currentStreamState" = false ] && [ $1 = "up" ]
   then
+    # Bring the stream back up.
     LogMessage "info" "$2. $featureName is down. It should be $1 at this time. Starting stream"
-
-    # Bring the stream back up. Start it here by using the "Save" method to
-    # set live_on=true. Response is expected to be {"success":true}.
     WriteStreamStartTime
-    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
+    StartStream
 
     # Insert a deliberate pause after starting the stream, to make sure that
     # YouTube has a chance to get its head together and actually stream some
@@ -792,11 +775,9 @@ ChangeStreamState()
   # Behavior when stream is set to up, at a time when it should be down.
   if [ "$currentStreamState" = true ] && [ $1 = "down" ]
   then
+    # Stop the stream.
     LogMessage "info" "$2. $featureName is up. It should be $1 at this time. Stopping stream"
-
-    # Stop the stream. Stop it here by using the "Save" method to set
-    # live_on=false. Response is expected to be {"success":true}.
-    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
+    StopStream
   fi
   
   # Behavior when stream is set to down, and it should be down.
@@ -841,10 +822,9 @@ BounceTheStream()
   # home where we can access its API on the local LAN. 
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
-    # Stop the YouTube stream feature here by using the "Save" method to set
-    # live_on=false. Response is expected to be {"success":true}.
+    # Stop the YouTube stream feature
     LogMessage "info" "Bouncing stream for $1 seconds"
-    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
+    StopStream
   else
     # In test mode, log something anyway.
     LogMessage "info" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
@@ -868,11 +848,10 @@ BounceTheStream()
     WriteStreamStartTime
   fi
 
-  # Bring the stream back up. Start it here by using the "Save" method to
-  # set live_on=true. Response is expected to be {"success":true}.
+  # Bring the stream back up.
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
-    WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
+    StartStream
   fi
 
   # Log that we're done. Note: This message is used both when the bounce
@@ -1229,24 +1208,13 @@ fi
 #
 # Note: Only perform this test after the sunrise/sunset decision has been made.
 # ----------------------------------------------------------------------------
-# In order to check the status of the Synology Surveillance Station "Live
-# Broadcast" feature, we must either not be in debug mode, or if we are,
-# we must at least be running either on the Synology or at home where we
-# can access the API on the local LAN.
-if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+currentStreamState=$( IsStreamRunning )
+if ! [ "$currentStreamState" = true ]
 then
-  LogMessage "dbg" "Checking status of $featureName feature"
-
-  # in this mode it should be safe to perform the web api call.
-  streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
-  if ! [[ $streamStatus == *"\"live_on\":true"* ]]
-  then
-    LogMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
-    exit 0
-  fi
-  
-else
-  LogMessage "dbg" "Performing network tests in debug mode, since we cannot check the status of $featureName feature"
+  # If the stream is not set to be "up" right now, then do nothing and exit the
+  # program. We only need to be keep the stream alive if the stream is up.
+  LogMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
+  exit 0
 fi
 
 
@@ -1409,8 +1377,8 @@ fi
 # Make sure the boundStreamId is not empty.
 if test -z "$boundStreamId" 
 then
-  LogMessage "err" "The variable boundStreamId came up empty. Error accessing YouTube API"
-  LogMessage "err" "The liveBroadcastOutput was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
+  LogMessage "err" "The variable boundStreamId came up empty, during the YouTube Stream Key update. Error accessing YouTube API"
+  LogMessage "err" "The liveBroadcastOutput, during the YouTube Stream Key update, was $( echo $liveBroadcastOutput | tr '\n' ' ' )"
   safeToFixStreamKey=false
 else
   # Obtain the stream key from the live stream details, now that we have the 

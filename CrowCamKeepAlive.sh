@@ -153,31 +153,16 @@ then
   exit 0
 fi
 
-# Check the status of the Synology Surveillance Station "Live Broadcast"
-# feature. But only if we are running on the Synology or at least at
-# home where we can access the API on the local LAN.
-if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+# -----------------------------------------------------------------------------
+# Check the status of the YouTube Streaming feature.
+# -----------------------------------------------------------------------------
+currentStreamState=$( IsStreamRunning )
+if ! [ "$currentStreamState" = true ]
 then
-  # The response of this call will list all data for the YouTube live stream
-  # upload as it is configured in Surveillance Station "Live Broadcast"
-  # screen. The response will look something like this:
-  # {"data":{"cam_id":1,"connect":false,"key":"xxxx-xxxx-xxxx-xxxx",
-  # "live_on":false,"rtmp_path":"rtmp://a.rtmp.youtube.com/live2",
-  # "stream_profile":0},"success":true}. We are looking specifically for
-  # "live_on":false or "live_on":true here. 
-  LogMessage "dbg" "Checking status of $featureName feature"
-  streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
-
   # If the stream is not set to be "up" right now, then do nothing and exit the
-  # program. We only need to be downloading the stream if the stream is up. To
-  # check if the stream is up, look for "live_on"=true in the response string.
-  if ! [[ $streamStatus == *"\"live_on\":true"* ]]
-  then
-    LogMessage "dbg" "Live stream is not currently turned on. Will not perform the Keep Alive operation on the stream"
-    exit 0
-  fi
-else
-  LogMessage "dbg" "We are not in a position to check the live stream status. Performing the Keep Alive operation on the stream in debug/test mode"
+  # program. We only need to be keep the stream alive if the stream is up.
+  LogMessage "dbg" "Live stream is not currently turned on. Will not perform the Keep Alive operation on the stream"
+  exit 0
 fi
 
 # -----------------------------------------------------------------------------

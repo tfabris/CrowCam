@@ -678,6 +678,91 @@ WebApiAuth()
 
 
 #------------------------------------------------------------------------------
+# Function: Check if the live video stream to YouTube is running.
+# 
+# Parameters: None
+# Returns: "true" if the video stream to YouTube is running, "false" if not.
+#
+# Note: This does not check if the stream is "succeeding", only if the feature
+# that's "trying" to do the streaming is turned on or not.
+#
+# Future update coming: This may eventually get updated to check one of two
+# different features. It could check either the "Synology Surveillance Station
+# Live Broadcast Feature" if we are using that, or it could check if our local
+# copy of "ffmpeg" is running, if we are using that technique instead of Live
+# Broadcast.
+#------------------------------------------------------------------------------
+IsStreamRunning()
+{
+    # Check the status only if we are running on the Synology.
+    if [ -z "$debugMode" ] || [[ $debugMode == *"Synology"* ]]
+    then
+      # The response of this call will list all data for the YouTube live stream
+      # upload as it is configured in Surveillance Station "Live Broadcast"
+      # screen. The response will look something like this:
+      # {"data":{"cam_id":1,"connect":false,"key":"xxxx-xxxx-xxxx-xxxx",
+      # "live_on":false,"rtmp_path":"rtmp://a.rtmp.youtube.com/live2",
+      # "stream_profile":0},"success":true}. We are looking specifically for
+      # "live_on":false or "live_on":true here. 
+      LogMessage "dbg" "Checking status of $featureName feature"
+      streamStatus=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
+
+      # Check the string for our test phrase and return the appropriate value.
+      if [[ $streamStatus == *"\"live_on\":true"* ]]
+      then
+        LogMessage "dbg" "$featureName feature is running"
+        echo "true"
+      else
+        LogMessage "dbg" "$featureName feature is stopped"
+        echo "false"
+      fi
+    else
+      # If we're debugging on a different system, just return true.
+      LogMessage "dbg" "We are not in a position to check status of $featureName - returning true"
+      echo "true"
+    fi
+}
+
+
+#------------------------------------------------------------------------------
+# Function: Start the live video stream to YouTube.
+# 
+# Parameters: None
+# Returns: Nothing.
+#
+# Future update coming: This may eventually get updated to launch one of two
+# different features. It will launch either the "Synology Surveillance Station
+# Live Broadcast Feature" if we are using that, or it could launch our local
+# copy of "ffmpeg", if we are using that.
+#------------------------------------------------------------------------------
+StartStream()
+{
+  # Use the "Save" method to set live_on=true. Response is expected to be
+  # {"success":true} but I'm not checking the return data from this API call.
+  WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=true" >/dev/null
+}
+
+
+#------------------------------------------------------------------------------
+# Function: Stop the live video stream to YouTube.
+# 
+# Parameters: None
+# Returns: Nothing.
+#
+# Future update coming: This may eventually get updated to stop one of two
+# different features. It will stop either the "Synology Surveillance Station
+# Live Broadcast Feature" if we are using that, or it could stop our local
+# copy of "ffmpeg", if we are using that.
+#------------------------------------------------------------------------------
+StopStream()
+{
+  # Use the "Save" method to set live_on=false. Response is expected to be
+  # {"success":true} but I'm not checking the return data from this API call.
+  WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&live_on=false" >/dev/null
+}
+
+
+#------------------------------------------------------------------------------
 # Function: Convert a number of seconds duration into HH:MM format.
 # 
 # Parameters: $1 = integer of the number of seconds since midnight
@@ -877,4 +962,3 @@ YouTubeApiAuth()
       LogMessage "dbg" "Access Token retrieved"
   fi
 }
-
