@@ -261,7 +261,7 @@ credentials.
 - Navigate to your Google developer account dashboard at
   https://console.developers.google.com/apis/dashboard
 - At the top of the screen should be a pull down list that allows you to
-- select a project or create a new project.
+  select a project or create a new project.
 - Create a new project to hold the auth creds. For instance, I have created a
   project called "CrowCam" in my account.
 - Navigate back to the APIs and Services screen and, select "Credentials" from
