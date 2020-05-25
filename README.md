@@ -260,25 +260,32 @@ these credentials once, unless something goes wrong or you revoke the
 credentials.
 - Navigate to your Google developer account dashboard at
   https://console.developers.google.com/apis/dashboard
+- At the top of the screen should be a pull down list that allows you to
+- select a project or create a new project.
 - Create a new project to hold the auth creds. For instance, I have created a
   project called "CrowCam" in my account.
-- Once the project is created, select "Credentials" from its left sidebar.
-- Select "Create Credentials" and choose "OAuth Client ID".
+- Navigate back to the APIs and Services screen and, select "Credentials" from
+  its left sidebar: https://console.developers.google.com/apis/credentials
+- Select "+ CREATE CREDENTIALS" at the top of the screen and choose "OAuth
+  Client ID".
 - It may tell you that you must "Configure consent screen" before you can
   create credentials. If it does this, then configure the consent screen as
   follows:
-  - Application Name: CrowCam  (or whatever application name you want)
+  - User Type (if prompted for it): External
+  - Application Name: (whatever application name you want, mine is "CrowCam")
   - Press "Save", you don't need to fill anything else out here unless you
     want to.
-- Now select "Create Credentials" again and choose "OAuth Client ID".
-- Application type: Other.
-- Name: CrowCam
+- If you had to configure the consent screen, then navigate back to the APIs
+   and Services screen, select "Credentials" from the sidebar, select
+   "+ CREATE CREDENTIALS" again and choose "OAuth Client ID".
+- Application type: "Desktop App".
+- Name: (whatever name you want, mine is "CrowCam")
 - Press "Create".
 - A screen will show the client ID and client secret. You do not need to copy
   them to the clipboard, they will be in the file you're about to download.
   Press OK.
 - The Credentials screen should now show your credentials. Locate the
-  "download" icon on the right side of the screen (a small downard-pointing
+  "download" icon on the right side of the screen (a small downward-pointing
   arrow). Press that icon. It should download a client secret file.
 - Rename the file that you downloaded to "client_id.json"
 - Place the file in the same directory as these script files.
