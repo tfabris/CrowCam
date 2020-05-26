@@ -181,6 +181,22 @@ maxVideoLengthSeconds=27600
 # 
 maxVideoLengthGracePeriod=3600
 
+
+# If this hourlyQuickBounce flag is set to "true", then the live YouTube video
+# stream will be bounced once, quickly, near the top of each hour. This is an
+# attempt to work around the audio desynchronization problem described in
+# GitHub issue #14. This will cause a very brief skip in the live YouTube
+# video stream once per hour, but hopefully will reset the audio/video timing
+# synch at the same time, thus keeping the audio and video mostly in synch
+# most of the time.
+#
+# Set this to true to bounce the stream hourly, false to skip the bounce.
+#
+# Recommended value: true
+#
+hourlyQuickBounce=true
+
+
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
 # accessing, from the point of view of the script running on the NAS itself
 # (i.e., loopback/localhost). This value is used when querying the Synology API

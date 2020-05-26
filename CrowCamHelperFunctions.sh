@@ -685,12 +685,6 @@ WebApiAuth()
 #
 # Note: This does not check if the stream is "succeeding", only if the feature
 # that's "trying" to do the streaming is turned on or not.
-#
-# Future update coming: This may eventually get updated to check one of two
-# different features. It could check either the "Synology Surveillance Station
-# Live Broadcast Feature" if we are using that, or it could check if our local
-# copy of "ffmpeg" is running, if we are using that technique instead of Live
-# Broadcast.
 #------------------------------------------------------------------------------
 IsStreamRunning()
 {
@@ -729,11 +723,6 @@ IsStreamRunning()
 # 
 # Parameters: None
 # Returns: Nothing.
-#
-# Future update coming: This may eventually get updated to launch one of two
-# different features. It will launch either the "Synology Surveillance Station
-# Live Broadcast Feature" if we are using that, or it could launch our local
-# copy of "ffmpeg", if we are using that.
 #------------------------------------------------------------------------------
 StartStream()
 {
@@ -748,11 +737,6 @@ StartStream()
 # 
 # Parameters: None
 # Returns: Nothing.
-#
-# Future update coming: This may eventually get updated to stop one of two
-# different features. It will stop either the "Synology Surveillance Station
-# Live Broadcast Feature" if we are using that, or it could stop our local
-# copy of "ffmpeg", if we are using that.
 #------------------------------------------------------------------------------
 StopStream()
 {

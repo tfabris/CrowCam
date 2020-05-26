@@ -80,6 +80,16 @@ NumberOfTests=30
 # Number of seconds to pause between network-up-check tests.
 PauseBetweenTests=10
 
+# Number of seconds after the top of the hour that we will consider this
+# script to be "running at the top of the hour". This will be used for
+# functions which do something special at an interval of once per hour. This
+# variable is dependent on how frequently this script is launched from the
+# Synology Task Scheduler. It should be set to the same number of seconds as
+# the launch frequency in the Synology Task Scheduler. For example, if the
+# Synology Task Scheduler is configured to launch this script once every 5
+# minutes, then, set TopOfTheHourPeriod to 300 (5 minutes in seconds).
+TopOfTheHourPeriod=300
+
 # Number of times we will loop and retest for stream problems if it detects
 # that the stream is down. This is a secondary test which will only be run if
 # the network is up. This attempts to connect to the stream and retrieve its
@@ -823,11 +833,11 @@ BounceTheStream()
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
     # Stop the YouTube stream feature
-    LogMessage "info" "Bouncing stream for $1 seconds"
+    LogMessage "dbg" "Bouncing stream for $1 seconds"
     StopStream
   else
     # In test mode, log something anyway.
-    LogMessage "info" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
+    LogMessage "dbg" "Bouncing stream for $1 seconds - Except we're not in a position where we can control the stream up/down state, so no stream bounce performed"
   fi
   
   # Wait a while to make sure it is really turned off. The number passed in
@@ -851,37 +861,21 @@ BounceTheStream()
   # Bring the stream back up.
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
+    LogMessage "dbg" "Starting stream"
     StartStream
   fi
 
-  # Log that we're done. Note: This message is used both when the bounce
-  # is "good", i.e., during a midday bounce, as well as when the bounce
-  # is "bad", i.e., a stream error. So keep it at message type "info".
-  LogMessage "info" "Done bouncing YouTube stream"
-
   # If we had to bounce the stream, wait a little while before allowing the
-  # program to continue to its exit point. This allows the stream to get
-  # spooling up and started, before there is an opportunity for the next
-  # Task-scheduled run of this script to get launched. If we don't pause
-  # here, we run the risk of possibly having the next run of this script
-  # start too soon, before the bounced stream is up and running again, and
-  # then detecting a false error at that time.
-  #
-  # UPDATE: Post-bounce pause should not be needed, for the following reasons:
-  # - In the new code flow, the program exits after bouncing the stream.
-  # - The next run of the program will occur in the Synology Task Scheduler.
-  # - In the new code flow, the program starts out by checking the network
-  #   all by itself, without checking the stream, for approximately a minute
-  #   or so, before checking the stream status. So the "pause" I would normally
-  #   be trying to do here, is actually built in to the next run of the program.
-  # - There is also hysteresis built-in to the stream check, so that even after
-  #   the "natural pause" described above, there is still some hysteresis for
-  #   allowing the stream to come back up and register upness before it panics.
-  #
-  # UP-UPDATE: Experimentation indicates that we still need a pause. See
-  # GitHub Issue #17.
-  LogMessage "dbg" "Pausing, after bringing the stream back up again, to give the stream a chance to spin up and work"
-  sleep 50
+  # program to continue. This allows the stream to get spooling up and
+  # started, before there is an opportunity for the next part of the program
+  # (or the next Task-scheduled run of this script) to check the stream state.
+  # If we don't pause here, we run the risk of possibly having the next
+  # section start too soon, before the bounced stream is up and running again,
+  # and then detecting a false error at that time.
+  postBounceSleepTime=50
+  LogMessage "dbg" "Pausing $postBounceSleepTime seconds, after bringing the stream back up again, to give the stream a chance to spin up and work"
+  sleep $postBounceSleepTime
+  LogMessage "dbg" "Done bouncing the stream"
 }
 
 
@@ -1824,6 +1818,43 @@ fi
 
 
 # ----------------------------------------------------------------------------
+# Hourly quick bounce.
+#
+# If the clock falls within the brief period at the top of the hour, then
+# bounce the stream really quick, once. This is intended to work around the
+# audio desynchronization issue described in GitHub issue #14. By bouncing the
+# stream regularly, it will hopefully keep the audio in synch, at the cost of
+# a very short skip in the video stream once per hour. This skip should be
+# quick enough so that it doesn't cause a "split" in the YouTube stream.
+# ----------------------------------------------------------------------------
+if [ "$hourlyQuickBounce" = true ] 
+then
+  # Integer divide to extract the hours from the script's start time. For
+  # example, if it were during the hour of 11:00am, then the number of seconds
+  # since midnight would be slightly higher than 39600, and then the formula
+  # (( $currentTimeSeconds / 3600 )) would result in "11" because it is a pure
+  # integer division with no decimal and no remainder. Then multiplying 11 by
+  # 3600 gets the result to exactly 39600.
+  hoursSinceMidnightInSeconds=$(( $currentTimeSeconds / 3600 * 3600 ))
+
+  # Integer subtract the hours since midnight to get the remainder, which will
+  # be the number of seconds elapsed since the top of the hour.
+  secondsSinceTopOfHour=$(( $currentTimeSeconds - $hoursSinceMidnightInSeconds ))
+  LogMessage "dbg" "Hours since midnight, in seconds: $hoursSinceMidnightInSeconds. Seconds elapsed since the top of the hour: $secondsSinceTopOfHour"
+
+  # If we are within the short number of seconds since the top of the hour,
+  # then perform the hourly bounce.
+  if [ "$secondsSinceTopOfHour" -lt "$TopOfTheHourPeriod" ]
+  then
+    LogMessage "dbg" "Performing quick stream bounce at the top of the hour"
+    BounceTheStream 0
+  else
+    LogMessage "dbg" "Outside of hourly quick stream bounce range, no bounce to perform"
+  fi
+fi
+
+
+# ----------------------------------------------------------------------------
 # Network Test section.
 # 
 # Checks the network a specified number of times at intervals. If it is down,
@@ -2008,10 +2039,4 @@ fi
     
 # Debugging message for logging script start/stop times. Leave commented out.
 # LogMessage "info" "-------------------------- Ending script: $programname -------------------------"
-
-
-
-
-
-
 
