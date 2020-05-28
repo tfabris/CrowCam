@@ -688,8 +688,9 @@ WebApiAuth()
 #------------------------------------------------------------------------------
 IsStreamRunning()
 {
-    # Check the status only if we are running on the Synology.
-    if [ -z "$debugMode" ] || [[ $debugMode == *"Synology"* ]]
+    # Check the status only if we are running on the Synology, or at least at
+    # home where we can access its API on the local LAN. 
+    if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
     then
       # The response of this call will list all data for the YouTube live stream
       # upload as it is configured in Surveillance Station "Live Broadcast"

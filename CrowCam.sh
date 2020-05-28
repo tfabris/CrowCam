@@ -142,6 +142,20 @@ MaxComebackRetries=40
 shortBounceDuration=4
 longBounceDuration=135
 
+# The number of seconds to sleep after bouncing, before allowing the program
+# to continue. This prevents the program from false-alarming and reporting
+# problems in the stream, after the stream has been restarted.
+postBounceSleepTime=50
+
+# When in debug mode, set the sleep values to shorter values, so you're not
+# left sitting there waiting.
+if [ ! -z "$debugMode" ]
+then
+  shortBounceDuration=1
+  longBounceDuration=8
+  postBounceSleepTime=3
+fi
+
 # Set this global variable to a starting integer value. There is a possible
 # condition in the code if we are in test mode, where we might test the value
 # once before any value has been set for it. The issue is not harmful to the
@@ -872,7 +886,6 @@ BounceTheStream()
   # If we don't pause here, we run the risk of possibly having the next
   # section start too soon, before the bounced stream is up and running again,
   # and then detecting a false error at that time.
-  postBounceSleepTime=50
   LogMessage "dbg" "Pausing $postBounceSleepTime seconds, after bringing the stream back up again, to give the stream a chance to spin up and work"
   sleep $postBounceSleepTime
   LogMessage "dbg" "Done bouncing the stream"
@@ -1158,7 +1171,6 @@ then
   maxVideoLengthSeconds=$halfTimeSeconds
 fi  
 
-
 # Output - print the results of our calculations to the screen.
 LogMessage "dbg" "Current time:    $currentTime    ($currentTimeSeconds seconds)"
 LogMessage "dbg" "Approx Sunrise:  $sunrise  ($sunriseSeconds seconds, difference is $sunriseDifferenceSeconds)"
@@ -1168,37 +1180,49 @@ LogMessage "dbg" ""
 LogMessage "dbg" "$( OutputTimeDifference $sunriseDifferenceSeconds $(SecondsToTime $sunriseDifferenceSeconds) Sunrise )"
 LogMessage "dbg" "$( OutputTimeDifference $sunsetDifferenceSeconds $(SecondsToTime $sunsetDifferenceSeconds) Sunset )"
 LogMessage "dbg" ""
-LogMessage "dbg" "Will start the stream at about   $startServiceSeconds $(SecondsToTime $startServiceSeconds)"
-LogMessage "dbg" "Will stop it for the night at    $stopServiceSeconds $(SecondsToTime $stopServiceSeconds)"
-LogMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds $(SecondsToTime $totalStreamSeconds)"
-LogMessage "dbg" ""
 
-# Decide the behavior if we need to stop the stream before sunrise.
-if [ $currentTimeSeconds -lt $startServiceSeconds ]
+# Only print messages about start-stop times if the feature is enabled.
+if [ "$sunriseSunsetControl" = true ] 
 then
-  ChangeStreamState "down" "We are before our sunrise/start time"
+  LogMessage "dbg" "Will start the stream at about   $startServiceSeconds $(SecondsToTime $startServiceSeconds)"
+  LogMessage "dbg" "Will stop it for the night at    $stopServiceSeconds $(SecondsToTime $stopServiceSeconds)"
+  LogMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds $(SecondsToTime $totalStreamSeconds)"
+  LogMessage "dbg" ""
+else
+  LogMessage "dbg" "Sunrise-Sunset control is disabled - make sure to manually activate the stream"
 fi
 
-# Decide the behavior if we need to start the stream after sunrise.
-if [ $currentTimeSeconds -ge $startServiceSeconds ] && [ $currentTimeSeconds -lt $stopServiceSeconds ]
+# Only perform sunrise-sunset control if the feature is enabled.
+if [ "$sunriseSunsetControl" = true ] 
 then
-  ChangeStreamState "up" "We are after our sunrise/start time"
-fi
+  # Decide the behavior if we need to stop the stream before sunrise.
+  if [ $currentTimeSeconds -lt $startServiceSeconds ]
+  then
+    ChangeStreamState "down" "We are before our sunrise/start time"
+  fi
 
-# Decide the behavior if we need to stop the stream after sunset.
-if [ $currentTimeSeconds -ge $stopServiceSeconds ]
-then
-  ChangeStreamState "down" "We are after our sunset/stop time"
+  # Decide the behavior if we need to start the stream after sunrise.
+  if [ $currentTimeSeconds -ge $startServiceSeconds ] && [ $currentTimeSeconds -lt $stopServiceSeconds ]
+  then
+    ChangeStreamState "up" "We are after our sunrise/start time"
+  fi
+
+  # Decide the behavior if we need to stop the stream after sunset.
+  if [ $currentTimeSeconds -ge $stopServiceSeconds ]
+  then
+    ChangeStreamState "down" "We are after our sunset/stop time"
+  fi
 fi
 
 
 # ----------------------------------------------------------------------------
 # Bail out if Live Broadcast isn't turned on at this point.
 # 
-# The "Network Test" section of the code, which is the part following this
-# section, should only trigger if the Surveillance Station's Live Broadcast
-# feature is already turned on. If it's not on, then we don't care because the
-# stream wasn't supposed to be up in the first place.
+# The sections of the code below include testing the network, testing the
+# stream health, and controlling the length of the video stream. These should
+# only trigger if the stream is running. If the stream is shut down, then we
+# don't care about any of the code below, because the stream wasn't supposed
+# to be up in the first place.
 #
 # Note: Only perform this test after the sunrise/sunset decision has been made.
 # ----------------------------------------------------------------------------
@@ -1209,6 +1233,50 @@ then
   # program. We only need to be keep the stream alive if the stream is up.
   LogMessage "dbg" "Live stream is not currently turned on. Network checking is not needed"
   exit 0
+fi
+
+
+#------------------------------------------------------------------------------
+# Split the stream at midnight, for 24/7 cams.
+#------------------------------------------------------------------------------
+# This is a fix for a secondary issue arising from implementation of issue #65.
+#
+# The $crowcamCamstart file is only written at sunrise, or when the stream gets
+# split. This means that if you never hit a sunrise start, then the script
+# doesn't have a way of knowing how long the current video segment has been
+# running unless the stream gets split.
+#
+# This code section splits the stream at midnight to solve this problem. If we
+# are at the top of the midnight hour, (if we are within the 5-or-so minutes
+# since 00:00 on the clock) then perform a midnight split of the stream. This
+# is to ensure that the YouTube video segments are split into manageable
+# lengths no matter what, and to reset the stream start time for the new day,
+# so that none of the other calculations related to the stream length mess up
+# later. Each broadcast day needs to have a known point in time that the
+# camera was started up, and "approximate midnight" is as good a time as any
+# to do it.
+#
+# I believe that this also makes the script compatible with locations near or
+# past the arctic or antarctic circle, where some days of the year there isn't
+# a sunrise or a sunset. 
+#
+# Here's an example of the kind of bug this prevents: Let's say the stream was
+# split at 11:51 pm, and that's the timestamp written to $crowcamCamstart. The
+# next day rolls around at 00:00, but now every calculation for the rest of
+# that new day results in a negative number, so the stream never gets split
+# again. This fixes it by making sure that there's always a known start time
+# either at sunrise or at least shortly after midnight.
+#
+# Note that this code doesn't get hit if the stream was stopped by the sunset
+# control earlier in the code. So this code will only get hit if the user has
+# disabled their sunrise/sunset controls, or if they live in the land of the
+# midnight sun.
+if [ "$currentTimeSeconds" -lt "$TopOfTheHourPeriod" ]
+then
+  LogMessage "info" "Performing stream split at midnight"
+  BounceTheStream $longBounceDuration
+else
+  LogMessage "dbg" "Outside of midnight range, no midnight bounce to perform"
 fi
 
 
@@ -1273,20 +1341,37 @@ LogMessage "dbg" "End of broadcast with grace period subtracted  $gracedEndOfDay
 # split the video.
 if [ $secondsSinceCamstart -gt $maxVideoLengthSeconds ]
 then
-  # Fix issue #47: Check if the end of the broadcast day is coming up soon
-  # anyway, and if the day's endpoint is within the grace period, then don't
-  # bother to bounce the stream.
-  if [ $currentTimeSeconds -ge $gracedEndOfDay ]
+  # Only perform fancy grace period calculations if the script is configured
+  # for sunrise-sunset start-stops.
+  if [ "$sunriseSunsetControl" = true ] 
   then
-    # We are within the grace period, don't bounce the stream.
-    LogMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
-  else
-    # The end of the day is not close enough. Bounce the stream.
-    LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
+    # Fix issue #47: Check if the end of the broadcast day is coming up soon
+    # anyway, and if the day's endpoint is within the grace period, then don't
+    # bother to bounce the stream.
+    if [ $currentTimeSeconds -ge $gracedEndOfDay ]
+    then
+      # We are within the grace period, don't bounce the stream.
+      LogMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
+    else
+      # The end of the day is not close enough. Bounce the stream.
+      LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
 
-    # Perform the bounce, but only if we are not in debug mode.
-    # Use the long bounce duration here, because we are deliberately trying
-    # to split the stream into multiple sections with this bounce.
+      # Perform the bounce, but only if we are not in debug mode.
+      # Use the long bounce duration here, because we are deliberately trying
+      # to split the stream into multiple sections with this bounce.
+      if [ -z "$debugMode" ]
+      then
+        BounceTheStream $longBounceDuration
+      else
+        LogMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+      fi
+    fi
+  else
+    # If the script is not configured for sunrise-sunset start-stops, then
+    # simply bounce the stream based on length alone. But only if we are not
+    # in debug mode.
+    LogMessage "dbg" "Sunrise-Sunset control is disabled - bouncing stream based on video length without regard to the time of day"
+    LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
     if [ -z "$debugMode" ]
     then
       BounceTheStream $longBounceDuration

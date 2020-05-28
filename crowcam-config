@@ -77,6 +77,22 @@ dateBufferDays=9
 #
 desiredStreamVisibility="public"
 
+
+# Control whether or not to turn the YouTube stream on at sunrise and off at
+# sunset. This is in response to GitHub issue #65.
+# 
+# Set sunriseSunsetControl to true if you wish for the camera to turn on at
+# sunrise and off at sunset. Set it to false if you want the camera to run all
+# the time.
+#
+# Important note: If you set this to "false", then you must manually turn your
+# stream on and off yourself, by toggling the "Live: On" button in the
+# Surveillance Station, in the "Live Broadcast" feature screen.
+#
+# Recommended value: true
+sunriseSunsetControl=true
+
+
 # Camera location for using in a Google Search. Can be a zip code, a city name,
 # or something else which might result in a Google search that returns the
 # correct sunrise or sunset time. Special bonus: If you leave the location
