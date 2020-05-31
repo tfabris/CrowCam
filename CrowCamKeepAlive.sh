@@ -209,7 +209,7 @@ else
     # In the failure case, leave the file behind for forensics.
     rm -f "$executable.temp"
   else
-    LogMessage "err" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file"
+    LogMessage "err" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file. Check for possible problems with website certificate for $executableUpdateUrl"
   fi
 fi
 
