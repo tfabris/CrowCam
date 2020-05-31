@@ -180,7 +180,7 @@ LogMessage "dbg" "wget $executableUpdateUrl -q -O $executable.temp"
 # Check to make sure that some file was downloaded at all.
 if [ ! -f "$executable.temp" ]
 then
-  LogMessage "err" "Error: Unable to download $executableFilenameOnly. File did not exist after download. Will not update the file"
+  LogMessage "dbg" "Error: Unable to download $executableFilenameOnly. File did not exist after download. Will not update the file"
 else
   # Check to make sure the file is nonzero and it is not an HTML error.
   # File size if the file is successful will be either about 1758665 bytes on
@@ -209,10 +209,54 @@ else
     # In the failure case, leave the file behind for forensics.
     rm -f "$executable.temp"
   else
-    LogMessage "err" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file. Check for possible problems with website certificate for $executableUpdateUrl"
+    LogMessage "dbg" "Error: Unable to download $executableFilenameOnly. File was not large enough after download. Will not update the file. Check for possible problems with website certificate for $executableUpdateUrl"
   fi
 fi
 
+# -----------------------------------------------------------------------------
+# Log a non-debug error message if the youtube-dl file is out of date.
+# -----------------------------------------------------------------------------
+
+# Improve log messages related to GitHub issue #66. When the site which hosts
+# the latest copy of YouTube-DL is having problems, then the log gets filled
+# up with too many error messages. Reduce the number of log messages during
+# the initial hours of the problems (change the messages above to all
+# non-debug), and hope that, whatever problem they're having (an expired cert
+# in the issue #66 case), it's fixed within the time range defined below. If
+# they haven't fixed it by that time, THEN start writing non-debug errors to
+# the log.
+#
+# To look up the file age, use the Bash "find" statement with the "-mmin"
+# parameter (search based on the file age in minutes). The "+" symbol before
+# the ageLimit indicates that the statement should return "true" if the file
+# is *older* than the indicated age. This was obtained from this StackOverflow
+# answer: https://stackoverflow.com/a/552750/3621748
+# However, that StackOverflow answer contains a fatal flaw which is not
+# discussed there. There is a problem where the listed answer will not work
+# if the path of the file contains a space. Instead, we must deviate from the
+# StackOverflow answer a little bit. Here's why: When it fails to find a file
+# of the appropriate age, it will return a null string, i.e., "false", and
+# when it finds a file of the appropriate age, it will return a string of the
+# file name including the path. This is usually OK for a true/false test,
+# since a nonblank string is considered "true" by the "if" statement, EXCEPT
+# if the path contains a space. In that case, it returns two unquoted strings
+# separated by a space, which would cause a "Unary Operator Expected" error
+# message if you don't put quotes in the right places. In this case, the
+# quotes have to be around the call to the "find" command, because what we
+# are quoting is the RETURN VALUE that the find command returns, as well as
+# quoting the filename we're passing into it, like this:
+#        "$( find "$filename" params )"
+# I don't know why the double-nested double-quotes work there, but they do.
+# Also, the test can no longer be a straight true/false, it must now be a
+# test for a null string comparison in order to work correctly:
+#        [ "$( find "$filename" params )" != "" ]
+# Thanks to Shonky from the EmpegBBS for understanding and explaining this
+# tricky issue: https://empegbbs.com/ubbthreads.php/topics/371885
+executableAgeLimit=4320 # 4320 minutes is 72 hours (3 days) of age.
+if [ ! -f "$executable" ] || [ "$( find "$executable" -mmin +$executableAgeLimit )" != "" ]
+then
+  LogMessage "err" "Error: Unable to download $executableFilenameOnly recently. Check for possible problems with the website or the certificate for $executableUpdateUrl"
+fi
 
 # -----------------------------------------------------------------------------
 # Perform the keep-alive operation.
