@@ -255,7 +255,16 @@ fi
 executableAgeLimit=4320 # 4320 minutes is 72 hours (3 days) of age.
 if [ ! -f "$executable" ] || [ "$( find "$executable" -mmin +$executableAgeLimit )" != "" ]
 then
-  LogMessage "err" "Error: Unable to download $executableFilenameOnly recently. Check for possible problems with the website or the certificate for $executableUpdateUrl"
+  # If the problem exists, only log the problem late at night. If we logged
+  # this issue every time there was a failure, it would be too much noise in
+  # the Synology logs. But it's important to know if there is a failure, so I
+  # still want a failure log sometimes. The compromise is to log it to the
+  # Synology system log only during the midnight hour.
+  currentHour=$( date +"%H" )
+  if [ "$currentHour" = "00" ]
+  then
+    LogMessage "err" "Error: Unable to download $executableFilenameOnly recently. Check for possible problems with the website or the certificate for $executableUpdateUrl"
+  fi
 fi
 
 # -----------------------------------------------------------------------------
