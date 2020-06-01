@@ -221,7 +221,7 @@ fi
 # the latest copy of YouTube-DL is having problems, then the log gets filled
 # up with too many error messages. Reduce the number of log messages during
 # the initial hours of the problems (change the messages above to all
-# non-debug), and hope that, whatever problem they're having (an expired cert
+# debug-only), and hope that, whatever problem they're having (an expired cert
 # in the issue #66 case), it's fixed within the time range defined below. If
 # they haven't fixed it by that time, THEN start writing non-debug errors to
 # the log.
