@@ -174,8 +174,8 @@ executableUpdateUrl="https://yt-dl.org/downloads/latest/$executableFilenameOnly"
 rm -f "$executable.temp"
 
 # Download the update file. It is simply the actual loose executable file.
-LogMessage "dbg" "wget $executableUpdateUrl -q -O $executable.temp"
-                  wget $executableUpdateUrl -q -O "$executable.temp"
+LogMessage "dbg" "wget $executableUpdateUrl -O $executable.temp"
+    wgetOutput=$( wget $executableUpdateUrl -O "$executable.temp" 2>&1 )
 
 # Check to make sure that some file was downloaded at all.
 if [ ! -f "$executable.temp" ]
@@ -190,6 +190,43 @@ else
   minimumsize=1000000
   actualsize=$(wc -c <"$executable.temp")
   LogMessage "dbg" "Downloaded file was $actualsize bytes"
+
+  # Work around AddTrust Root Expiration problem which occurred on 2020-05-30
+  # and caused GitHub issue #66. Details of the issue can be found here:
+  #   https://support.sectigo.com/Com_KnowledgeDetailPage?Id=kA03l00000117LT
+  #   https://www.reddit.com/r/qnap/comments/gu0kfy/ca_root_certificate_expired/
+  #   https://www.stephenwagner.com/2020/06/01/sophos-utm-xg-untrusted-website-certificate-expired-april-may-2020/
+  #   https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
+  # Find out if the error message was the exact error message from the AddTrust
+  # expiration issue, and if it's that exact error, then try re-downloading it
+  # with the "--no-check-certificate" command line parameter. Don't just add
+  # "--no-check-certificate" every time, because we don't want to completely
+  # defeat security checking, we only want to do it in this one specific case.
+
+  # Create the string that we need to check against the output. This is very
+  # specific and the escape sequences and string positions must be just right.
+  # In particular, the string has some angled quotes in very specific spots. And
+  # and and... The angled quotes are slightly different depending on which
+  # linux/unix variant I'm running, so I have to compare two different possible
+  # strings. Programming is fun!
+  addTrustErrorString=$'ERROR: cannot verify yt-dl.org\'s certificate, issued by ‘CN=COMODO RSA Domain Validation Secure Server CA,O=COMODO CA Limited,L=Salford,ST=Greater Manchester,C=GB’:\n  Issued certificate has expired.\nTo connect to yt-dl.org insecurely, use `--no-check-certificate\'.'
+  addTrustErrorStringAlternate=$'ERROR: cannot verify yt-dl.org\'s certificate, issued by \'CN=COMODO RSA Domain Validation Secure Server CA,O=COMODO CA Limited,L=Salford,ST=Greater Manchester,C=GB\':\n  Issued certificate has expired.\nTo connect to yt-dl.org insecurely, use `--no-check-certificate\'.'
+
+  # If the AddTrust error occurs, the actual size of the file will be 0.
+  if [ $actualsize -eq 0 ]
+  then  
+    if [[ $wgetOutput == *"$addTrustErrorString"* ]] || [[ $wgetOutput == *"$addTrustErrorStringAlternate"* ]]
+    then
+      LogMessage "dbg" "AddTrust Root Expiration known issue has been detected. Performing retry with --no-check-certificate"
+      wget $executableUpdateUrl --no-check-certificate -q -O "$executable.temp"
+      actualsize=$(wc -c <"$executable.temp")
+    else
+      LogMessage "dbg" "No issue with AddTrust detected, but the file size was zero"
+    fi
+  fi
+
+  # Now that we have checked for and/or worked around the AddTrust error, now
+  # check the actual file size of the final downloaded file.
   if [ $actualsize -ge $minimumsize ]; then
     # Log download success.
     LogMessage "dbg" "File $executableFilenameOnly was successfully downloaded, copying into place"
