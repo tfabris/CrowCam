@@ -210,7 +210,7 @@ maxVideoLengthGracePeriod=3600
 #
 # Recommended value: true
 #
-hourlyQuickBounce=true
+hourlyQuickBounce=false
 
 
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
