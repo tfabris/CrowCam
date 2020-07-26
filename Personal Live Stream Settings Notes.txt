@@ -81,7 +81,7 @@ Stream profile: All three set to "Stream 1"
 "Stream 1" settings - Resolution: 1920x1080
 "Stream 1" settings - Frame Rate: 30
 "Stream 1" settings - Bitrate: Constant
-"Stream 1" settings - Bitrate KBPS: 2500
+"Stream 1" settings - Bitrate KBPS: 2048
 
 IP Camera - Edit - Device Settings - Advanced
 
@@ -111,9 +111,8 @@ Other recording settings: All set to "High Quality"
 
 IP Camera - Edit - Optimization - Advanced
 
-    Force Restart when camera is disconnected: Enabled
-    Restart after (mins): 5
-    (Automatic restart schedule is left up to the camera.)
+    Force Restart when camera is disconnected: Disabled
+    (Automatic restart schedule is left up to the camera and CrowCam.)
 
 IP Camera - Edit - Event Detection - Motion
 
@@ -121,7 +120,7 @@ Detection source: By Surveillance Station
 Edit Detection Area: (hand-customized area)
 Sensitivity: 87
 Threshold: 5
-Ignore short lived motion: 5 seconds
+Ignore short lived motion: 3 seconds
 
 
 Dahua Camera Settings - Web UI - 192.168.0.185
@@ -146,6 +145,11 @@ Setting - Conditions - Zoom and Focus
 Setting - Video - Main Stream
 
     (Encoder settings are coming from Synology)
+
+    Note: Changing settings may affect the bit rate. Change the bit rate back
+    down  as low as it will go after making any changes. Try 2048. When I did
+    that it selected 2304 as the final bit rate. Trying to keep this down so
+    that we don't bust Comcast quota.
 
 Setting - Video - Sub Stream
 
@@ -211,4 +215,10 @@ Setting - System - Auto Maintain
 
     Auto Reboot: Everyday 02:55
 
+Setting - System - Upgrade
+    Auto-check for updates: Enabled.
 
+    Last update was performed:
+        2020-07-26
+        System Version 2.622.0000000.18.R, Build Date: 2017-11-10
+        Found New Version 2.622.0000000.31.R.180813
