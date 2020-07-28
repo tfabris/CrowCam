@@ -213,6 +213,21 @@ maxVideoLengthGracePeriod=3600
 hourlyQuickBounce=false
 
 
+# Special feature which forces the YouTube stream to be always-off. This
+# should only be enabled in certain unusual situations. This feature allows
+# you to leave the script running, but have the script deliberately shut down
+# the YouTube stream, and keep it shut down.
+#
+# Set forceStreamShutdown to true, for the script to shut down the YouTube
+# stream and exit, every time it runs. Most of the other features of the
+# script will not do anything because they will be skipped when it's in this
+# mode.
+#
+# Recommended value: false
+#
+forceStreamShutdown=true 
+
+
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
 # accessing, from the point of view of the script running on the NAS itself
 # (i.e., loopback/localhost). This value is used when querying the Synology API

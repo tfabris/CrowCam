@@ -998,6 +998,16 @@ fi
 
 
 # ----------------------------------------------------------------------------
+# Force stream to shut down, then exit, if forceStreamShutdown is enabled.
+# ----------------------------------------------------------------------------
+if [ "$forceStreamShutdown" = true ]
+then
+  ChangeStreamState "down" "ForceStreamShutdown: Flag is set to true"
+  exit 0
+fi
+
+
+# ----------------------------------------------------------------------------
 # YouTube Stream uptime control section.
 #
 # First, determine if the YouTube Stream should be up or down at this time of
