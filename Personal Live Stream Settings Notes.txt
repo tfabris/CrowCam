@@ -81,7 +81,9 @@ Stream profile: All three set to "Stream 1"
 "Stream 1" settings - Resolution: 1920x1080
 "Stream 1" settings - Frame Rate: 30
 "Stream 1" settings - Bitrate: Constant
-"Stream 1" settings - Bitrate KBPS: 2048
+"Stream 1" settings - Bitrate KBPS: 2304
+   Note: 2304 is lowest setting the camera allows. Do not set
+   lower values, that might cause camera to jump back to 8192.
 
 IP Camera - Edit - Device Settings - Advanced
 
@@ -89,6 +91,7 @@ Use a speaker: Unchecked
 Transport Protocol: Auto
 Keep alive method: OPTIONS (Default)
 Streaming information source: RSTP
+Customize keyframe interval: 30
 Enable PTZ control: Checked
 
 IP Camera - Edit - Recording Settings - Recording
@@ -144,12 +147,19 @@ Setting - Conditions - Zoom and Focus
 
 Setting - Video - Main Stream
 
-    (Encoder settings are coming from Synology)
+    Encode Mode: H.264H
+    Smart Codec: Off
+    Resolution: 1920x1080(1080P)
+    Frame Rate: 30
+    Bit Rate Type: CBR
+    Bit Rate: Customized
+    KB/S: 2304 (this is the lowest setting that will stick)
+    iFrame Interval: 30 (most frequent setting allowed)
 
     Note: Changing settings may affect the bit rate. Change the bit rate back
-    down  as low as it will go after making any changes. Try 2048. When I did
-    that it selected 2304 as the final bit rate. Trying to keep this down so
-    that we don't bust Comcast quota.
+    down as low as it will go after making any changes. It seems that 2304 is
+    the lowest setting the camera will allow, other settings seem to make it
+    jump back up to 8192 if you're not careful.
 
 Setting - Video - Sub Stream
 
