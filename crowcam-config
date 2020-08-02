@@ -225,7 +225,7 @@ hourlyQuickBounce=false
 #
 # Recommended value: false
 #
-forceStreamShutdown=true 
+forceStreamShutdown=false 
 
 
 # The webApiRootUrl is the base URL of the API of the Synology NAS we are
