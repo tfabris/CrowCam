@@ -405,3 +405,27 @@ cookieFileName="wgetcookies.txt"
 TestSite=8.8.8.8
 
 
+# The configOverride is a path and file name pointing to an override config
+# file which allows you to create a secondary config file which overrides
+# this config file. If you wish to override settings in this file, you can
+# create a file in this same directory called "crowcam-override-config" and
+# then populate it with any variables you like. Note: File should be in this
+# same kind of format and begin with a shebang (aka #!/bin/bash) and should
+# only contain variables which you wish to override.
+# 
+# Do not change this value.
+#
+configOverride="$DIR/crowcam-override-config"
+
+
+# Code to load any override variables found in the override config.
+#
+# Do not change this code.
+#
+if [ -e "$configOverride" ]
+then
+  echo "Loading override config $configOverride"
+  source "$configOverride"
+fi
+
+

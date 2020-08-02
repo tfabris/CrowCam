@@ -1,6 +1,7 @@
 .DS_Store
 api-creds
 client_id.json
+crowcam-override-config
 crowcam-tokens
 crowcam-sunrise
 crowcam-sunset
