@@ -842,6 +842,16 @@ ChangeStreamState()
 #------------------------------------------------------------------------------
 BounceTheStream()
 {
+  # Attempt to fix GitHub issue #67 - Recheck to make sure the stream is
+  # supposed to be up before trying to bounce it. If the stream is not set to
+  # be "up" right now, then do nothing and exit the function.
+  currentStreamState=$( IsStreamRunning )
+  if ! [ "$currentStreamState" = true ]
+  then
+    LogMessage "dbg" "Live stream is not currently turned on. Bouncing the stream is not needed"
+    exit 0
+  fi
+
   # Only bounce the stream if we are running on the Synology, or at least at
   # home where we can access its API on the local LAN. 
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
