@@ -848,7 +848,7 @@ BounceTheStream()
   currentStreamState=$( IsStreamRunning )
   if ! [ "$currentStreamState" = true ]
   then
-    LogMessage "dbg" "Live stream is not currently turned on. Bouncing the stream is not needed"
+    LogMessage "err" "Live stream is not currently turned on. Bouncing the stream is not needed"
     exit 0
   fi
 
