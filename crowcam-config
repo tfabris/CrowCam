@@ -125,13 +125,15 @@ location=""
 # Set these to your desired start and stop offset values.
 # 
 startServiceOffset=20
-stopServiceOffset=-90
+stopServiceOffset=-120
 
 
-# Maximum length, in seconds, that a video streaming segment is allowed to get,
-# before the code will attempt to split the video stream into another segment.
-# It will do this by bouncing the video stream, if it's been successfully up
-# and running for longer than this configured value.
+# maxVideoLengthSeconds - Maximum length, in seconds, that an archived video
+# stream segment is allowed to get, before the code will attempt to split the
+# video stream into another segment. If the stream been running for longer
+# than this configured value, then the script will split the stream into
+# multiple segments by "bouncing" it, i.e., temporarily stopping the stream
+# for a couple of minutes. 
 #
 # Problems can occur with YouTube video archives if we try to record a stream
 # which lasts too long in any given day. The first problem is that the maximum
@@ -143,7 +145,15 @@ stopServiceOffset=-90
 # video file is too large. So splitting the video during the day, even if it's
 # not having any network troubles, is useful to do.
 #
-# Recommend setting maxVideoLengthSeconds to a value which is slightly less
+# Recommend setting maxVideoLengthSeconds to 4 hours, because this allows the
+# segment to be post-processed by YouTube relatively quickly. I have tried
+# setting it to 7 hours, to split a summer day's archive into two segments,
+# but YouTube often takes too long to post-process 7-hour videos, making it
+# hard to edit the video, or to insert accurate timestamps into the video
+# description, unless I wait a few days before performing the edits.
+#
+# If you don't care about quickly the video gets post-processed by YouTube,
+# then I recommend setting the value to a length which is slightly less
 # than the winter solstice daylight hours in your region, and/or slightly less
 # than half of the summer solstice daylight hours. For instance, if the
 # shortest day of your year is going to be 8.5 hours, and the longest day of
@@ -154,16 +164,13 @@ stopServiceOffset=-90
 # couple of minutes, so don't make this number too small, or else you'll have
 # too many moments of downtime during the day.
 #
-# Set this variable to be the desired maximum video length, recommended to be
-# as short as about 4 hours, and as long as about 11 hours.
-#
 # Some possible values could be:
-#    maxVideoLengthSeconds=42900    (11 hours and 55 minutes, max recommended)
+#    maxVideoLengthSeconds=42900    (11 hours and 55 minutes, max value)
 #    maxVideoLengthSeconds=39600    (11 hours)
 #    maxVideoLengthSeconds=28800    (8 hours)
 #    maxVideoLengthSeconds=25200    (7 hours)
 #    maxVideoLengthSeconds=21600    (6 hours)
-#    maxVideoLengthSeconds=14400    (4 hours, minimum recommended)
+#    maxVideoLengthSeconds=14400    (4 hours, recommended)
 maxVideoLengthSeconds=14400
 
 

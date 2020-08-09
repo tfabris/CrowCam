@@ -226,6 +226,14 @@ Edit the file named "crowcam-config" (no file extension), and update the first
 several variables in the file. These are values which are unique to your
 installation. They are clearly documented in the file.
 
+- _**Optional**_: Instead of editing "crowcam-config", you could also create a
+  file in the same folder, named "crowcam-override-config", add a shebang to the
+  top of the file (`#!/bin/bash`) and enter any variables that want to be
+  different from crowcam-config. This is useful if, for example, you want to
+  subscribe to the GitHub repository and keep the code updated, if you want a
+  simpler file to update, or if you want an external program to write small
+  configuration changes to the override file.
+
 ####  Create API credentials file:
 Create an API credentials file named "api-creds" (no file extension),
 containing a single line of ASCII text: A username, a space, and then a
@@ -341,6 +349,7 @@ Copy the following files from your local PC into the folder on the NAS:
      CrowCamCleanup.sh
      CrowCamHelperFunctions.sh
      crowcam-config
+     crowcam-override-config    (if you created one)
      youtube-dl
      api-creds
      crowcam-tokens
@@ -356,6 +365,7 @@ Set the access permissions on the folder and its files, using the SSH prompt:
      cd CrowCam
      chmod 770 CrowCam*.sh
      chmod 770 crowcam-config
+     chmod 770 crowcam-override-config
      chmod 770 youtube-dl
      chmod 660 api-creds
      chmod 660 crowcam-tokens
@@ -434,8 +444,19 @@ You can then do one or both of the following:
      bash "/volume1/homes/admin/CrowCam/(scriptname).sh" >> "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
 ```
 
+- Note that if the script is running from the Synology Task Scheduler, it will
+  run under the account "root" which is different from the account that it will
+  run under when you are logged in with an SSH prompt. So some differences may
+  occur. For example, the script may write a temporary file called
+  "wgetcookies.txt" to store cookies when accessing the Synology API, and the
+  file might end up in different locations. If running the script directly at
+  the SSH prompt, the file will end up in that directory, but if running under
+  Synology Task Scheduler, the file will end up in the "/root" folder.
+
 You can also configure the script to one of the other debugMode settings, to
-test it on a local Windows or Mac computer, and run the script there.
+test it on a local Windows or Mac computer, and run the script there. The
+debug mode has some limitations when running under Windows or Mac, and will
+skip certain commands and features if debugged in those states.
 
 Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
