@@ -1013,6 +1013,19 @@ fi
 if [ "$forceStreamShutdown" = true ]
 then
   ChangeStreamState "down" "ForceStreamShutdown: Flag is set to true"
+
+  # Attempt to fix bug: If the stream has been turned off by hand (external to
+  # this script) and the ForceStreamShutdown flag has been set to true, then
+  # there is a chance that, when both of those things get set back to normal
+  # again, then this script thinks that the stream has been running
+  # continuously that whole time that it was actually shut down by hand, and
+  # so it tries to split the stream the next time that the script pops up with
+  # the flag off. Try to fix that glitch by writing the stream start time
+  # every time that this flag is detected. It's not accurate (the stream
+  # didn't start at that time, it stopped), but it's at least a bit closer to
+  # accurate than if we didn't do this.
+  WriteStreamStartTime
+
   exit 0
 fi
 
