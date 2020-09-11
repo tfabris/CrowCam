@@ -51,11 +51,13 @@ Spark online, by logging in with my Adobe ID account credentials)
 
 Category: Pets & Animals
 
-Stream Optimizations: Normal Latency
+Stream Optimizations: Ultra low latency
 
 Activate the "Make archive unlisted when complete" feature. This setting is
 unchecked by default, and can be found in both the basic settings screen and
 the advanced settings screen.
+
+Playlists: CrowCam Archives
 
 Tags: 
 Crows, Squirrels, Animals, Live, Cam, Webcam, Birds, Birdwatching
@@ -68,6 +70,10 @@ Crows, Squirrels, Animals, Live, Cam, Webcam, Birds, Birdwatching
 - If you take the string above with the commas, and paste the whole string
   into the tags field, with the commas, it works.
 
+More Options:
+- Enable live Chat
+- Allow live chage to replay
+- Video Location
 
 Synology NAS Surveillance Station settings
 ------------------------------------------

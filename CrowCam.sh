@@ -1615,7 +1615,12 @@ else
     etag=""
     etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "etag" | cut -d '"' -f5 | cut -d '\' -f1)
     LogMessage "dbg" "etag: $etag"
-    if test -z "$etag"; then safeToFixStreamKey=false; fi
+
+    # Update 2020-09-10 - Suddenly etag isn't being retrieved any more. 
+    # Despite what the docs said, it doesn't seem to be needed, so allow for
+    # this to be blank and don't invalidate the stream update process just
+    # because this is missing.
+    #    if test -z "$etag"; then safeToFixStreamKey=false; fi
 
     channelId=""
     channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
@@ -1640,7 +1645,12 @@ else
     liveChatId=""
     liveChatId=$(echo $liveBroadcastOutput | sed 's/"liveChatId"/\'$'\n&/g' | grep -m 1 "liveChatId" | cut -d '"' -f4)
     LogMessage "dbg" "liveChatId: $liveChatId"
-    if test -z "$liveChatId"; then safeToFixStreamKey=false; fi
+
+    # Update 2020-09-10 - Suddenly liveChatId isn't being retrieved any more. 
+    # Despite what the docs said, it doesn't seem to be needed, so allow for
+    # this to be blank and don't invalidate the stream update process just
+    # because this is missing.
+    #    if test -z "$liveChatId"; then safeToFixStreamKey=false; fi
     
     boundStreamId=""
     boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
