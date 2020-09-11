@@ -284,7 +284,7 @@ Test_Stream()
       # Get the current live broadcast information details as a prelude to obtaining
       # the live stream details. Details of the items in the response are found here:
       # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=all&mine=true&access_token=$accessToken"
       liveBroadcastOutput=""
       liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
     
@@ -1472,7 +1472,7 @@ else
   # field as well, for verification that we're working on the right video. You
   # can request a bunch of "parts" of data simultaneously by requesting them all
   # together separated by commas, like part=id,snippet,contentDetails,status etc.
-  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&broadcastType=persistent&mine=true&access_token=$accessToken"
+  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&broadcastType=all&mine=true&access_token=$accessToken"
   liveBroadcastOutput=""
   liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 
@@ -1779,7 +1779,7 @@ else
       # are also included in the curlData for the PUT command. In other words,
       # if the URL contains "part=status", then you must also have
       # "status:<some data>" in the JSON data being posted to the API.
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,status&broadcastType=persistent&mine=true&access_token=$accessToken"
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,status&broadcastType=all&mine=true&access_token=$accessToken"
       curlData=""
       curlData+="{"
         curlData+="\"id\": \"$thisStreamId\","
