@@ -284,6 +284,16 @@ Test_Stream()
       # Get the current live broadcast information details as a prelude to obtaining
       # the live stream details. Details of the items in the response are found here:
       # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
+
+      # Update: "Default" broadcasts and "Persistent" broadcasts have been
+      # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
+      # have to rework the code in order for these scripts to function as
+      # intended again. Currently the deprecation release notes say that
+      # isDefaultBroadcast is deprecated, and also "If the broadcastType
+      # parameter value is persistent, then the liveBroadcasts.list method
+      # will not return any results." more information here:
+      # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
+      # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
       curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
       liveBroadcastOutput=""
       liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
@@ -1472,6 +1482,16 @@ else
   # field as well, for verification that we're working on the right video. You
   # can request a bunch of "parts" of data simultaneously by requesting them all
   # together separated by commas, like part=id,snippet,contentDetails,status etc.
+
+  # Update: "Default" broadcasts and "Persistent" broadcasts have been
+  # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
+  # have to rework the code in order for these scripts to function as
+  # intended again. Currently the deprecation release notes say that
+  # isDefaultBroadcast is deprecated, and also "If the broadcastType
+  # parameter value is persistent, then the liveBroadcasts.list method
+  # will not return any results." more information here:
+  # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
+  # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
   curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&broadcastType=persistent&mine=true&access_token=$accessToken"
   liveBroadcastOutput=""
   liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
@@ -1637,6 +1657,15 @@ else
     LogMessage "dbg" "actualStartTime: $actualStartTime"
     if test -z "$actualStartTime"; then safeToFixStreamKey=false; fi
     
+    # Update: "Default" broadcasts and "Persistent" broadcasts have been
+    # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
+    # have to rework the code in order for these scripts to function as
+    # intended again. Currently the deprecation release notes say that
+    # isDefaultBroadcast is deprecated, and also "If the broadcastType
+    # parameter value is persistent, then the liveBroadcasts.list method
+    # will not return any results." more information here:
+    # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
+    # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast    
     isDefaultBroadcast=""
     isDefaultBroadcast=$(echo $liveBroadcastOutput | sed 's/"isDefaultBroadcast"/\'$'\n&/g' | grep -m 1 "isDefaultBroadcast" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "isDefaultBroadcast: $isDefaultBroadcast"
@@ -1779,6 +1808,16 @@ else
       # are also included in the curlData for the PUT command. In other words,
       # if the URL contains "part=status", then you must also have
       # "status:<some data>" in the JSON data being posted to the API.
+
+      # Update: "Default" broadcasts and "Persistent" broadcasts have been
+      # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
+      # have to rework the code in order for these scripts to function as
+      # intended again. Currently the deprecation release notes say that
+      # isDefaultBroadcast is deprecated, and also "If the broadcastType
+      # parameter value is persistent, then the liveBroadcasts.list method
+      # will not return any results." more information here:
+      # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
+      # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
       curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,status&broadcastType=persistent&mine=true&access_token=$accessToken"
       curlData=""
       curlData+="{"
