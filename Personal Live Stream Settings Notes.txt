@@ -16,7 +16,7 @@ Here are my personal settings:
 Video Description
 -----------------
 
-Here is a permanent link to the most current live stream: https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live
+Here is a permanent link to the most current live stream: https://www.youtube.com/channel/UCUxIqdJJpXBnjaEy5yq1wZQ/live
 
 Video history highlights: http://vixyandtony.com/crowcam.html
 --- 
@@ -72,7 +72,8 @@ Crows, Squirrels, Animals, Live, Cam, Webcam, Birds, Birdwatching
 
 More Options:
 - Enable live Chat
-- Allow live chage to replay
+- Enable Live Chat Replay
+- Disable Live Reactions
 - Video Location
 
 Synology NAS Surveillance Station settings

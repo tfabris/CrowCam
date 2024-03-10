@@ -31,7 +31,7 @@
 #
 # Update this value to point to your channel's live stream.
 #
-youTubeUrl="https://www.youtube.com/channel/UCqPZGFtBau8rm7wnScxdA3g/live"
+youTubeUrl="https://www.youtube.com/channel/UCUxIqdJJpXBnjaEy5yq1wZQ/live"
 
 
 # Title of videos within the stream, to clean up at regular intervals. Only
