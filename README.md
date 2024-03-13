@@ -314,11 +314,26 @@ credentials.
 - A screen will show the client ID and client secret. You do not need to copy
   them to the clipboard, they will be in the file you're about to download.
   Press OK.
-- The Credentials screen should now show your credentials. Locate the
-  "download" icon on the right side of the screen (a small downward-pointing
-  arrow). Press that icon. It should download a client secret file.
+- You may be given a prompt to download a JSON file, if so, download it.
+- The Credentials screen should now show your credentials. You can also
+  download the JSON file from this screen by pressing the "download" icon on
+  the right side of the screen (a small downward-pointing arrow).
 - Rename the file that you downloaded to "client_id.json"
 - Place the file in the same directory as these script files.
+
+####  Prepare a temporary local webserver to display the authorization code:
+I'm very sorry for this step, but Google recently deprecated their "OOB" flow
+for OAuth credentials, and so an additional step is now necessary to get the
+authorization code to access the YouTube API and make changes.
+
+(TO DO: I need to insert instructions here, describing how to temporarily run a
+localhost web server which can display the authorization code that Google's
+authorization process uses. This is complex, but it boils down to allowing
+queries made to "localhost" from your web browser to execute the PHP command
+`$_SERVER['QUERY_STRING'];` to echo back the code so that you can copy and
+paste it into the script below to complete the authorization process. I have a
+generic html/php page which works for this step, I just need to integrate it
+into these instructions.)
 
 ####  Run preparation script, to authorize your YouTube account:
 Run the CrowCamCleanupPreparation script. This script will authorize the Google
