@@ -140,7 +140,31 @@ echo ""
 # insufficient authentication scopes." So make sure you use the "Installed
 # application flow" scope, https://www.googleapis.com/auth/youtube.
 #
-authUrl="https://accounts.google.com/o/oauth2/auth?client_id=$clientId&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/youtube&response_type=code"
+# GitHub issue #69 - Fix Google's deprecation of the the "OOB" flow. This
+# turns out to be simply replacing the URL "urn:ietf:wg:oauth:2.0:oob" with
+# your own web page which can display the query request which includes the
+# auth code. Here's how it works. When you ask for a google auth, it makes
+# a query to your "application" (i.e., whatever you put into the parameter
+# redirect_uri=). For example, if your auth requests to google includes
+# this parameter in its request...
+#
+#   &redirect_uri=http://localhost/somepage.html
+#
+# Then after you complete the auth steps in your web browser, then Google
+# will cause your web browser to redirect and open up the following page:
+# 
+#   http://localhost/somepage.html?code=4/0AeaYSH...etc...&scope=https://www.googleapis.com/auth/youtube
+#
+# The important part of the request in this case is the "code=" part.
+# I have created a web page at http://localhost/requestheaders.html
+# which uses a PHP command "$_SERVER['QUERY_STRING'];" to echo back that code
+# to the user so that you can copy and paste it into this script and complete
+# the authorization process. 
+#
+# Old code with the deprecated "oob" redirect:
+#      authUrl="https://accounts.google.com/o/oauth2/auth?client_id=$clientId&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/youtube&response_type=code"
+
+authUrl="https://accounts.google.com/o/oauth2/auth?client_id=$clientId&redirect_uri=http://localhost/requestheaders.html&scope=https://www.googleapis.com/auth/youtube&response_type=code"
 echo "Authorization URL: $authUrl"
 
 echo ""
@@ -155,12 +179,17 @@ echo ""
 echo " - If you are given an option to select the Brand Account for your"
 echo "   YouTube channel, then choose that Brand Account."
 echo ""
+echo " - Google may display a prompt that it hasn't verified this app,"
+echo "   so it may be unsafe. Press the ADVANCED link and then press"
+echo "   GO TO AppName (unsafe). This is OK to do because it is referring"
+echo "   to the OAuth credentials that you created yourself."
+echo ""
 echo " - Grant the app the permission to manage your YouTube account."
 echo ""
-echo " - It will give you an authentication code. Important: copy that"
-echo "   authentication code to the clipboard."
+echo " - You should be redirected to a web page that will give you an"
+echo "   authentication code. Important: copy that code to the clipboard."
 echo ""
-echo " - Once the code is copied to the clipbard, close the browser and"
+echo " - Once the code is copied to the clipboard, close the browser and"
 echo "   come back to this window."
 echo ""
 read -n 1 -s -r -p "Press any key when you are ready to perform these steps."
@@ -257,7 +286,13 @@ fi
 # This can only be done once, and subsequent times it will get an error.
 
 refreshTokenOutput=""
-refreshTokenOutput=$( curl -s --request POST --data "code=$authenticationCode&client_id=$clientId&client_secret=$clientSecret&redirect_uri=urn:ietf:wg:oauth:2.0:oob&grant_type=authorization_code" https://accounts.google.com/o/oauth2/token )
+
+# GitHub issue #69 - Fix Google's deprecation of the the "OOB" flow.
+# Old code with the deprecated "oob" redirect:
+# refreshTokenOutput=$( curl -s --request POST --data "code=$authenticationCode&client_id=$clientId&client_secret=$clientSecret&redirect_uri=urn:ietf:wg:oauth:2.0:oob&grant_type=authorization_code" https://accounts.google.com/o/oauth2/token )
+
+refreshTokenOutput=$( curl -s --request POST --data "code=$authenticationCode&client_id=$clientId&client_secret=$clientSecret&redirect_uri=http://localhost/requestheaders.html&grant_type=authorization_code" https://accounts.google.com/o/oauth2/token )
+
 echo ""
 echo "Refresh Token Output:"
 echo "$refreshTokenOutput"
