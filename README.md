@@ -267,21 +267,6 @@ Surveillance Station "Live Broadcast" feature on and off. The built-in account
 different user for security reasons. Create the "api-creds" file and place it
 in the same directory as these scripts.
 
-####  Get YouTube-dl:
-YouTube-dl is a third party program which downloads video streams and other
-information from YouTube. We use it for checking and connecting to the YouTube
-live stream in an automated fashion. It is used for checking whether the stream
-is up, and for making sure that the stream's DVR cache stays functional at all
-times. Obtain the Linux and Windows binary executables of youtube-dl (one file
-each, "youtube-dl" and "youtube-dl.exe") and place them in the same folder as
-these scripts. Youtube-dl is obtained either by grabbing both files from
-[the YouTube-dl web site](https://ytdl-org.github.io/youtube-dl/download.html),
-or by issuing these commands at the Bash shell prompt in the same directory as
-these script files:
-
-     wget https://yt-dl.org/downloads/latest/youtube-dl -O ./youtube-dl
-     wget https://yt-dl.org/downloads/latest/youtube-dl.exe -O ./youtube-dl.exe
-
 ####  Obtain OAuth credentials:
 OAuth credentials are used for giving these scripts permission to access the
 YouTube account, so that it can do things such as clean up old video stream
