@@ -273,6 +273,8 @@ YouTube account, so that it can do things such as clean up old video stream
 archives and check on the status of the stream. You should only need create
 these credentials once, unless something goes wrong or you revoke the
 credentials.
+- If you don't have a Google developer account yet, create one at
+  https://developers.google.com/
 - Navigate to your Google developer account dashboard at
   https://console.developers.google.com/apis/dashboard
 - At the top of the screen should be a pull down list that allows you to
@@ -305,20 +307,6 @@ credentials.
   the right side of the screen (a small downward-pointing arrow).
 - Rename the file that you downloaded to "client_id.json"
 - Place the file in the same directory as these script files.
-
-####  Prepare a temporary local webserver to display the authorization code:
-I'm very sorry for this step, but Google recently deprecated their "OOB" flow
-for OAuth credentials, and so an additional step is now necessary to get the
-authorization code to access the YouTube API and make changes.
-
-(TO DO: I need to insert instructions here, describing how to temporarily run a
-localhost web server which can display the authorization code that Google's
-authorization process uses. This is complex, but it boils down to allowing
-queries made to "localhost" from your web browser to execute the PHP command
-`$_SERVER['QUERY_STRING'];` to echo back the code so that you can copy and
-paste it into the script below to complete the authorization process. I have a
-generic html/php page which works for this step, I just need to integrate it
-into these instructions.)
 
 ####  Run preparation script, to authorize your YouTube account:
 Run the CrowCamCleanupPreparation script. This script will authorize the Google

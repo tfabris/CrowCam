@@ -39,7 +39,7 @@ export TOP_PID=$$
 debugMode=""         # True final runtime mode for Synology.
 # debugMode="Synology" # Test on Synology SSH prompt, console or redirect output.
 # debugMode="MacHome"  # Test on Mac at home, LAN connection to Synology.
-debugMode="MacAway"  # Test on Mac away from home, no connection to Synology.
+# debugMode="MacAway"  # Test on Mac away from home, no connection to Synology.
 # debugMode="WinAway"  # In the jungle, the mighty jungle.
 
 # Program name used in log messages.
@@ -294,5 +294,178 @@ do
     deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
     LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
 done
+
+exit 0
+
+
+# ----------------------------------------------------------------------------
+# Utility: Copy archive video links from my old channel to my new channel
+# ----------------------------------------------------------------------------
+# Existing set of archived videos, up until 2020, are all stored in the 
+# "Vixy & Tony" YouTube channel. But in 2024, I'm moving things to the new
+# "CrowCam" channel. I want to have that playlist of older archives all moved
+# to the new location too. I could have downloaded and re-uploaded every
+# video, but that would have been onerous. Instead I will leave those old
+# videos over in the Vixy & Tony channel and just in a hidden "CrowCam
+# Archives" playlist. And then link them in the CrowCam channel in the
+# new "CrowCam Archives" playlist in that channel.
+#
+# I already happened to have the list of the videos in my crowcam-videodata
+# file, so pull that list of videos in the crowcam-videodata file and poke
+# those into the new playlist with the YouTube API.
+#
+# Old "CrowCam Archives" playlist in Vixy & Tony:     
+# https://www.youtube.com/playlist?list=PLqi-Lr1hPBOUuBgMvsDMY2K3iUg6nBZAV
+#
+# New "CrowCam Archives" playlist in CrowCam:
+# https://www.youtube.com/playlist?list=PL8Fzg-YTf-GbfOHNxAAZEW9dixstuSztl
+#
+
+# Put the new playlist ID into a varaible.
+newPlaylistId="PL8Fzg-YTf-GbfOHNxAAZEW9dixstuSztl"
+
+# Parse out all of the titles, video IDs, and start times from my
+# crowcam-videodata file. Regex string looks like this:
+#    "(title|videoId|actualStartTime)": "([^"])*"
+# Which means:
+#    "          Find a quote
+#    (          Find one of these things in this group
+#    title      Find the word title
+#    |videoId   or the word videoId
+#    |actual... or the word actualStartTime
+#    )          Close up that group of things
+#    ": "       Find a quote, a colon, a space, and a quote
+#    (          Find the things in in this group
+#    [^"]       Find anything that's NOT a quote
+#    )          Close up that group of things
+#    *          Find any number of instances of that group in a row (characters that aren't quotes)
+#    "          Find a quote
+#
+# The returns three strings from each entry in that file that look like this, in
+# this order:
+#
+#    "title": "7:28 am - Juvenile crow begs from parent quite intensely"
+#    "videoId": "1Y9BFUyzpys"
+#    "actualStartTime": "2020-09-01T13:50:13Z"
+#
+# I'm actually only needing the "videoId" from these, but, I wanted to see if
+# each one was being retrieved correctly and in the right order, and to have
+# something readable to display to the user.
+#
+# Special notes about this code which greps the contents of the crowcam-videodata file:
+# - Grep commands: -o only matching text returned, -h hide filenames, -E extended regex
+# - arrayName=( ):  Make sure to have the outer parentheses to make it a true array.
+# - IFS_backup=$IFS; IFS=$'\n': IFS is the way it splits the resulting array. Normally it
+#   splits on space/tab/linefeed, I'm changing it to just split on linefeed so that each
+#   return value from the regex grep is its own array element.
+IFS_backup=$IFS
+IFS=$'\n'
+videoDataArray=( $(grep -o -h -E '"(title|videoId|actualStartTime)": "([^"])*"' $videoData) )
+IFS=$IFS_backup
+
+# Syntax note: the pound sign retrieves the count/size of the array.
+videoDataArrayCount=${#videoDataArray[@]}  
+
+# Flag to indicate whether it's OK to process the video or not in the loop.
+# There is a special case where I might not want to process the entire contents
+# of the loop, this would be when I busted an API quota and only got about 2/3
+# of the way through the list. This flag will be updated later inside the loop.
+okToProcessVideo=false
+
+# Process all items
+loopIndex=0
+videosProcessed=0
+while [ $loopIndex -lt $videoDataArrayCount ]   
+do
+    # Freshen variables at the start of each loop
+    currentTitle=""
+    currentvideoId=""
+    currentActualStartTime=""
+
+    # Record the first of the three items, the title
+    oneVideoDataItem=${videoDataArray[loopIndex]}
+    currentTitle=$( echo $oneVideoDataItem | cut -d '"' -f4 )
+
+  ((loopIndex++))
+
+    # Record the second item, is the video ID
+    oneVideoDataItem=${videoDataArray[loopIndex]}
+    currentvideoId=$( echo $oneVideoDataItem | cut -d '"' -f4 )
+
+  ((loopIndex++))
+
+    # Record third item, the start time
+    oneVideoDataItem=${videoDataArray[loopIndex]}
+    currentActualStartTime=$( echo $oneVideoDataItem | cut -d '"' -f4 )
+
+  ((loopIndex++))  # Update this value after logging, so the number is still correct.
+
+    # Check to see if we are supposed to hold off on processing a video
+    # until we reach a certain point. For example, I busted my API quota
+    # the first time I was able to run this script full successfully.
+    # 2024-03-14 - I hit my API quota at the video here in the list:
+    # Successfully processed:
+    #     nPz8DggbVOE 2019-06-06T20:13:08.000Z 1:54 pm Crow caws on platform, crowfuffle. 1:57 pm closeup crowfuffle.
+    # Failed to process (and everything after that):
+    #     rm8DWNGR5Wc 2019-06-06T12:00:17.000Z 11:06 am Crow intimidates badass squirrel. 11:23 am Crows scold raccoon..
+
+    if [ "$currentvideoId" == "rm8DWNGR5Wc" ]
+    then
+      okToProcessVideo=true  # Set to True for the remainder of the l
+    fi 
+
+    # Check to see if it is OK to process the video before doing the actual processing.
+    if $okToProcessVideo
+    then
+      # Now fully process the results. Begin by logging the data we're working on.
+      LogMessage "dbg" "Processing: $loopIndex $currentvideoId $currentActualStartTime $currentTitle"
+
+      # Build the data blob that we are sending to the YouTube API. It must
+      # contain certain very specific things in order to be processed correctly.
+      # Details here: https://stackoverflow.com/a/20652371/3621748
+      curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?part=id,snippet,status&mine=true&access_token=$accessToken"
+      curlData=""
+      curlData+="{"
+       curlData+="\"snippet\": "
+       curlData+="{"
+         curlData+="\"playlistId\": \"$newPlaylistId\","
+         curlData+="\"resourceId\": "
+         curlData+="{"
+           curlData+="\"kind\": \"youtube#video\","
+           curlData+="\"videoId\": \"$currentvideoId\""
+         curlData+="}"
+       curlData+="}"
+      curlData+="}"
+
+      # Dev output 
+      # LogMessage "dbg" "Curl URL: $curlUrl"
+      # LogMessage "dbg" "Curl data: $curlData"
+
+      # Don't actually do it if this script is in debug mode.
+      if [ ! -z "$debugMode" ]
+      then
+        LogMessage "err" "Debug mode: Not actually adding a video to the playlist"
+      else
+        # Use the YouTube API to insert that video into the playlist. NOTE: Must be
+        # POST instead of PUT in this case, because the documentation says that PUT
+        # is an "update" command for YouTube, and POST is an "insert" command for
+        # YouTube. According to the docs, adding and item to a playlist is
+        # an "insert".
+        insertVideoResults=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+
+        # Check the response for errors.
+        if [ -z "$insertVideoResults" ] || [[ $insertVideoResults == *"\"error\":"* ]] 
+        then
+         LogMessage "err" "The API returned an error when trying to insert a video: $insertVideoResults"
+         exit 1
+        fi
+      fi
+      ((videosProcessed++))
+    else
+      LogMessage "dbg" "SKIPPING:   $loopIndex $currentvideoId $currentActualStartTime $currentTitle"
+    fi
+
+done
+LogMessage "dbg" "Processed $videosProcessed videos from $videoDataArrayCount data items"
 
 exit 0

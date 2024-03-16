@@ -324,7 +324,7 @@ do
     # LogMessage "dbg" "curl -s $curlUrl"   # Do not log strings which contain credentials or access tokens, even in debug mode.
     
     # Perform the API query with curl.
-    LogMessage "dbg" "Querying API page $c"
+    LogMessage "dbg" "Querying YouTube API. Pagination: page $c"
     uploadsOneLoopOutput=""
     uploadsOneLoopOutput=$( curl -s $curlUrl )
 
@@ -340,13 +340,24 @@ do
     uploadsOutput="$uploadsOutput $uploadsOneLoopOutput"
 
     # If the next page token is blank, it means we have reached the last page
-    # and can exit the loop. Also exit the loop if we are in debug mode - Only
-    # process the first page when we're in debug mode, to speed it up.
-    if [ -z "$nextPageToken" ] || [ ! -z "$debugMode" ]
+    # and can exit the loop.
+    if [ -z "$nextPageToken" ]
     then
         # We have reached the last page, exit the paginiation loop.
         break
     fi
+
+    # Also exit the loop if we are in debug mode - Only process the first page
+    # when we're in debug mode, to speed it up.
+    #
+    # Actually, don't skip the loop in debug mode for the moment. I recently
+    # found myself in a debug situation where I needed all the pages. Uncomment
+    # this when you run into a situation where you need faster debugging.
+    #        if [ -z "$debugMode" ]
+    #        then
+    #            # Exit the paginiation loop when we are debugging.
+    #            break
+    #        fi
 done
 
 # Log the output results. Not usually needed. Leave deactivated usually.
@@ -355,110 +366,108 @@ done
 # echo  $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId"
 # echo " "
 
-# OLD METHOD:
-# Convert the contents of the output into an array that we can use. The sub-
-# sections of the statements below work as follows:
-#
-# Place the results of the parsing into an array named videoIds (Note: uses
-# process substitution which does not work in SH only in BASH, also, readarray
-# is not present on MacOS X... Wow this is tougher than it should be):
-#                 readarray -t videoIds < <(
-# Insert a newline into the output before each occurrence of "videoId".
-# (Special version of command with \'$' allows it to work on Mac OS.
-# explanation here: https://stackoverflow.com/a/11163357)
-#                 sed 's/"videoId"/\'$'\n&/g'
-# Use only the lines containing "videoId" (for example, not the first line).
-#                 grep "videoId"
-# The remainder of the line is the parsing of the output. All of these could
-# work and produce more or less the same array. I've chosen sed-grep-cut. Some
-# systems that I developed this on didn't have "jq" installed in them, so I am
-# using commands which are more cross-platform compatible.
-#
-# Example: Use awk to locate the fourth field using a field delimiter of quote.
-#      readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | awk -F\" 'NF>=3 {print $4}' )
-# Example: Use sed to perform a complex parse of the quotes and such.
-#      readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | sed -n '/{/,/}/{s/[^:]*:[^"]*"\([^"]*\).*/\1/p;}')
-# Example: Use "cut" on the quotes and take the fourth field.
-#      readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-#
-# BUGFIX - Issue with the part of the above statements which look like this:
-#      readarray -t videoIds < <(
-# That syntax gets an error message when running under Task Scheduler in
-# Synology when you launch the process with the command "sh script.sh"
-#      /volume1/homes/admin/CrowCamCleanup.sh: line 344: syntax error near unexpected token `<'
-# This is caused because of two combining problems. (1) The syntax used a
-# technique called "process substitution" which works only in BASH not in SH.
-# (2) I had been unwittingly launching these in Task Scheduler using the
-# command "sh scriptname.sh" which forces it to use SH rather than BASH
-# despite having the BASH "shebang" at the top of the file. details explained
-# here: https://empegbbs.com/ubbthreads.php/topics/371758
-#
-# Initially bufgixed by using one of the other ways to read into an array:
-#    https://stackoverflow.com/a/9294015/3621748
-# But then that alternate array-read method broke when testing on Windows
-# platform, so now I have to do the read differently depending on platform:
-#
-# OLD METHOD - DO NOT USE ANY MORE:
-# if [[ $debugMode == *"Win"* ]]
-# then
-#     # This version works on Windows, but not on Mac - no "readarray" on Mac.
-#     readarray -t videoIds < <(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-# else
-#     # This version works on MacOS, Synology, and in SH, but not on Windows.
-#     textListOfVideoIds=$(echo $uploadsOutput | sed 's/"videoId"/\'$'\n&/g' | grep "videoId" | cut -d '"' -f4)
-#     read -a videoIds <<< $textListOfVideoIds
-# fi
+# Begin parsing the video data out of the JSON results. Log our intentions.
+LogMessage "dbg" "Processing JSON results from the API queries"
 
-# NEW METHOD:
 # Set up empty arrays to hold the video details. These arrays will build the
 # video details list in order, so the arrays will have the same ordering.
 playlistItemIds=()
 titles=()
 videoIds=()
 
-# New method for retrieving video details by looping through all of the lines
-# in the JSON output and adding the matching lines to the arrays as we find
-# them. This special syntax uses <<< to redirect input into this loop at the
-# end "do" statement down below.
-jsonLineCount=0
-LogMessage "dbg" "Processing JSON results from the API queries, this may take a moment"
-while IFS= read -r line
+# GitHub Issue #72 - Improve the speed of parsing the results by grepping the
+# entire JSON dataset in one statement, rather than trying to iterate through
+# the JSON line-by-line.
+# 
+# NEW METHOD:
+# Parse out all of the titles, video IDs, and start times from the video data
+# Regex string looks like this:
+#    "(id|title|videoId)": "([^"])*"
+# Which means:
+#    "                                 Find a quote
+#     (                                Find one of these things in this group
+#      id                              Find the word id
+#        |title                        or the word title
+#              |videoId                or the word videoId
+#                      )               Close up that group of things
+#                       ": "           Find a quote, a colon, a space, and a quote
+#                           (          Find the things in in this group
+#                            [^"]      Find anything that's NOT a quote
+#                                )     Close up that group of things
+#                                 *    Find any number of instances of that group
+#                                  "   Find a quote
+#
+# The returns three strings from each entry in the JSON that look like this, in
+# this order:
+#
+#    "id": "UEw4RnpnLVlUZi1HYmZPSE54QUFaRVc5ZGl4c3R1U3p0bC41NkI0NEY2RDEwNTU3Q0M2"
+#    "title": "7:28 am - Juvenile crow begs from parent quite intensely"
+#    "videoId": "1Y9BFUyzpys"
+#
+# Special notes about this code which greps the data:
+# - Grep commands: -o only matching text returned, -h hide filenames, -E extended regex
+# - arrayName=( ):  Make sure to have the outer parentheses to make it a true array.
+# - IFS_backup=$IFS; IFS=$'\n': IFS is the way it splits the resulting array. Normally it
+#   splits on space/tab/linefeed, I'm changing it to just split on linefeed so that each
+#   return value from the regex grep is its own array element.
+IFS_backup=$IFS
+IFS=$'\n'
+videoDataArray=( $(echo $uploadsOutput | grep -o -h -E '"(id|title|videoId)": "([^"])*"') )
+IFS=$IFS_backup
+
+# Syntax note: the pound sign retrieves the count/size of the array.
+videoDataArrayCount=${#videoDataArray[@]}  
+
+# Process all items
+loopIndex=0
+while [ $loopIndex -lt $videoDataArrayCount ]   
 do
-    ((jsonLineCount++))
-    if [ $(($jsonLineCount % 1000)) = 0 ]
+    # Freshen variables at the start of each loop
+    currentId=""
+    currentTitle=""
+    currentvideoId=""
+
+    # Record first item, the playlist item ID
+    oneVideoDataItem=${videoDataArray[loopIndex]}
+    currentId=$( echo $oneVideoDataItem | cut -d '"' -f4 )
+    if ! [ -z "$currentId" ]
     then
-      LogMessage "dbg" "Processing line $jsonLineCount"
+      playlistItemIds+=( "$currentId" )
     fi
 
-    lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4 )
-    if ! [ -z "$lineResult" ]
+  ((loopIndex++))  
+
+    # Record the second item, the title
+    oneVideoDataItem=${videoDataArray[loopIndex]}
+    currentTitle=$( echo $oneVideoDataItem | cut -d '"' -f4 )
+    if ! [ -z "$currentTitle" ]
     then
-      playlistItemIds+=( "$lineResult" )
+      titles+=( "$currentTitle" )
     fi
 
-    lineResult=$( echo $line | grep '"title"' | cut -d '"' -f4 )
-    if ! [ -z "$lineResult" ]
+  ((loopIndex++))
+
+    # Record the third item, the video ID
+    oneVideoDataItem=${videoDataArray[loopIndex]}
+    currentvideoId=$( echo $oneVideoDataItem | cut -d '"' -f4 )
+    if ! [ -z "$currentvideoId" ]
     then
-      titles+=( "$lineResult" )
+      videoIds+=( "$currentvideoId" )
     fi
 
-    lineResult=$( echo $line | grep '"videoId"' | cut -d '"' -f4)
-    if ! [ -z "$lineResult" ]
-    then
-      videoIds+=( "$lineResult" )
-    fi
-done <<< "$uploadsOutput"
+  ((loopIndex++))
+done
 
 # Log the number of videos found. But only log this late at night. All the
 # extra logs fill up the Synology log too much, too much noise. But I want to
 # know if it's working in general, so I want a log sometimes. I compromise by
-# printing it to the Synology log only during the midnight hour.
+# printing it to the Synology log only during the midnight and 7pm hours.
 currentHour=$( date +"%H" )
-if [ "$currentHour" = "00" ]
+if [ "$currentHour" = "00" ] || [ "$currentHour" = "19" ]
 then
-    LogMessage "info" "${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+    LogMessage "info" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 else
-     LogMessage "dbg" "${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+    LogMessage "dbg" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 fi
 
 # Error out of the program if the count is zero.
@@ -478,7 +487,6 @@ else
    LogMessage "err" "Error - Data counts for video details did not match. A parsing error has occurred"
    exit 1
 fi
-
 # Debugging - Print the array. No need to do this unless you encounter
 # some kind of nasty unexpected bug. Leave this commented out usually.
 # for ((i = 0; i < ${#videoIds[@]}; i++))
