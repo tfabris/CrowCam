@@ -146,7 +146,23 @@ IsOlderThan()
         # Mac version - Inaccurate due to failure to interpret GMT zone. Also
         # add ".000Z" to the format string to avoid the extra error message:
         # "Warning: Ignoring 5 extraneous characters in date string (.000Z)"
-        videoDateTimeLocalized=$(date -j -f "%Y-%m-%dT%H:%M:%S.000Z" "$oneVideoDateString")
+        #
+        # Update 2024-03-13 - The YouTube API changed at some point to have
+        # either removed or added the milliseconds from their JSON output. So
+        # this function needs to process both if possible.
+        # Old version:
+        #    videoDateTimeLocalized=$(date -j -f "%Y-%m-%dT%H:%M:%S.000Z" "$oneVideoDateString")
+        # New version:
+
+        # Check if the string that we're stuffing into the Date command already
+        # ends with the milliseconds. This is the syntax in Bash for "endswith".
+        # NOTE: The wildcard requires no quotes around either of the IF strings.
+        if [[ $oneVideoDateString == *.000Z ]]
+        then
+          videoDateTimeLocalized=$(date -j -f "%Y-%m-%dT%H:%M:%S.000Z" "$oneVideoDateString")
+        else
+          videoDateTimeLocalized=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$oneVideoDateString")
+        fi
     else
         # Linux version - Accurate, but only works on Linux.
         videoDateTimeLocalized=$(date -d "$oneVideoDateString")
@@ -347,7 +363,12 @@ GetRealTimes()
         # However, there is a slim chance that it's a live video that by pure
         # chance happened to start at 0Zulu and needs a refresh. But most of
         # the time it's going to be an uploaded video if it's got a 0Zulu.
-        if [[ $actualStartTime == *"T00:00:00.000Z"* ]]
+        #
+        # Update 2024-03-13 - The YouTube API changed at some point to have
+        # either removed or added the milliseconds from their JSON output. So
+        # this function needs to process both if possible. So now also checking
+        # for just a "Z" at the end as well as a ".000Z" at the end.
+        if [[ $actualStartTime == *"T00:00:00.000Z"* ]] || [[ $actualStartTime == *"T00:00:00Z"* ]]
         then
           # If the timestamp is less than 24hrs in the past, invalidate this
           # cache entry too. Otherwise do nothing and print a debug log entry.
