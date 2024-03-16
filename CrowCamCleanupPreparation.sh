@@ -128,7 +128,8 @@ echo ""
 #------------------------------------------------------------------------------
 #
 # This authorization must be requested with the correct scope. I have found
-# success with the "Installed application flow", the description is here:
+# success with the "Installed application flow", also known as "Desktop app".
+# The description is here:
 #
 #    https://developers.google.com/youtube/v3/live/guides/auth/installed-apps
 #
@@ -138,32 +139,47 @@ echo ""
 # allow the right scopes. My initial try didn't work due to the oauth scope
 # being wrong. It resulted in error "Insufficient Permission: Request had
 # insufficient authentication scopes." So make sure you use the "Installed
-# application flow" scope, https://www.googleapis.com/auth/youtube.
+# application flow" or "desktop app" scope.
 #
 # GitHub issue #69 - Fix Google's deprecation of the the "OOB" flow. This
-# turns out to be simply replacing the URL "urn:ietf:wg:oauth:2.0:oob" with
-# your own web page which can display the query request which includes the
-# auth code. Here's how it works. When you ask for a google auth, it makes
-# a query to your "application" (i.e., whatever you put into the parameter
-# redirect_uri=). For example, if your auth requests to google includes
-# this parameter in its request...
+# is Google's choice to remove the option that showed the user a dialog box
+# where they could copy and paste the authorization key. Details of the
+# deprecation are here:
 #
-#   &redirect_uri=http://localhost/somepage.html
+# https://developers.google.com/identity/protocols/oauth2/resources/oob-migration
+#
+# Originally this was done by a redirect URL in the authorization request which
+# looks like this: "redirect_uri=urn:ietf:wg:oauth:2.0:oob" - which is a
+# special code to tell Google to put up the dialog box which displays the auth
+# code. That has now been removed from Google and we can't use it any more.
+#
+# The fix for this is somewhat onerous, because it requires you to sift out the
+# code yourself.
+#
+# Here's how it works. The script code below sets the redirect URL to your own
+# localhost web address, "redirect_uri=http://localhost/requestheaders.html".
+# When Google calls this, it will make a query to your "application" (i.e.,
+# whatever this script put into the parameter "redirect_uri=").
 #
 # Then after you complete the auth steps in your web browser, then Google
 # will cause your web browser to redirect and open up the following page:
 # 
-#   http://localhost/somepage.html?code=4/0AeaYSH...etc...&scope=https://www.googleapis.com/auth/youtube
+#   http://localhost/requestheaders.html?code=4/0ASDF1234...etc...&scope=https://www.googleapis.com/auth/youtube
 #
-# The important part of the request in this case is the "code=" part.
-# I have created a web page at http://localhost/requestheaders.html
-# which uses a PHP command "$_SERVER['QUERY_STRING'];" to echo back that code
-# to the user so that you can copy and paste it into this script and complete
-# the authorization process. 
+# The important part of the request in this case is the "code=" part. I
+# personally have created the web page file "requestheaders.html" on my
+# localhost site which uses the PHP command "$_SERVER['QUERY_STRING'];" to echo
+# back the code. You, however, don't need to go to that much trouble. Just wait
+# until it tries to open your localhost web site. If you have a localhost web
+# site running, it will open that localhost site, and if you don't, it will say
+# something similar to "This site can't be reached". Either way, whether it's
+# successful or not, the code will be there in the URL bar, as part of the URL.
+# the URL will look like the one above. Copy the URL (make sure it has "?code="
+# and "&scope=" in it) and paste it when prompted by the script below.
 #
 # Old code with the deprecated "oob" redirect:
 #      authUrl="https://accounts.google.com/o/oauth2/auth?client_id=$clientId&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/youtube&response_type=code"
-
+# New code with the localhost requestheaders.html in the redirect:
 authUrl="https://accounts.google.com/o/oauth2/auth?client_id=$clientId&redirect_uri=http://localhost/requestheaders.html&scope=https://www.googleapis.com/auth/youtube&response_type=code"
 echo "Authorization URL: $authUrl"
 
@@ -185,12 +201,20 @@ echo "   GO TO AppName (unsafe). This is OK to do because it is referring"
 echo "   to the OAuth credentials that you created yourself."
 echo ""
 echo " - Grant the app the permission to manage your YouTube account."
+echo "   This is done by pressing the CONTINUE button."
 echo ""
-echo " - You should be redirected to a web page that will give you an"
-echo "   authentication code. Important: copy that code to the clipboard."
+echo " - The web browser will try to open the web page at http://localhost."
 echo ""
-echo " - Once the code is copied to the clipboard, close the browser and"
-echo "   come back to this window."
+echo " - Your http://localhost page may open if you have one, or if not,"
+echo "   your browser may display the message THIS SITE CAN'T BE REACHED"
+echo "   (or something similar). either way, look in the URL bar and find"
+echo "   the code. It will be between the words ?code= and &scope="
+echo ""
+echo "   Example:"
+echo "           localhost/requestheaders.html?code=(THE CODE)&scope=..."
+echo ""
+echo " - Copy the URL to the clipboard, then close the browser and come"
+echo "   back to this window."
 echo ""
 read -n 1 -s -r -p "Press any key when you are ready to perform these steps."
 echo ""
@@ -247,8 +271,8 @@ then
 fi
 
 echo ""
-echo "---------------------------------------"
-echo "PASTE the authentication code here now:"
+echo "-------------------------------------------------------------------"
+echo "PASTE the URL (or just the code), here now:"
 
 # Read input from user, and time out if they don't enter it within 360 seconds.
 read -r -t 360 authenticationCode
@@ -259,9 +283,25 @@ read -r -t 360 authenticationCode
 # https://stackoverflow.com/a/12973694/3621748
 authenticationCode=$( echo "$authenticationCode" | xargs )
 
-# Make sure the authentication code looks correct. It should appear
-# as if in a box on the screen without any extra spaces or carriage returns
-# on either side of it.
+# If the user happened to paste in the entire URL that would work too. We will
+# strip out the code by finding everything in between "?code=" and "&scope="
+# and use only that part.
+if [[ "$authenticationCode" == *"?code="* ]]
+then
+  # If this is a correct URL, the code will begin after the first equals sign.
+  echo "Trimming after ?code="
+  authenticationCode=$( echo "$authenticationCode" | cut -d '=' -f2 )
+fi
+if [[ "$authenticationCode" == *"&scope"* ]]   # The equals after scope= was already removed, don't search for it.
+then
+  # If this is a correct URL, the code will end before the first ampersand.
+  echo "Trimming up to &scope" 
+  authenticationCode=$( echo "$authenticationCode" | cut -d '&' -f1 )
+fi
+
+# Give the user a chance to view if the authentication code looks correct.
+# It should appear as if in a box on the screen without any extra spaces or
+# carriage returns on either side of it.
 echo ""
 echo "Authentication code:"
 echo "--------------------------------------------------------------------------"
