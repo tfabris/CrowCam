@@ -630,6 +630,7 @@ GetSunriseSunsetTimeFromGoogle()
     # Parsing statement detailed explanation. Note: On MacOS the "-P" parameter
     # does not work, so you can't use the \d+ command on MacOS.
     #         -o            Output only the matched text.
+    #         -m 1          BUGFIX: Output only the first match found.
     #         [0-9][0-9]*   Look for 1 or more integer digits (MacOS).
     #         :             Look for a colon.
     #         [0-9][0-9]    Look for exactly two integer digits (MacOS).
@@ -638,7 +639,8 @@ GetSunriseSunsetTimeFromGoogle()
     #         M             Look for the capital letter M.
     # This should get everything like "7:25 AM" or "10:00 PM" etc. with a space or
     # any weird unicode character in place of the space.
-    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o '[0-9][0-9]*:[0-9][0-9].[AP]M')
+    #
+    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -m 1 '[0-9][0-9]*:[0-9][0-9].[AP]M')
 
     # OK but now the time has that weird space in the middle, and without that
     # actual space, it crashes all the other functions that try to do
@@ -649,7 +651,20 @@ GetSunriseSunsetTimeFromGoogle()
 
     # Finally, let's return this thing out of this function as a proper time
     # with a REGULAR space in the middle.
-    echo "$firstTimeSection $secondTimeSection"
+    #
+    # BUGFIX - If we didn't get any data from Google, then we want to return a
+    # null string. But saying "echo "$firstTimeSection $secondTimeSection"" at
+    # the end of the function does NOT return a null string. Even if Google
+    # gets nothing, it still returns a string with a single space. This is a
+    # problem if there is an error extracting data from Google. So we must
+    # check it and only return the "spaced" string if Google returned us
+    # something good.
+    if [ -z "$firstTimeSection" ] || [ -z "$secondTimeSection" ]
+    then
+      echo ""
+    else
+      echo "$firstTimeSection $secondTimeSection"
+    fi
 
     # Debugging message, leave commented out usually.
     # LogMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
