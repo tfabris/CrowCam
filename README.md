@@ -11,8 +11,6 @@ software and in YouTube itself. Including:
 - Camera on/off times based on local sunrise/sunset.
 - Work around bugs in Synology streaming software which sometimes cause the
   stream to stop working unexpectedly.
-- Work around bugs in YouTube's stream caching which sometimes cause the live
-  stream's DVR functionality to fail.
 - Automatically clean up old YouTube stream archives.
 
 This project could be useful to anyone who uses a Synology NAS, running the
@@ -26,8 +24,6 @@ include well-documented methods for the following things:
   from properly resuming after a network outage.
 - How to work around the Synology bug which causes the YouTube live stream to
   hang with a "spinny death icon".
-- How to work around the YouTube bug which prevents some users from being able
-  to use the live stream's DVR functionality.
 - How to work around the YouTube bug which randomly resets your live stream's
   secret name/key with no warning.
 - How to work around the YouTube bug which randomly resets your live stream's
@@ -75,16 +71,12 @@ Synology Surveillance Station app to record a live feed of the camera. We then
 use the "Live Broadcast" feature of Surveillance Station to push the video
 stream to our YouTube channel, where anyone can watch.
 
-This project is a suite of related Bash script files:
+This project is a set of related Bash script files, primarily these:
 - [CrowCam.sh - CrowCam Controller                                                 ](#crowcamsh)
   - Starts and stops the YouTube stream at Sunrise/Sunset, and detects network
     outages, restarting the stream after an outage if needed.
 - [CrowCamCleanup.sh - CrowCam Cleanup tool                                        ](#crowcamcleanupsh)
   - Cleans out old YouTube stream archives after a certain number of days.
-- [CrowCamKeepAlive.sh - CrowCam Keep Alive tool                                   ](#crowcamkeepalivesh)
-  - Ensures that a YouTube stream's DVR functionality works at all times
-    for all users. It works around an unfixed YouTube bug related to DVR
-    functionality.
   
 These script files will be installed to the Synology NAS, where they will be
 launched repeatedly, at timed intervals, using the Synology "Task Scheduler"
@@ -191,27 +183,6 @@ This script cleans up old archives:
   default name, and it gives us a buffer of a few days to look at recent videos
   before they get deleted.
 
-####  CrowCamKeepAlive.sh
-This script keeps the live stream alive:
-- It works around a bug in YouTube which prevents users from seeing the history
-  of a live video stream. 
-- YouTube has a bug where, if there is nobody watching the live stream, then
-  the next person who joins the stream will not be able to scroll backwards in
-  the timeline. YouTube calls this feature "DVR functionality", and it should
-  theoretically work all the time, allowing any user to scroll up to several
-  hours backwards into the live stream. But it does not always work, and the
-  reason it doesn't work is not documented by YouTube. I did some experiments,
-  and I discovered that as long as somebody is watching the stream, the DVR
-  functionality works as expected for that user, and for all subsequent users,
-  starting at the moment that the user began watching the stream. But once
-  everyone drops off the stream, then about half an hour later, the DVR
-  functionality stops working, so later joiners will not be able to scroll
-  backwards. Based on these experiments, it looks like YouTube doesn't bother
-  to fill their DVR cache unless someone is using it, with a hysteresis
-  algorithm that's configured for about 30 minutes or so.
-- This program works around the bug by making it so that "someone" (i.e., the
-  CrowCamKeepAlive script) is always watching the stream intermittently.
-
 
 Configuration
 ------------------------------------------------------------------------------
@@ -277,14 +248,14 @@ credentials.
 - Name: (whatever name you want, mine is "CrowCam")
 - Press "Create".
 - A screen will show the client ID and client secret. You do not need to copy
-  them to the clipboard, they will be in the file you're about to download.
-  Press OK.
+  them to the clipboard, they will be in the JSON file you're about to
+  download. Press OK.
 - You may be given a prompt to download a JSON file, if so, download it.
 - The Credentials screen should now show your credentials. You can also
   download the JSON file from this screen by pressing the "download" icon on
   the right side of the screen (a small downward-pointing arrow).
-- Rename the file that you downloaded to "client_id.json"
-- Place the file in the same directory as these script files.
+- Rename the JSON file that you downloaded to "client_id.json"
+- Place the JSON file in the same directory as these script files.
 
 ####  Run preparation script, to authorize your YouTube account:
 Run the CrowCamCleanupPreparation script. This script will authorize the Google
@@ -333,12 +304,10 @@ doing the following:
 Copy the following files from your local PC into the folder on the NAS:
 
      CrowCam.sh
-     CrowCamKeepAlive.sh
      CrowCamCleanup.sh
      CrowCamHelperFunctions.sh
      crowcam-config
      crowcam-override-config    (if you created one)
-     youtube-dl
      api-creds
      crowcam-tokens
      client_id.json
@@ -354,7 +323,6 @@ Set the access permissions on the folder and its files, using the SSH prompt:
      chmod 770 CrowCam*.sh
      chmod 770 crowcam-config
      chmod 770 crowcam-override-config
-     chmod 770 youtube-dl
      chmod 660 api-creds
      chmod 660 crowcam-tokens
      chmod 660 crowcam-sunrise
@@ -369,14 +337,12 @@ each task should have the following settings:
 - General, General Settings: Name each of the three tasks as follows:
 ```
      Task:   CrowCam Controller
-     Task:   CrowCam Keep Alive
      Task:   CrowCam Cleanup
 ```
 - Schedule: Set all three tasks to run "Daily"
 - Schedule: First run time: "00:00"
 - Schedule: Frequency: 
     - CrowCam Controller: Frequency: "Every 5 Minutes"
-    - CrowCam Keep Alive: Frequency: "Every 20 Minutes"
     - CrowCam Cleanup:    Frequency: "Every 30 Minutes" 
 - Schedule: Last run time: Set it to the highest number it will let you select
   in the list, which will be different for each one of the tasks. For example,
@@ -386,7 +352,6 @@ each task should have the following settings:
   task to run each of the the corresponding scripts, for example:
 ```
      CrowCam Controller:        bash "/volume1/homes/admin/CrowCam/CrowCam.sh"
-     CrowCam Keep Alive:        bash "/volume1/homes/admin/CrowCam/CrowCamKeepAlive.sh"
      CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCam/CrowCamCleanup.sh"
 ```
 
@@ -489,10 +454,7 @@ Many thanks to the multiple people on StackOverflow, whose posts were
 invaluable in answering many questions, and giving me syntax help with Linux
 Bash scripts. Many thanks to the members of the empegBBS who helped with
 everything else that I couldn't find on StackOverflow. Thanks Mlord, Peter,
-Roger, Andy and everyone else who chimed in. In particular, empegBBS user
-canuckInOR was the one who suggested using the YouTube-dl tool, which turned
-out to be particularly useful for doing the stream checking and keep-alive
-features.
+Roger, Andy and everyone else who chimed in. 
 
 Thanks, all!
 

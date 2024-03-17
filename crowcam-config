@@ -321,30 +321,6 @@ featureName="YouTube Live Broadcast"
 userAgent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36"
 
 
-# Create variables for the youtube-dl executable.
-#
-# Do not change this value.
-#
-executableFilenameOnly="youtube-dl"
-
-
-# Slightly different file if testing on Windows PC.
-#
-# Do not change this value.
-#
-if [[ $debugMode == *"Win"* ]]
-then
-    executableFilenameOnly="youtube-dl.exe"
-fi
-
-
-# Create final variable of the path and filename of the youtube-dl executable.
-#
-# Do not change this value.
-#
-executable="$DIR/$executableFilenameOnly"
-
-
 # Create a variable for the API credentials file, we will read from this file.
 #
 # Do not change this value.
@@ -385,15 +361,6 @@ crowcamSunset="$DIR/crowcam-sunset"
 # Do not change this value.
 #
 crowcamCamstart="$DIR/crowcam-camstart"
-
-# Temporary file to store the contents of the live stream that we are (for a 
-# short time) downloading during a "CrowCamKeepAlive" run. The file will get
-# cleaned up at the end of normal runs, but will be left on the hard disk at
-# the end of test/debug runs (for test/debug examination).
-#
-# Do not change this value.
-#
-tempFile="CrowCamTemp.mp4"
 
 
 # Cookie file name that will save the login/auth cookie for the web API. This
