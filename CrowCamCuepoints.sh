@@ -205,7 +205,7 @@ fi
 # Get the current live broadcast information details which are needed in order
 # to update it. Details of the items in the response are found here:
 # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails&mine=true&access_token=$accessToken"
 liveBroadcastOutput=""
 liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 
@@ -291,7 +291,7 @@ LogMessage "dbg" "cuePointWallTime: $cuePointWallTime"
 #       }
 #    }
 
-curlUrl="https://www.googleapis.com/youtube/partner/v1/liveCuepoints?part=id,status&broadcastType=persistent&mine=true&access_token=$accessToken"
+curlUrl="https://www.googleapis.com/youtube/partner/v1/liveCuepoints?part=id,status&mine=true&access_token=$accessToken"
 curlData=""
 curlData+="{"
 curlData+="\"broadcastId\": \"$broadcastId\","
