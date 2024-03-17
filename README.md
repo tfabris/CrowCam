@@ -4,28 +4,6 @@ CrowCam
 
 https://github.com/tfabris/CrowCam
 
-#  
-#  
-#  
-
-> ---
-> _**Update**_ : "Default" broadcasts and "Persistent" broadcasts have been
-> deprecated on YouTube, starting approximately 2020-09-10.
->
-> The code flow of these scripts depended on those features, and so these
-> scripts no longer work properly due to that deprecation. I will have to
-> rework the code in order for these scripts to function as intended again.
->
-> More information about the deprecation is here:
->
-> https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020
-> https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
-> ---
-
-#  
-#  
-#  
-
 CrowCam is a set of Bash scripts which control and maintain a webcam in my
 backyard. The scripts automate some important tasks which would otherwise be
 manual and repetitive, and also work around some unfixed bugs in the streaming

@@ -284,17 +284,7 @@ Test_Stream()
       # Get the current live broadcast information details as a prelude to obtaining
       # the live stream details. Details of the items in the response are found here:
       # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-
-      # Update: "Default" broadcasts and "Persistent" broadcasts have been
-      # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
-      # have to rework the code in order for these scripts to function as
-      # intended again. Currently the deprecation release notes say that
-      # isDefaultBroadcast is deprecated, and also "If the broadcastType
-      # parameter value is persistent, then the liveBroadcasts.list method
-      # will not return any results." more information here:
-      # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
-      # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&broadcastType=persistent&mine=true&access_token=$accessToken"
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&mine=true&access_token=$accessToken"
       liveBroadcastOutput=""
       liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
     
@@ -616,60 +606,50 @@ GetSunriseSunsetTimeFromGoogle()
     # Create the query URL that we will use for Google.
     googleQueryUrl="http://www.google.com/search?q=$1%20$location"
 
+    # Debugging output
+    # LogMessage "dbg" "Google Sunrise/Sunset Query URL: $googleQueryUrl"
+
     # Perform the query on the URL, and place the HTML results into a variable.
     googleQueryResult=$( wget -L -qO- --user-agent="$userAgent" "$googleQueryUrl" )
+    
+    # Debugging output
+    # LogMessage "dbg" "Google Sunrise/Sunset Query Result: $googleQueryResult"
 
     # Alternate version that uses Curl instead of Wget, if needed.
     # googleQueryResult=$( curl -L -A "$userAgent" -s "$googleQueryUrl" )
     
     # Parse the HTML for our answer, and echo the result back to the caller.
-    #
-    # Parsing statement detailed explanation:
-    #
-    # Split the HTML output and insert a newline everywhere the string
-    # "w-answer-desktop" appears ("w-answer-desktop" is the "answer box"
-    # section of the resulting google HTML).
-    #         Linux version:
-    #           sed 's/w-answer-desktop/\n&/g'
-    #         MacOS version:
-    #           sed 's/w-answer-desktop/\'$'\n&/g'
-    #         (On MacOS "\n" is not interpreted as newline. The weird syntax
-    #         causes an actual newline to be directly inserted into sed.)
-    #
-    # Return only lines which contain "w-answer-desktop" and return only the
-    # first result of those lines if there is more than one.
-    #         grep -m 1 w-answer-desktop
-    #
-    # In the resulting line, use a regex to parse out the exact time string
-    # which appeared in the google search result.
-    #         Linux version:
-    #           grep -o -P '\d+:\d+ [AP]M'
-    #         MacOS version:
-    #           grep -o '[0-9][0-9]*:[0-9][0-9] [AP]M'
-    #         (On MacOS the "-P" parameter does not work, so you can't use
-    #         the \d+ command on MacOS)
-    # 
-    # Breaking down that last grep statement further, the parameters are:
-    #         -o            Output the matched regex section rather than the
-    #                       whole line.
-    #         -P            Use perl-style regex. Required for \d+ to work.
-    #         \d+           Look for a group of integer digits (Linux).
+    # Update 2024-03-16 - Google is no longer using the "w-answer-desktop" CSS
+    # class in their output, instead the classname seems to be random
+    # characters which might be dynamically generated. Also they changed the
+    # whitespace between the time and the AM/PM indicator so that it's no
+    # longer just a space, it's a <0x202f> which is a unicode "narrow nobreak
+    # space". Let's see if we can locate the time in the output result by
+    # grepping on just the time characters, any dealing with that funky space.
+
+    # Parsing statement detailed explanation. Note: On MacOS the "-P" parameter
+    # does not work, so you can't use the \d+ command on MacOS.
+    #         -o            Output only the matched text.
     #         [0-9][0-9]*   Look for 1 or more integer digits (MacOS).
     #         :             Look for a colon.
-    #         \d+           Look for a second group of integer digits (Linux).
     #         [0-9][0-9]    Look for exactly two integer digits (MacOS).
-    #                       Look for a space.
+    #         .             Look for a single character of any type.
     #         [AP]          Look for a capital letter A or a capital letter P.
     #         M             Look for the capital letter M.
-    # This should get everything like "7:25 AM" or "10:00 PM" etc.
-    #
-    # Note: Uncomment only one of the two statements below.
+    # This should get everything like "7:25 AM" or "10:00 PM" etc. with a space or
+    # any weird unicode character in place of the space.
+    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o '[0-9][0-9]*:[0-9][0-9].[AP]M')
 
-    # Linux Version:
-    # echo $googleQueryResult | sed 's/w-answer-desktop/\n&/g' | grep -m 1 w-answer-desktop | grep -o -P '\d+:\d+ [AP]M'
+    # OK but now the time has that weird space in the middle, and without that
+    # actual space, it crashes all the other functions that try to do
+    # calculations on it. Blech. So let's strip it down to that space using
+    # similar techniques.
+    firstTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o '[0-9][0-9]*:[0-9][0-9]')
+    secondTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o '[AP]M')
 
-    # MacOs Version - Also works on Linux:
-    echo $googleQueryResult | sed 's/w-answer-desktop/\'$'\n&/g' | grep -m 1 w-answer-desktop | grep -o '[0-9][0-9]*:[0-9][0-9] [AP]M'
+    # Finally, let's return this thing out of this function as a proper time
+    # with a REGULAR space in the middle.
+    echo "$firstTimeSection $secondTimeSection"
 
     # Debugging message, leave commented out usually.
     # LogMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
@@ -978,13 +958,13 @@ then
 fi
 
 
-# Get API creds out of the external file, assert values are non-blank.
+# Get Synology NAS API creds out of the external file, assert values are non-blank.
 # TO DO: Learn the correct linux-supported method for storing and retrieving a
 # username and password in an encrypted way.
 read username password < "$apicreds"
 if [ -z "$username" ] || [ -z "$password" ]
 then
-  LogMessage "err" "Problem obtaining API credentials from external file"
+  LogMessage "err" "Problem obtaining Synology API credentials from external file"
 fi
 
 
@@ -1227,9 +1207,11 @@ LogMessage "dbg" ""
 # Only print messages about start-stop times if the feature is enabled.
 if [ "$sunriseSunsetControl" = true ] 
 then
-  LogMessage "dbg" "Will start the stream at about   $startServiceSeconds $(SecondsToTime $startServiceSeconds)"
-  LogMessage "dbg" "Will stop it for the night at    $stopServiceSeconds $(SecondsToTime $stopServiceSeconds)"
-  LogMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds $(SecondsToTime $totalStreamSeconds)"
+  LogMessage "dbg" "Sunrise offset (from config)     $(($startServiceOffset * 60))   $startServiceOffset"
+  LogMessage "dbg" "Will start the stream at about   $startServiceSeconds   $(SecondsToTime $startServiceSeconds)"
+  LogMessage "dbg" "Sunset offset (from config)      $(($stopServiceOffset * 60))   $stopServiceOffset"
+  LogMessage "dbg" "Will stop it for the night at    $stopServiceSeconds   $(SecondsToTime $stopServiceSeconds)"
+  LogMessage "dbg" "Total stream length (if unsplit) $totalStreamSeconds   $(SecondsToTime $totalStreamSeconds)"
   LogMessage "dbg" ""
 else
   LogMessage "dbg" "Sunrise-Sunset control is disabled - make sure to manually activate the stream"
@@ -1473,26 +1455,16 @@ else
   # they are two different things (and I'm not clear on the exact difference).
   # For more details of the items found in the response, look here:
   # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-  # Also, we must request "broadcastType=persistent&mine=true" in order to get
-  # the correct details of our live stream's default/main live broadcast stream.
-  # Requesting the "part=contentDetails" gets us some variables including
+  # Also, we must request "&mine=true" in order to get the correct details of
+  # our live stream's default/main live broadcast stream. Requesting
+  # the "part=contentDetails" gets us some variables including
   # "boundStreamId". The boundStreamId is needed for obtaining the stream's
   # secret key. We also need to request "part=snippet" in addition to
   # "part=contendDetails" to get more info, because we need to obtain the "title"
   # field as well, for verification that we're working on the right video. You
   # can request a bunch of "parts" of data simultaneously by requesting them all
   # together separated by commas, like part=id,snippet,contentDetails,status etc.
-
-  # Update: "Default" broadcasts and "Persistent" broadcasts have been
-  # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
-  # have to rework the code in order for these scripts to function as
-  # intended again. Currently the deprecation release notes say that
-  # isDefaultBroadcast is deprecated, and also "If the broadcastType
-  # parameter value is persistent, then the liveBroadcasts.list method
-  # will not return any results." more information here:
-  # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
-  # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
-  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&broadcastType=persistent&mine=true&access_token=$accessToken"
+  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&mine=true&access_token=$accessToken"
   liveBroadcastOutput=""
   liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 
@@ -1621,6 +1593,12 @@ else
     # API, so I shouldn't be making any changes if any of these fields are
     # bad.
 
+
+    # Update 2020-09-10 - Suddenly etag isn't being retrieved any more. 
+    # Despite what the docs said, it doesn't seem to be needed, so allow for
+    # this to be blank and don't invalidate the stream update process just
+    # because this is missing.
+
     # Note: Parsing "etag" is special because in the output from the server,
     # etag has these extra \" things in the actual field. Like escape codes
     # embedded inside the string. It doesn't seem to require those things in
@@ -1632,45 +1610,33 @@ else
     #   "etag": "Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8",
     # I'm having to parse this like a crazy person:
     #   "etag": "\"Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8\"",
-    etag=""
-    etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "etag" | cut -d '"' -f5 | cut -d '\' -f1)
-    LogMessage "dbg" "etag: $etag"
-
+    # etag=""
+    # etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "etag" | cut -d '"' -f5 | cut -d '\' -f1)
+    # LogMessage "dbg" "etag: $etag"
     # Update 2020-09-10 - Suddenly etag isn't being retrieved any more. 
     # Despite what the docs said, it doesn't seem to be needed, so allow for
     # this to be blank and don't invalidate the stream update process just
     # because this is missing.
-    #    if test -z "$etag"; then safeToFixStreamKey=false; fi
+    # if test -z "$etag"; then safeToFixStreamKey=false; fi
 
     channelId=""
     channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
     LogMessage "dbg" "channelId: $channelId"
     if test -z "$channelId"; then safeToFixStreamKey=false; fi
     
-    scheduledStartTime=""
-    scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "scheduledStartTime" | cut -d '"' -f4)
-    LogMessage "dbg" "scheduledStartTime: $scheduledStartTime"
-    if test -z "$scheduledStartTime"; then safeToFixStreamKey=false; fi
+    # Update 2024-03-16 - scheduledStartTime seems to have been changed or
+    # something, and isn't coming up when I query it, at least not like this.
+    # See if this works if we omit this value.
+    # scheduledStartTime=""
+    # scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "scheduledStartTime" | cut -d '"' -f4)
+    # LogMessage "dbg" "scheduledStartTime: $scheduledStartTime"
+    # if test -z "$scheduledStartTime"; then safeToFixStreamKey=false; fi
     
     actualStartTime=""
     actualStartTime=$(echo $liveBroadcastOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
     LogMessage "dbg" "actualStartTime: $actualStartTime"
     if test -z "$actualStartTime"; then safeToFixStreamKey=false; fi
     
-    # Update: "Default" broadcasts and "Persistent" broadcasts have been
-    # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
-    # have to rework the code in order for these scripts to function as
-    # intended again. Currently the deprecation release notes say that
-    # isDefaultBroadcast is deprecated, and also "If the broadcastType
-    # parameter value is persistent, then the liveBroadcasts.list method
-    # will not return any results." more information here:
-    # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
-    # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast    
-    isDefaultBroadcast=""
-    isDefaultBroadcast=$(echo $liveBroadcastOutput | sed 's/"isDefaultBroadcast"/\'$'\n&/g' | grep -m 1 "isDefaultBroadcast" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
-    LogMessage "dbg" "isDefaultBroadcast: $isDefaultBroadcast"
-    if test -z "$isDefaultBroadcast"; then safeToFixStreamKey=false; fi
-
     liveChatId=""
     liveChatId=$(echo $liveBroadcastOutput | sed 's/"liveChatId"/\'$'\n&/g' | grep -m 1 "liveChatId" | cut -d '"' -f4)
     LogMessage "dbg" "liveChatId: $liveChatId"
@@ -1735,7 +1701,6 @@ else
       #        (...)
       #          "scheduledStartTime": "1970-01-01T00:00:00.000Z",
       #          "actualStartTime": "2019-06-14T20:17:04.000Z",
-      #          "isDefaultBroadcast": true,
       #          "liveChatId": "EiEKGFVDcVBaR0Z0QmF1OHJtN3dudgsdgaZEEzZxIFL2xpdmU"
       #         },
       #         "status": {
@@ -1776,7 +1741,6 @@ else
       #    actualStartTime           snippet.actualStartTime
       #                              snippet.description
       #    channelId                 snippet.channelId
-      #    isDefaultBroadcast        snippet.isDefaultBroadcast
       #    liveChatId                snippet.liveChatId
       #    boundStreamId             contentDetails.boundStreamId
       
@@ -1794,7 +1758,10 @@ else
       # needed to specify a specific date in the near future. Perhaps this
       # doesn't need to be updated? Not sure.
       #    scheduledStartTime="2019-06-22T00:00:00.000Z" # Experimental values
-      scheduledStartTime="$actualStartTime"
+      # Update 2024-03-16 - scheduledStartTime seems to have been changed or
+      # something, and isn't coming up when I query it, at least not like this.
+      # See if this works if we omit this value.
+      # scheduledStartTime="$actualStartTime"
       
       # Build strings for fixing privacyStatus.
       # 
@@ -1808,17 +1775,7 @@ else
       # are also included in the curlData for the PUT command. In other words,
       # if the URL contains "part=status", then you must also have
       # "status:<some data>" in the JSON data being posted to the API.
-
-      # Update: "Default" broadcasts and "Persistent" broadcasts have been
-      # deprecated on Youtube, starting approximately 2020-09-10. I'm going to
-      # have to rework the code in order for these scripts to function as
-      # intended again. Currently the deprecation release notes say that
-      # isDefaultBroadcast is deprecated, and also "If the broadcastType
-      # parameter value is persistent, then the liveBroadcasts.list method
-      # will not return any results." more information here:
-      # https://developers.google.com/youtube/v3/live/revision_history#release_notes_04_16_2020 
-      # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#snippet.isDefaultBroadcast
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,status&broadcastType=persistent&mine=true&access_token=$accessToken"
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,status&mine=true&access_token=$accessToken"
       curlData=""
       curlData+="{"
         curlData+="\"id\": \"$thisStreamId\","
