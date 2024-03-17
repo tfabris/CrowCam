@@ -124,7 +124,7 @@ location=""
 #
 # Set these to your desired start and stop offset values.
 # 
-startServiceOffset=-20
+startServiceOffset=-40
 stopServiceOffset=60
 
 
