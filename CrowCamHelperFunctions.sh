@@ -1263,9 +1263,8 @@ CreateNewStream()
     then
       LogMessage "err" "Error getting variable thisStreamId. Output was $createNewLiveStreamOutput"
     else
-      LogMessage "info" "Secret YouTube stream name/key for this broadcast (aka streamName): $streamName"
-      LogMessage "info" "streamStatus: $streamStatus  healthStatus: $healthStatus"
-      LogMessage "info" "Binding the Live Stream $thisStreamId to the Broadcast $thisBroadcastId"
+      LogMessage "info" "Live Stream Key (aka streamName): $streamName Id: $thisStreamId Stream Status: $streamStatus Health Status: $healthStatus"
+      LogMessage "info" "Binding stream to the Broadcast Id: $thisBroadcastId"
 
       # Bind the live stream to the broadcast.
       curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts/bind?part=status&id=$thisBroadcastId&streamId=$thisStreamId&access_token=$accessToken"
@@ -1337,7 +1336,7 @@ CreateNewStream()
           then
             LogMessage "err" "The streamStatus is not active. Value retrieved was: $thisStreamStatus"
           else
-            LogMessage "info" "thisStreamStatus is $thisStreamStatus. Stream should now be live"
+            LogMessage "info" "Stream Status is $thisStreamStatus. Stream $thisBroadcastId should now be live"
           fi
         fi
       fi  
