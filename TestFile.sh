@@ -11,7 +11,6 @@
 # and follow the instructions.
 #------------------------------------------------------------------------------
 
-
 # ----------------------------------------------------------------------------
 # Workaround to allow exiting a Bash script from inside a function call. See
 # this EmpegBBS post for details of how this works and why it's needed:
@@ -63,7 +62,6 @@ videoData="crowcam-videodata"
 videoRealTimestamps="crowcam-realtimestamps"
 
 
-
 # ----------------------------------------------------------------------------
 # Main Script Code Body
 # ----------------------------------------------------------------------------
@@ -73,7 +71,16 @@ if [ ! -z "$debugMode" ]
 then
   LogMessage "err" "------------- Script $programname is running in debug mode: $debugMode -------------"
 fi
- 
+
+# Get Synology NAS API creds out of the external file, assert values are non-blank.
+# TO DO: Learn the correct linux-supported method for storing and retrieving a
+# username and password in an encrypted way.
+read username password < "$apicreds"
+if [ -z "$username" ] || [ -z "$password" ]
+then
+  LogMessage "err" "Problem obtaining Synology API credentials from external file"
+fi
+
 # Authenticate with the YouTube API and receive the Access Token which allows
 # us to make YouTube API calls. Retrieves the $accessToken variable.
 YouTubeApiAuth
@@ -85,6 +92,15 @@ if test -z "$accessToken"
 then
     exit 1
 fi
+
+
+
+# ----------------------------------------------------------------------------
+# Test: Create new stream using the new code that I added for issue #69.
+# ----------------------------------------------------------------------------
+CreateNewStream
+exit 0
+
 
 
 # ----------------------------------------------------------------------------

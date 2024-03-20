@@ -258,6 +258,150 @@ IsOlderThan()
     echo $returnValue
 }
 
+# -----------------------------------------------------------------------------
+# Function: GetFutureZulu
+# 
+# Creates a zulu date string that is a date that is in the future. Used for
+# creating a timestring that is in the future, so that it can satisfy a
+# specific requirement of the YouTube API which is creating an upcoming YouTube
+# video live stream.
+#
+# It will return a string that looks similar to this:
+#         2024-03-19T20:55:00Z
+# 
+# The Z at the end indicates it is a Zulu date which is a UTC date.
+#
+# The actual date and time will be some time in the future. Not too far off from
+# today's time but also far enough that you've got time to create the stream.
+#
+# Parameters:  None.
+#
+# Returns:     Just that string.
+# -----------------------------------------------------------------------------
+GetFutureZulu()
+{
+    # Create a date that is an arbitrary distance in the future. Of course the
+    # syntax has to be different for Mac OS, because the "date" command is
+    # different on MacOS.
+    if [[ $debugMode == *"Mac"* ]]
+    then
+        # Mac version.
+        dateInTheFuture=$( date -u -j -v +5M +"%Y-%m-%dT%H:%M:%S" ) # The 5M must be capitalized for "Minutes"
+    else
+        # Linux version.
+        dateInTheFuture=$(date -u -d "+5 minutes" +"%Y-%m-%dT%H:%M:%S")
+    fi
+
+    # Add the Z to the end of the string and output it to the calling routine.
+    dateInTheFuture="$dateInTheFuture"
+    dateInTheFuture+="Z"
+    echo "$dateInTheFuture"
+}
+
+#------------------------------------------------------------------------------
+# Function: Convert a timestamp from HH:MM format into seconds since midnight.
+# 
+# Parameters: $1 = input time in HH:MM format. Can be 12- or 24-hour format.
+#             $2 = optional - "AM" or "PM" if 12-hour format is being used.
+#
+# Returns: integer of the number of seconds since midnight.
+#
+# If your 12-hour time is a string, such as "7:35 PM" then it is already
+# set up to pass into this function as two parameters. Pass it into this
+# function like this, with no quotes around the string when passing it in:
+#
+#     sunsetString="7:35 PM"
+#     sunsetSeconds=$(TimeToSeconds $sunsetString)
+#
+# The same method of parameter passing works for 24-hour times:
+#
+#     sunsetString="19:35"
+#     sunsetSeconds=$(TimeToSeconds $sunsetString)
+#
+# NOTE: Important trick! Must add the expression "10#" in the calculations
+# below, because in Bash, numbers with leading zeroes make Bash assume that the
+# calculation is in Octal, so any value 08 or above would cause it to get an
+# error because it thinks that we mean 08 octal instead of 8 decimal. This
+# causes some gnarly hard-to-diagnose errors unless we add that "10#" to force
+# it to base 10.
+#
+# Technique obtained (but is incorrect due to that octal thing) from:
+# https://stackoverflow.com/a/2181749/3621748
+#------------------------------------------------------------------------------
+TimeToSeconds()
+{
+    # Set the time string to calculate based on the input parameter.
+    inputTime=$1
+
+    # Perform the calculation based on the example code from Stack Overflow.
+    SavedIFS="$IFS"
+    IFS=":."
+    Time=($inputTime)
+    calculatedSeconds=$((10#${Time[0]}*3600 + 10#${Time[1]}*60))
+
+    # If "PM" was passed in the second parameter, then add 12 hours to it.
+    if [[ $2 == *"PM"* ]]
+    then
+        # Parenthesis required for arithmetic expression
+        ((calculatedSeconds += 43200))
+    fi
+
+    # Set things back and return our results.
+    IFS="$SavedIFS"
+    echo $calculatedSeconds
+}
+
+#------------------------------------------------------------------------------
+# Function: Output Time Difference.
+# 
+# Parameters: $1 = Integer seconds difference such as $sunriseDifferenceSeconds
+#             $2 = String in HH:MM format of that, obtained from SecondsToTime
+#             $3 = Name of the difference such as "Sunrise"
+#
+# Returns: A sentence describing the difference.
+#------------------------------------------------------------------------------
+OutputTimeDifference()
+{
+  # Output the time difference based on whether the number was positive or
+  # negative. If the number is negative, the event was in the past for today.
+  # If the number is positive, the event is coming up later today.
+  if [ $1 -ge 0 ]
+  then
+      echo "$3 is coming up in about $2"
+  else
+      echo "$3 was about $2 ago"
+  fi
+}
+
+#------------------------------------------------------------------------------
+# Function: Write the time to a file each time we start the YouTube stream.
+# 
+# Write the current wall clock time, in seconds, to a certain file, intended
+# to track the most recent time that we started the stream for any reason.
+# 
+# Make sure to call this function each time we start the YouTube stream for any
+# reason.
+# 
+# Parameters: None.
+# Returns: Nothing.
+#------------------------------------------------------------------------------
+WriteStreamStartTime()
+{
+  # Get the current time string into a variable, but use only hours and
+  # minutes. This code is deliberately not accurate down to the second.
+  currentStreamStartTime="`date +%H:%M`"
+
+  # Convert our current time into seconds-since-midnight.
+  currentStreamStartTimeSeconds=$(TimeToSeconds $currentStreamStartTime)
+
+  # Log
+  LogMessage "info" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
+
+  # Write the current time, in seconds, into the specified file.
+  # Use "-n" to ensure there is no trailing newline character.
+  echo -n "$currentStreamStartTimeSeconds" > "$crowcamCamstart"
+}
+
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.
 #
@@ -968,3 +1112,236 @@ YouTubeApiAuth()
       LogMessage "dbg" "Access Token retrieved"
   fi
 }
+
+
+# -----------------------------------------------------------------------------
+# Function: CreateNewStream
+# 
+# Creates a new livebroadcast, its corresponding livestream, and begins
+# streaming to it. This is in response to GitHub issue #69. Details of the
+# required steps are here:
+# 
+#    https://developers.google.com/youtube/v3/live/life-of-a-broadcast
+#
+# Parameters:  None.
+#              Uses some global configuration variables during its run.
+#
+# Returns:     Nothing.
+# -----------------------------------------------------------------------------
+CreateNewStream()
+{
+  # Make sure you are recently authenticated with the YouTube API before starting
+  # this function, so that the calls to the API are correct and expected.
+  YouTubeApiAuth
+
+  # Stop the stream if one is already running.
+  LogMessage "info" "Stopping existing stream (if any) prior to creating a new live broadcast"
+  StopStream
+
+  # First step - Create a new live broadcast at an upcoming near-future date.
+  LogMessage "info" "Creating new YouTube Live Broadcast"
+
+  # Get a time string that's in the future, because creating a livestream
+  # requires an upcoming start time in the near future. 
+  futureZuluTime=$(GetFutureZulu)
+
+  # Create a new liveBroadcast on YouTube. Below is the minimum set of fields
+  # which are needed to create a new liveBroadcast. This is on purpose, because
+  # the fields and settings of the broadcast mostly default to the stuff from
+  # the last broadcast, so you don't need to fill out a bunch of stuff.
+  #
+  # Well, one exception to the minimum. I have added enableAutoStart/Stop
+  # because that saves a step when starting the stream below. The stream should
+  # go live as soon as the stream starts and then stop about a minute after the
+  # stream stops. 
+  curlData=""
+  curlData+="{"
+    curlData+="\"snippet\": "
+      curlData+="{"
+        curlData+="\"title\": \"$titleToDelete\","
+        curlData+="\"scheduledStartTime\": \"$futureZuluTime\""
+      curlData+="},"
+    curlData+="\"status\": "
+      curlData+="{"
+        curlData+="\"privacyStatus\": \"$desiredStreamVisibility\""
+      curlData+="},"
+    curlData+="\"contentDetails\": "
+      curlData+="{"
+        curlData+="\"enableAutoStart\": true,"   # No quotes around true/false
+        curlData+="\"enableAutoStop\": true"     # No quotes around true/false
+      curlData+="}"
+  curlData+="}"
+  curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,id,status,contentDetails&mine=true&access_token=$accessToken"
+  createNewLiveBroadcastOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+
+  # Retrieve the first "id" field of the response, this is the broadcast that we
+  # must bind the new liveStream (below) to.
+  thisBroadcastId=""
+  thisBroadcastId=$(echo $createNewLiveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+  if [ -z "$thisBroadcastId" ] || [[ $createNewLiveBroadcastOutput == *"\"error\":"* ]]
+  then
+    LogMessage "err" "Error getting variable thisBroadcastId. Output was $createNewLiveBroadcastOutput"
+  else
+    # Note: I was unable to get the re-using of the liveStream to succeed. It
+    # worked the first time I tried it, on a liveStream that I had created but
+    # never used. This seemed promising. But on subsequent attempts, the
+    # liveBroadcast became a spinny death icon when trying to re-use that same
+    # stream. So this isn't do-able.
+    #
+    #     LogMessage "info" "Searching for an existing reusable live stream to bind to the broadcast"
+    # 
+    #     # See if the first livestream in my list is reusable and try to reuse it.
+    #     # NOTE: using the variable "createNewLiveStreamOutput" twice, once here if
+    #     # this reusable stream works, and once again below if we must create a new
+    #     # live stream. Whichever of these methods is successful, one of them will
+    #     # get parsed for the ID of the stream that we want. Note: the "contentDetails"
+    #     # section is the part that contains the field "isReusable".
+    #     curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=id,cdn,status,contentDetails&mine=true&access_token=$accessToken"
+    #     createNewLiveStreamOutput=""
+    #     createNewLiveStreamOutput=$( curl -s -m 20 $curlUrl )
+    #
+    #     # Find the first occurrence of the parameter "isReusable" and see if it's
+    #     # the acceptable value. Special way to parse out a value that's true/false
+    #     # out of the JSON since true/false don't have quotes around them and might
+    #     # be followed with a comma.
+    #     isReusable=""
+    #     isReusable=$(echo $createNewLiveStreamOutput | sed 's/"isReusable"/\'$'\n&/g' | grep -m 1 "isReusable" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+
+    LogMessage "info" "Creating new YouTube Live Stream to bind to the Broadcast"
+
+    # Create a new liveStream resource to bind to the liveBroadcast we created
+    # above. Like the liveBroadcast, this is the minimum set of fields for this.
+    curlData=""
+    curlData+="{"
+      curlData+="\"snippet\": "
+        curlData+="{"
+          curlData+="\"title\": \"$titleToDelete\""
+        curlData+="},"
+      curlData+="\"cdn\": "
+        curlData+="{"
+          curlData+="\"frameRate\": \"variable\","
+          curlData+="\"ingestionType\": \"rtmp\","
+          curlData+="\"resolution\": \"variable\","
+          curlData+="\"frameRate\": \"variable\"" # The docs say you must also set frameRate if you set rez.
+        curlData+="}"
+    curlData+="}"
+    curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=snippet,cdn,status&mine=true&access_token=$accessToken"
+    createNewLiveStreamOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+
+    # Retrieve the first "id" field of the response, this is the liveStream that we
+    # must bind to the broadcast (above).
+    thisStreamId=""
+    thisStreamId=$(echo $createNewLiveStreamOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+
+    # Retrieve the field "streamName" from the response as well. This is the
+    # liveStream's "secret Name/Key" that we must plug into the Synology "Live
+    # broadcast" feature in order for the stream to work.
+    streamName=""
+    streamName=$(echo $createNewLiveStreamOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "streamName" | cut -d '"' -f4)
+
+    # Also find the parameters "streamStatus" and the "status" value inside
+    # the "healthStatus" and tell us what they were. I don't know if these will
+    # be a factor in whether or not the stream is successfully reusable. The JSON
+    # here looks like this:
+    #    "status":
+    #    {
+    #      "streamStatus": "inactive",
+    #      "healthStatus":
+    #      {
+    #       "status": "noData"
+    #      }
+    #    },
+    # Due to the weird JSON, to get the healthStatus, we must locate TWO
+    # sections named "status" (-m 2) and parse the second one (tail -1).
+    healthStatus=""
+    healthStatus=$(echo $createNewLiveStreamOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
+    streamStatus=""
+    streamStatus=$(echo $createNewLiveStreamOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+
+    # Ensure there were no major errors getting the liveStream details, then display what we got.
+    if [ -z "$thisStreamId" ] || [ -z "$streamName" ] || [[ $createNewLiveStreamOutput == *"\"error\":"* ]]
+    then
+      LogMessage "err" "Error getting variable thisStreamId. Output was $createNewLiveStreamOutput"
+    else
+      LogMessage "info" "Secret YouTube stream name/key for this broadcast (aka streamName): $streamName"
+      LogMessage "info" "streamStatus: $streamStatus  healthStatus: $healthStatus"
+      LogMessage "info" "Binding the Live Stream $thisStreamId to the Broadcast $thisBroadcastId"
+
+      # Bind the live stream to the broadcast.
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts/bind?part=status&id=$thisBroadcastId&streamId=$thisStreamId&access_token=$accessToken"
+
+      bindToBroadcastOutput=""
+      bindToBroadcastOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" $curlUrl )
+
+      # Bind should return a status response which looks something like this:
+      # {
+      #   "kind": "youtube#liveBroadcast",
+      #   "etag": "asdfasdfasdfasdfasdfasdfasdfasdf",
+      #   "id": "asdfasdfasdf",
+      #   "status": {
+      #     "lifeCycleStatus": "ready",
+      #     "privacyStatus": "public",
+      #     "recordingStatus": "notRecording",
+      #     "madeForKids": false,
+      #     "selfDeclaredMadeForKids": false
+      #   }
+      # }
+      # Get the lifeCycleStatus back from the response.
+      lifeCycleStatusAfterBind=""
+      lifeCycleStatusAfterBind=$(echo $bindToBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "lifeCycleStatus" | cut -d '"' -f4)
+
+      # Ensure there were no errors and check for the "lifeCycleStatus": "ready" part.
+      if [ "$lifeCycleStatusAfterBind" != "ready" ] || [[ $bindToBroadcastOutput == *"\"error\":"* ]]
+      then 
+        LogMessage "err" "Error binding to broadcast. Output was $bindToBroadcastOutput"
+      else
+        LogMessage "info" "Bound to broadcast. Updating Synology with key $streamName"
+
+        # Update the stream name/key on the Synology Live Broadcast feature.
+        if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+        then
+          WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
+        fi
+
+        # Start the stream.
+        WriteStreamStartTime  
+        if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
+        then
+          StartStream
+          LogMessage "info" "Stream started, pausing to give it time to start working"
+        fi
+
+        # Wait a few seconds for the stream to engage, so that it sets the
+        # livestream status to "active".
+        sleep 10
+
+        LogMessage "info" "Querying liveStreams for the status of the stream after starting it"
+
+        # Query the liveStreams to get the status and confirm that it is Active.
+        # According to the lifecycle instructions, it should be Active now
+        # after we started streaming data to it. 
+        curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=status&id=$thisStreamId&access_token=$accessToken"
+        liveStreamsOutput=""
+        liveStreamsOutput=$( curl -s -m 20 $curlUrl )
+
+        # Retrieve the streamStatus field of the response
+        thisStreamStatus=""
+        thisStreamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+
+        # Ensure no errors.
+        if [ -z "$thisStreamStatus" ] || [[ $liveStreamsOutput == *"\"error\":"* ]]
+        then
+          LogMessage "err" "Error getting variable thisStreamStatus. Output was $liveStreamsOutput"
+        else
+          if [ "$thisStreamStatus" != "active" ]
+          then
+            LogMessage "err" "The streamStatus is not active. Value retrieved was: $thisStreamStatus"
+          else
+            LogMessage "info" "thisStreamStatus is $thisStreamStatus. Stream should now be live"
+          fi
+        fi
+      fi  
+    fi
+  fi
+}
+

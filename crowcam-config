@@ -33,10 +33,11 @@
 #
 youTubeUrl="https://www.youtube.com/channel/UCUxIqdJJpXBnjaEy5yq1wZQ/live"
 
-
-# Title of videos within the stream, to clean up at regular intervals. Only
-# videos in the "My Uploads" section of the stream, with titles which match
-# this string exactly, will be deleted.
+# Title of your LiveStream videos. This will be the default title of all new
+# streams when the script must create a new stream to fix a dead one. This will
+# also be the default title of videos that will be cleaned up at regular
+# intervals. Only video titles which match this string exactly, will be
+# deleted.
 #
 # Note: Will also be used for checking that it's OK to work with the stream
 # key of this stream name, as part of the fix for GitHub issue #27.

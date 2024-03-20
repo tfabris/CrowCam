@@ -139,8 +139,15 @@ MaxComebackRetries=40
 # There are two values here: shortBounceDuration, used when certain issues
 # can be repaired with a fast bounce, and longBounceDuration, used when we are
 # trying to seriously split the stream into separate sections.
+#
+# Update: GitHub issue #69 - We no longer need to do the "hack" of stopping
+# the stream for two minutes in order to split the stream into two sections.
+# We now have a function to create an entirely new stream using the API. We
+# will still make the long bounce longer than the short one, and simply use
+# that as our indicator as to whether or not to start a new stream when
+# bouncing.
 shortBounceDuration=4
-longBounceDuration=135
+longBounceDuration=10
 
 # The number of seconds to sleep after bouncing, before allowing the program
 # to continue. This prevents the program from false-alarming and reporting
@@ -284,9 +291,22 @@ Test_Stream()
       # Get the current live broadcast information details as a prelude to obtaining
       # the live stream details. Details of the items in the response are found here:
       # https://developers.google.com/youtube/v3/live/docs/liveBroadcasts#resource
-      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails&mine=true&access_token=$accessToken"
+      #
+      # GitHub Issue #69 - Improve the ability to detect whent the stream is down by
+      # querying the "lifeCycleStatus" and "recordingStatus" of the LiveBrodcasts
+      # output. Must add "part=status" to the LiveBroadcasts query
+      curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts?part=contentDetails,status&mine=true&access_token=$accessToken"
       liveBroadcastOutput=""
       liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
+
+      # Extract the first "lifeCycleStatus" and "recordingStatus" entries that we find.
+      lifeCycleStatus=""
+      lifeCycleStatus=$(echo $liveBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "lifeCycleStatus" | cut -d '"' -f4)
+      LogMessage "dbg" "lifeCycleStatus: $lifeCycleStatus"
+
+      recordingStatus=""
+      recordingStatus=$(echo $liveBroadcastOutput | sed 's/"recordingStatus"/\'$'\n&/g' | grep -m 1 "recordingStatus" | cut -d '"' -f4)
+      LogMessage "dbg" "recordingStatus: $recordingStatus"
     
       # Extract the boundStreamId which is needed in order to find other information.
       boundStreamId=""
@@ -392,7 +412,24 @@ Test_Stream()
               GoodStreamInsideLoop=false
           fi    
         fi
-  
+
+        # Issue #69 - Also test lifeCycleStatus and recordingStatus (which were
+        # retrieved earlier as part of the querying the LiveBroadcasts
+        # resource) - Not bothering to test these for a blank value. If these
+        # come up blank, I'll bet some of the other earlier values such as
+        # healthStatus will already be blank, the variable GoodApiDataRetrieved
+        # will already be false.
+        if [ "$lifeCycleStatus" != "live" ] 
+        then
+          LogMessage "err" "The lifeCycleStatus is not good. Value retrieved was: $lifeCycleStatus"
+          GoodStreamInsideLoop=false
+        fi
+          if [ "$recordingStatus" != "recording" ] 
+        then
+          LogMessage "err" "The recordingStatus is not good. Value retrieved was: $recordingStatus"
+          GoodStreamInsideLoop=false
+        fi
+    
         # Attempt to catch issue #23 and correct it. Look for any occurrence
         # of this particular error in the status output and bounce the stream
         # if it's there:
@@ -672,83 +709,6 @@ GetSunriseSunsetTimeFromGoogle()
 
 
 #------------------------------------------------------------------------------
-# Function: Convert a timestamp from HH:MM format into seconds since midnight.
-# 
-# Parameters: $1 = input time in HH:MM format. Can be 12- or 24-hour format.
-#             $2 = optional - "AM" or "PM" if 12-hour format is being used.
-#
-# Returns: integer of the number of seconds since midnight.
-#
-# If your 12-hour time is a string, such as "7:35 PM" then it is already
-# set up to pass into this function as two parameters. Pass it into this
-# function like this, with no quotes around the string when passing it in:
-#
-#     sunsetString="7:35 PM"
-#     sunsetSeconds=$(TimeToSeconds $sunsetString)
-#
-# The same method of parameter passing works for 24-hour times:
-#
-#     sunsetString="19:35"
-#     sunsetSeconds=$(TimeToSeconds $sunsetString)
-#
-# NOTE: Important trick! Must add the expression "10#" in the calculations
-# below, because in Bash, numbers with leading zeroes make Bash assume that the
-# calculation is in Octal, so any value 08 or above would cause it to get an
-# error because it thinks that we mean 08 octal instead of 8 decimal. This
-# causes some gnarly hard-to-diagnose errors unless we add that "10#" to force
-# it to base 10.
-#
-# Technique obtained (but is incorrect due to that octal thing) from:
-# https://stackoverflow.com/a/2181749/3621748
-#------------------------------------------------------------------------------
-TimeToSeconds()
-{
-    # Set the time string to calculate based on the input parameter.
-    inputTime=$1
-
-    # Perform the calculation based on the example code from Stack Overflow.
-    SavedIFS="$IFS"
-    IFS=":."
-    Time=($inputTime)
-    calculatedSeconds=$((10#${Time[0]}*3600 + 10#${Time[1]}*60))
-
-    # If "PM" was passed in the second parameter, then add 12 hours to it.
-    if [[ $2 == *"PM"* ]]
-    then
-        # Parenthesis required for arithmetic expression
-        ((calculatedSeconds += 43200))
-    fi
-
-    # Set things back and return our results.
-    IFS="$SavedIFS"
-    echo $calculatedSeconds
-}
-
-
-#------------------------------------------------------------------------------
-# Function: Output Time Difference.
-# 
-# Parameters: $1 = Integer seconds difference such as $sunriseDifferenceSeconds
-#             $2 = String in HH:MM format of that, obtained from SecondsToTime
-#             $3 = Name of the difference such as "Sunrise"
-#
-# Returns: A sentence describing the difference.
-#------------------------------------------------------------------------------
-OutputTimeDifference()
-{
-  # Output the time difference based on whether the number was positive or
-  # negative. If the number is negative, the event was in the past for today.
-  # If the number is positive, the event is coming up later today.
-  if [ $1 -ge 0 ]
-  then
-      echo "$3 is coming up in about $2"
-  else
-      echo "$3 was about $2 ago"
-  fi
-}
-
-
-#------------------------------------------------------------------------------
 # Function: Change YouTube Stream to down or up depending on its current state.
 # 
 # Parameters: $1 - "down" if it should be down, "up" if it should be up.
@@ -788,8 +748,17 @@ ChangeStreamState()
   then
     # Bring the stream back up.
     LogMessage "info" "$2. $featureName is down. It should be $1 at this time. Starting stream"
-    WriteStreamStartTime
-    StartStream
+
+    # Update: Issue #69 - We are now creating a new stream from scratch in the
+    # situations. This function is called, for example, at sunrise. So instead,
+    # here, we must call CreateNewStream instead of merely writing the stream
+    # start time and starting the Synology Live Broadcast feature. Also,
+    # writing the stream start time and starting Live Broadcast are done within
+    # tCreateNewStream, so these two items are not needed, instead just make a
+    # new stream.
+    #   WriteStreamStartTime
+    #   StartStream
+    CreateNewStream
 
     # Insert a deliberate pause after starting the stream, to make sure that
     # YouTube has a chance to get its head together and actually stream some
@@ -884,7 +853,11 @@ BounceTheStream()
   # split the stream, so don't write a new start time for the shorter ones.
   if [ $1 -ge $longBounceDuration ]
   then
-    WriteStreamStartTime
+    # New code for GitHub issue #69 - Change the long bounce into an actual
+    # creation of an entirely new stream. Since this function already calls
+    # WriteStreamStartTime, we can skip that function call here.
+    #     WriteStreamStartTime
+    CreateNewStream
   fi
 
   # Bring the stream back up.
@@ -904,36 +877,6 @@ BounceTheStream()
   LogMessage "dbg" "Pausing $postBounceSleepTime seconds, after bringing the stream back up again, to give the stream a chance to spin up and work"
   sleep $postBounceSleepTime
   LogMessage "dbg" "Done bouncing the stream"
-}
-
-
-#------------------------------------------------------------------------------
-# Function: Write the time to a file each time we start the YouTube stream.
-# 
-# Write the current wall clock time, in seconds, to a certain file, intended
-# to track the most recent time that we started the stream for any reason.
-# 
-# Make sure to call this function each time we start the YouTube stream for any
-# reason.
-# 
-# Parameters: None.
-# Returns: Nothing.
-#------------------------------------------------------------------------------
-WriteStreamStartTime()
-{
-  # Get the current time string into a variable, but use only hours and
-  # minutes. This code is deliberately not accurate down to the second.
-  currentStreamStartTime="`date +%H:%M`"
-
-  # Convert our current time into seconds-since-midnight.
-  currentStreamStartTimeSeconds=$(TimeToSeconds $currentStreamStartTime)
-
-  # Log
-  LogMessage "dbg" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
-
-  # Write the current time, in seconds, into the specified file.
-  # Use "-n" to ensure there is no trailing newline character.
-  echo -n "$currentStreamStartTimeSeconds" > "$crowcamCamstart"
 }
 
 
@@ -1989,6 +1932,39 @@ then
     BounceTheStream 0
   else
     LogMessage "dbg" "Outside of hourly quick stream bounce range, no bounce to perform"
+  fi
+fi
+
+
+# ----------------------------------------------------------------------------
+# Quick stream test before the big network test. This allows for situations
+# where we have maybe just bounced the stream above, or just come up from 
+# starting the stream at sunrise, and maybe the stream didn't come up for some
+# reason, and we have one quick chance to fix it before doing the big long
+# network testing loop below.
+# ----------------------------------------------------------------------------
+Test_Network
+if [ "$NetworkIsUp" = false ] 
+then
+  # No sense in testing the stream if the network is down, so let it fall on
+  # to the full network testing loop later.
+  LogMessage "err" "Network is down - Skipping quick stream test."
+else
+  # Test the stream. Note that the Test_Stream function contains its own inner
+  # hysteresis loop because the test method might intermittently cry wolf.
+  Test_Stream
+
+  # Log the status of network and stream.
+  LogMessage "dbg" "Status - Network up: $NetworkIsUp - Stream up: $StreamIsUp"
+
+  # If the stream is down, then bounce the stream.
+  if [ "$StreamIsUp" = false ] 
+  then
+    # Inform the user that we're bouncing the stream.
+    LogMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down"
+    
+    # Bounce the stream. 
+    BounceTheStream $shortBounceDuration
   fi
 fi
 
