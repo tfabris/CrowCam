@@ -1339,6 +1339,167 @@ CreateNewStream()
             LogMessage "info" "Stream Status is $thisStreamStatus. Stream $thisBroadcastId should now be live"
           fi
         fi
+
+        # GitHub issue #75 - Fix categoryID after stream is created. Though the
+        # creation of a new video automatically re-uses a bunch of stuff from
+        # your prior livestreams (things such as Description and Tags are
+        # already filled out), there is a bug: One field keeps getting
+        # clobbered each time: The "categoryId" of the video keeps getting
+        # reset to "24 (Entertainment)" each time you create a new video. This
+        # fix below puts the desired categoryId into video after it is created.
+        # Make sure to configure your desired default categoryId in
+        # crowcam-config.
+        # 
+        # The problem is that fixing the categoryId overwrites the entire
+        # "snippet" field, which ALSO clobbers things like the description, the
+        # tags, and the thumbnail. Gah. So now we also must have a default
+        # Description, Tags, and Thumbnail configured in the crowcam-config file
+        # to push into every new video.
+        LogMessage "info" "Setting the categoryId of video $thisBroadcastId to $categoryId"
+        curlData=""
+        curlData+="{"
+          curlData+="\"id\": \"$thisBroadcastId\","
+          curlData+="\"snippet\": "
+            curlData+="{"
+              curlData+="\"title\": \"$titleToDelete\","
+              curlData+="\"description\": \"$defaultDescription\","
+              curlData+="\"tags\": $defaultTags,"
+              curlData+="\"categoryId\": \"$categoryId\""
+            curlData+="}"
+        curlData+="}"
+        curlUrl="https://youtube.googleapis.com/youtube/v3/videos?part=snippet&access_token=$accessToken"
+        fixCategoryOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+
+        # It should respond with a Videos resource with a Snippet section, and
+        # that section should contain the updated categoryId field. Retrieve
+        # that field of the response and check it.
+        respondedCategoryId=""
+        respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
+
+        # Ensure there were no errors.
+        if [ "$respondedCategoryId" != "$categoryId" ] || [[ $fixCategoryOutput == *"\"error\":"* ]]
+        then
+          LogMessage "err" "Error setting categoryId to $categoryId. Output was $fixCategoryOutput"
+        else
+          # Upload a default thumbnail file (file pointed to by
+          # $defaultThumbnail should exist in the same folder as this script).
+          LogMessage "info" "Uploading thumbnail file $defaultThumbnail"
+          curlUrl="https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=$thisBroadcastId&access_token=$accessToken"
+          uploadThumbnailOutput=$( curl -s -F "image=@$defaultThumbnail" $curlUrl )
+
+          # Parse out the "kind" field from the thumbnail response, it's suppose
+          # to contain "kind": "youtube#thumbnailSetResponse" in the JSON response.
+          thumbnailKind=""
+          thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "kind" | cut -d '"' -f4)
+
+          # Ensure there were no errors.
+          if [ "$thumbnailKind" != "youtube#thumbnailSetResponse" ] || [[ $fixCategoryOutput == *"\"error\":"* ]] || [[ $fixCategoryOutput == *"\"errors\":"* ]]
+          then
+            LogMessage "err" "Error uploading thumbnail to video $thisBroadcastId. Output was $uploadThumbnailOutput"
+          else
+            # GitHub issue #75 - Add the new video stream to the top of our
+            # desired playlist.
+            if [ "$playlistToClean" = "uploads" ]
+            then
+              LogMessage "info" "Video does not need to be added to playlist $playlistToClean because new video streams will always be added there."
+            else
+              LogMessage "info" "Adding video $thisBroadcastId to the top of playlist $playlistToClean"
+              
+              # Get the playlist that we want to work on. This code is similar to
+              # what's in CrowCamCleanup.sh, so look there for an explanation of
+              # all this needlessly-complicated stuff.
+              curlUrl="https://www.googleapis.com/youtube/v3/channels?part=contentDetails,id&mine=true&access_token=$accessToken"
+              channelsOutput=""
+              channelsOutput=$( curl -s $curlUrl )
+              channelId=""
+              channelId=$(echo $channelsOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+              if test -z "$channelId" 
+              then
+                LogMessage "err" "The variable channelId came up empty. Error accessing API. Output was $channelsOutput"
+              else
+                curlUrl="https://www.googleapis.com/youtube/v3/playlists?part=contentDetails,snippet&channelId=$channelId&access_token=$accessToken"
+                playlistsOutput=""
+                playlistsOutput=$( curl -s $curlUrl )              
+                playlistIds=()
+                playlistTitles=()
+                while IFS= read -r line
+                do
+                    lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4)
+                    if ! [ -z "$lineResult" ]
+                    then
+                      playlistIds+=( "$lineResult" )
+                    fi
+                    lineResult=$( echo $line | grep '"title"' | cut -d '"' -f4 )
+                    if ! [ -z "$lineResult" ]
+                    then
+                      if [ "${#playlistTitles[@]}" -gt "0" ]
+                      then
+                        if ! [ "$lineResult" =  "${playlistTitles[ ${#playlistTitles[@]} - 1 ]}" ]
+                        then
+                          playlistTitles+=( "$lineResult" )
+                        fi
+                      else
+                        playlistTitles+=( "$lineResult" )
+                      fi
+                    fi
+                done <<< "$playlistsOutput"
+                if [ "${#playlistIds[@]}" = "0" ]
+                then
+                  LogMessage "err" "Error - Playlist count is zero, Output was: $playlistsOutput"
+                else
+                  if [ "${#playlistIds[@]}" != "${#playlistTitles[@]}" ]
+                  then
+                     LogMessage "err" "Error - Playlist counts unequal, Output was: $playlistsOutput"
+                  else
+                    playlistTargetId=""
+                    for ((i = 0; i < ${#playlistIds[@]}; i++))
+                    do
+                      if [ "${playlistTitles[$i]}" = "$playlistToClean" ]
+                      then
+                          playlistTargetId="${playlistIds[$i]}"
+                      fi
+                    done
+                    if test -z "$playlistTargetId" 
+                    then
+                      LogMessage "err" "The variable playlistTargetId came up empty, Output was: $playlistsOutput"
+                    else
+                      LogMessage "info" "Adding video $thisBroadcastId to playlist ID: $playlistTargetId Title: $playlistToClean"
+                      
+                      # Finally, we can add it! Note that if you do not supply the
+                      # "position": 0 entry in this JSON, it will default to adding
+                      # the item at the END of the playlist instead of the beginning.
+                      # So we do "position": 0 to keep the playlist in the correct
+                      # order which also fixes GitHub issue #78.
+                      curlData=""
+                      curlData+="{"
+                       curlData+="\"snippet\": "
+                       curlData+="{"
+                         curlData+="\"playlistId\": \"$playlistTargetId\","
+                         curlData+="\"position\": 0,"
+                         curlData+="\"resourceId\": "
+                         curlData+="{"
+                           curlData+="\"kind\": \"youtube#video\","
+                           curlData+="\"videoId\": \"$thisBroadcastId\""
+                         curlData+="}"
+                       curlData+="}"
+                      curlData+="}"
+                      curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&access_token=$accessToken"
+                      insertIntoPlaylistsOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+                   
+                      # Ensure there were no errors.
+                      if [[ $fixCategoryOutput == *"\"error\":"* ]] || [[ $fixCategoryOutput == *"\"errors\":"* ]]
+                      then
+                        LogMessage "err" "Error setting categoryId to $categoryId. Output was $insertIntoPlaylistsOutput"
+                      else
+                        LogMessage "dbg" "Video added to playlist"
+                      fi
+                    fi
+                  fi
+                fi
+              fi
+            fi
+          fi
+        fi
       fi  
     fi
   fi

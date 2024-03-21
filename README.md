@@ -205,6 +205,11 @@ installation. They are clearly documented in the file.
   simpler file to update, or if you want an external program to write small
   configuration changes to the override file.
 
+####  Edit thumbnail file:
+Edit the file named "crowcam-thumbnail.jpg" to be the default thumbnail that is
+used when a new video stream is created. This must be a JPG that adheres to the
+YouTube standards for thumbnail files. 
+
 ####  Create API credentials file:
 Create an API credentials file named "api-creds" (no file extension),
 containing a single line of ASCII text: A username, a space, and then a
@@ -310,6 +315,7 @@ Copy the following files from your local PC into the folder on the NAS:
      crowcam-override-config    (if you created one)
      api-creds
      crowcam-tokens
+     crowcam-thumbnail.jpg
      client_id.json
 
 Once all these files are copied to the NAS, then SSH into the NAS:
@@ -327,6 +333,7 @@ Set the access permissions on the folder and its files, using the SSH prompt:
      chmod 660 crowcam-tokens
      chmod 660 crowcam-sunrise
      chmod 660 crowcam-sunset
+     chmod 660 crowcam-thumbnail.jpg
      chmod 660 client_id.json
 
 ####  Create automated tasks in the Synology Task Scheduler
