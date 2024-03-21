@@ -353,9 +353,9 @@ do
     # Actually, don't skip the loop in debug mode for the moment. I recently
     # found myself in a debug situation where I needed all the pages. Uncomment
     # this when you run into a situation where you need faster debugging.
-    #        if [ -z "$debugMode" ]
+    #        if [ ! -z "$debugMode" ]
     #        then
-    #            # Exit the paginiation loop when we are debugging.
+    #           # Exit the pagination loop when we are debugging.
     #            break
     #        fi
 done
@@ -601,10 +601,11 @@ do
       #    (Overall structure is s/regex/replacement/flags)
       #   "   "              Surround sed command with doublequotes so that the variables work.
       #   \" \"              (several places) - escape the literal doublequotes in spots.
-      #    s/                Substitute the regex with a replacement.    
-      #   /\"$oneVideoId\"/  Regex to find quote, the video id, and a quote.
-      #   /& (replacement)/  Begin the replacement string by filling in the contents of the found regex.
-      #   /g                 Flag to replace all occurrences (I only expect one, but it won't work without a flag).
+      #    s/someregex/      Substitute someregex with a replacement.    
+      #   /\"$oneVideoId\"/  The regex to search for: find quote, the video id, and a quote.
+      #   /replacement/      The replacement
+      #   /& (replacement)/  Start the replacement string by filling in the contents of the found regex.
+      #   g                  Flag to replace all occurrences (I only expect one, but it won't work without a flag).
       uploadsOutput=$( sed "s/\"$oneVideoId\"/&,\"actualStartTime\": \"$actualStartTime\", \"actualEndTime\": \"$actualEndTime\"/g" <<< $uploadsOutput )
     else
       # If we did not get an actual time, then skip to the next iteration of

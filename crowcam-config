@@ -193,8 +193,8 @@ location=""
 #
 # Set these to your desired start and stop offset values.
 # 
-startServiceOffset=-40
-stopServiceOffset=60
+startServiceOffset=-10
+stopServiceOffset=-60
 
 
 # maxVideoLengthSeconds - Maximum length, in seconds, that an archived video
