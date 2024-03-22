@@ -436,17 +436,17 @@ You can then do one or both of the following:
      bash "/volume1/homes/admin/CrowCam/(scriptname).sh" >> "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
 ```
 
-- Note that when the script is running from the Synology Task Scheduler, it will
-  run under the account "root", which is different from the account that it will
-  run under when you are logged in with an SSH prompt. So some differences may
-  occur. For example, the script may write a temporary file called
-  "wgetcookies.txt" to store cookies when accessing the Synology API, and the
-  file might end up in different locations. If running the script directly at
-  the SSH prompt, the file will end up in that directory, but if running under
-  Synology Task Scheduler, the file will end up in the "/root" folder.
+Note that when the script is running from the Synology Task Scheduler, it will
+run under the account "root", which is different from the account that it will
+run under when you are logged in with an SSH prompt. So some differences may
+occur. For example, the script may write a temporary file called
+"wgetcookies.txt" to store cookies when accessing the Synology API, and the
+file might end up in different locations. If running the script directly at
+the SSH prompt, the file will end up in that directory, but if running under
+Synology Task Scheduler, the file will end up in the "/root" folder.
 
-You can also configure the script to one of the other debugMode settings, to
-test it on a local Windows or Mac computer, and run the script there. The
+Also, feel free to configure the script to one of the other debugMode settings,
+to test it on a local Windows or Mac computer, and run the script there. The
 debug mode has some limitations when running under Windows or Mac, and will
 skip certain commands and features if debugged in those states.
 
