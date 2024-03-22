@@ -454,7 +454,9 @@ skip certain commands and features if debugged in those states.
 Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
 only log its intentions in debug mode, but won't actually clean up any files.
-Remember to set the debugMode flag back to normal when you are done.
+When you are done troubleshooting, remember to set the debugMode flag back to
+normal, copy it back to the Synology, and re-enable the script in the Synology
+Task Scheduler.
 
 
 Resources
