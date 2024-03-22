@@ -408,7 +408,7 @@ Steps for preparing to debug one of the scripts:
 - Optionally, you can edit the script, locate the script's debugMode variable
   at the top of the script, and temporarily set it to:
 
-     debugMode="Synology"
+     `debugMode="Synology"`
 
   Changing the debugMode variable is optional. Debug mode will shorten some
   loops and will, in some cases, not follow through with writing or deleting
