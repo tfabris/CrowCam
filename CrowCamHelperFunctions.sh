@@ -402,6 +402,97 @@ WriteStreamStartTime()
   echo -n "$currentStreamStartTimeSeconds" > "$crowcamCamstart"
 }
 
+
+# -----------------------------------------------------------------------------
+# Function: Get sunrise or sunset time from Google.
+#
+# Performs a simple Google search such as "Sunrise 98133" and finds the 
+# "answer box" on Google containing the answer. The "answer box" is the little
+# box that google puts at the top of your search results when it thinks that
+# you were searching for a particular piece of data, such as the results of a
+# math calculation, or, as in this case, the astronomical data for a particular
+# location.
+# 
+# Parameters:       $1         Should be either "Sunrise" or "Sunset".
+# Global Variables: $location  Global variable containing your location, such
+#                              as "98125" or "Seattle,WA"
+#                   $userAgent Global variable containing user-agent for the
+#                              web query (see above for details).
+# Returns:                     String of the time that Google responded with,
+#                              such as "7:25 AM"
+# -----------------------------------------------------------------------------
+GetSunriseSunsetTimeFromGoogle()
+{
+    # Debugging message, leave commented out usually.
+    # LogMessage "info" "Beginning GetSunriseSunsetTimeFromGoogle" 
+
+    # Create the query URL that we will use for Google.
+    googleQueryUrl="http://www.google.com/search?q=$1%20$location"
+
+    # Debugging output
+    # LogMessage "dbg" "Google Sunrise/Sunset Query URL: $googleQueryUrl"
+
+    # Perform the query on the URL, and place the HTML results into a variable.
+    googleQueryResult=$( wget -L -qO- --user-agent="$userAgent" "$googleQueryUrl" )
+    
+    # Debugging output
+    # LogMessage "dbg" "Google Sunrise/Sunset Query Result: $googleQueryResult"
+
+    # Alternate version that uses Curl instead of Wget, if needed.
+    # googleQueryResult=$( curl -L -A "$userAgent" -s "$googleQueryUrl" )
+    
+    # Parse the HTML for our answer, and echo the result back to the caller.
+    # Update 2024-03-16 - Google is no longer using the "w-answer-desktop" CSS
+    # class in their output, instead the classname seems to be random
+    # characters which might be dynamically generated. Also they changed the
+    # whitespace between the time and the AM/PM indicator so that it's no
+    # longer just a space, it's a <0x202f> which is a unicode "narrow nobreak
+    # space". Let's see if we can locate the time in the output result by
+    # grepping on just the time characters, any dealing with that funky space.
+
+    # Parsing statement detailed explanation. Note: On MacOS the "-P" parameter
+    # does not work, so you can't use the \d+ command on MacOS.
+    #         -o            Output only the matched text.
+    #         -m 1          BUGFIX: Output only the first match found.
+    #         [0-9][0-9]*   Look for 1 or more integer digits (MacOS).
+    #         :             Look for a colon.
+    #         [0-9][0-9]    Look for exactly two integer digits (MacOS).
+    #         .             Look for a single character of any type.
+    #         [AP]          Look for a capital letter A or a capital letter P.
+    #         M             Look for the capital letter M.
+    # This should get everything like "7:25 AM" or "10:00 PM" etc. with a space or
+    # any weird unicode character in place of the space.
+    #
+    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -m 1 '[0-9][0-9]*:[0-9][0-9].[AP]M')
+
+    # OK but now the time has that weird space in the middle, and without that
+    # actual space, it crashes all the other functions that try to do
+    # calculations on it. Blech. So let's strip it down to that space using
+    # similar techniques.
+    firstTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o '[0-9][0-9]*:[0-9][0-9]')
+    secondTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o '[AP]M')
+
+    # Finally, let's return this thing out of this function as a proper time
+    # with a REGULAR space in the middle.
+    #
+    # BUGFIX - If we didn't get any data from Google, then we want to return a
+    # null string. But saying "echo "$firstTimeSection $secondTimeSection"" at
+    # the end of the function does NOT return a null string. Even if Google
+    # gets nothing, it still returns a string with a single space. This is a
+    # problem if there is an error extracting data from Google. So we must
+    # check it and only return the "spaced" string if Google returned us
+    # something good.
+    if [ -z "$firstTimeSection" ] || [ -z "$secondTimeSection" ]
+    then
+      echo ""
+    else
+      echo "$firstTimeSection $secondTimeSection"
+    fi
+
+    # Debugging message, leave commented out usually.
+    # LogMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
+}
+
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.
 #

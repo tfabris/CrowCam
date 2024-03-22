@@ -96,6 +96,19 @@ fi
 
 
 # ----------------------------------------------------------------------------
+# Test: See if sunrise/sunset googling is working. Getting a lot of errors in
+# here lately.
+# ----------------------------------------------------------------------------
+
+LogMessage "dbg" "Testing Sunrise/Sunset retrieval from Google"
+googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
+LogMessage "dbg" "Sunrise time received from Google: $googleSunriseString"
+googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
+LogMessage "dbg" "Sunset time received from Google: $googleSunsetString"
+exit 0
+
+
+# ----------------------------------------------------------------------------
 # Test: Create new stream using the new code that I added for issue #69.
 # ----------------------------------------------------------------------------
 CreateNewStream

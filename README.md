@@ -387,19 +387,36 @@ situations:
   the Synology log.
 
 To troubleshoot a script, or to see more details about how a script is working,
-edit the script, locate its debugMode variable, and temporarily set it to:
+SSH into the Synology and run it from the shell. From there, you can see all
+the "dbg" level messages which aren't shown in the Synology log.
+
+Optionally, you can edit the script, locate the script's debugMode variable at
+the top of the script, and temporarily set it to:
 
      debugMode="Synology"
 
-You can then do one or both of the following:
+Changing the debugMode variable is optional. Debug mode will shorten some loops
+and will, in some cases, not follow through with writing or deleting certain
+pieces of data. You can also run it without debugMode enabled; either way you
+will always see "dbg" level messages at the shell prompt if you run it from
+there.
+
+If you changed the debugMode of the script, copy the changed version to the
+Synology. You can then do one or both of the following:
 - SSH into the Synology NAS and launch the script at the SSH prompt.
   Note: some of the commands in some scripts might require elevation, so when
-  testing on the Synology, launch the script with sudo. Example:
+  testing on the Synology, launch the script with sudo. Examples:
 ```
      sudo ./CrowCam.sh
+
+     or
+
+     sudo -s
+     ./CrowCam.sh
 ```
-- Edit the "Run Command" for the script in the Synology Task Scheduler, and set
-  its stdout/stderr output to a file which you can download and analyze later:
+- Optionally, you can edit the "Run Command" for the script in the Synology Task
+  Scheduler, and set its stdout/stderr output to a file which you can download
+  and analyze later. This is much more cumbersome though:  
 ```
      bash "/volume1/homes/admin/CrowCam/(scriptname).sh" >> "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
 ```
@@ -421,6 +438,7 @@ skip certain commands and features if debugged in those states.
 Note: Don't leave the debugMode flag set for a long time. The scripts don't
 work fully if the debugMode flag is set. For example, the Cleanup script will
 only log its intentions in debug mode, but won't actually clean up any files.
+Remember to set the debugMode flag back to normal when you are done.
 
 
 Resources
