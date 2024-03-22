@@ -206,9 +206,11 @@ installation. They are clearly documented in the file.
   configuration changes to the override file.
 
 ####  Edit thumbnail file:
-Edit the file named "crowcam-thumbnail.jpg" to be the default thumbnail that is
+Edit the file named "crowcam-thumbnail.jpg" to be your default thumbnail that is
 used when a new video stream is created. This must be a JPG that adheres to the
-YouTube standards for thumbnail files. 
+YouTube standards for thumbnail files. Make sure to change it to something that
+is appropriate for **your** YouTube channel! The file I've included in the
+source code is the one for my YouTube channel, and I'm sure you don't want that.
 
 ####  Create API credentials file:
 Create an API credentials file named "api-creds" (no file extension),
