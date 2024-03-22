@@ -433,7 +433,7 @@ You can then do one or both of the following:
   Scheduler, and set its stdout/stderr output to a file which you can download
   and analyze later. This is much more cumbersome though:  
 ```
-     bash "/volume1/homes/admin/CrowCam/(scriptname).sh" >> "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
+     bash "/volume1/homes/admin/CrowCam/(scriptname).sh" > "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
 ```
 
 Note that when the script is running from the Synology Task Scheduler, it will
