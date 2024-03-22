@@ -395,7 +395,7 @@ WriteStreamStartTime()
   currentStreamStartTimeSeconds=$(TimeToSeconds $currentStreamStartTime)
 
   # Log
-  LogMessage "info" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
+  LogMessage "dbg" "Writing $currentStreamStartTimeSeconds to $crowcamCamstart"
 
   # Write the current time, in seconds, into the specified file.
   # Use "-n" to ensure there is no trailing newline character.
@@ -614,7 +614,7 @@ GetRealTimes()
           then
             LogMessage "dbg" "Cache hit: $oneVideoId - 0Zulu - This is an uploaded video"
           else
-            LogMessage "info" "Cache invalidate - Special rare case of young 0Zulu video - $oneVideoId - Start: $actualStartTime End: (none)"
+            LogMessage "dbg" "Cache invalidate - Special rare case of young 0Zulu video - $oneVideoId - Start: $actualStartTime End: (none)"
             
             # Invalidate the cache entry by doing the following: Delete the
             # cache entry from the file, clear out the cacheReturn variable, and
@@ -1226,7 +1226,7 @@ CreateNewStream()
   YouTubeApiAuth
 
   # Stop the stream if one is already running.
-  LogMessage "info" "Stopping existing stream (if any) prior to creating a new live broadcast"
+  LogMessage "dbg" "Stopping existing stream (if any) prior to creating a new live broadcast"
   StopStream
 
   # First step - Create a new live broadcast at an upcoming near-future date.
@@ -1279,7 +1279,7 @@ CreateNewStream()
     # liveBroadcast became a spinny death icon when trying to re-use that same
     # stream. So this isn't do-able.
     #
-    #     LogMessage "info" "Searching for an existing reusable live stream to bind to the broadcast"
+    #     LogMessage "dbg" "Searching for an existing reusable live stream to bind to the broadcast"
     # 
     #     # See if the first livestream in my list is reusable and try to reuse it.
     #     # NOTE: using the variable "createNewLiveStreamOutput" twice, once here if
@@ -1298,7 +1298,7 @@ CreateNewStream()
     #     isReusable=""
     #     isReusable=$(echo $createNewLiveStreamOutput | sed 's/"isReusable"/\'$'\n&/g' | grep -m 1 "isReusable" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
 
-    LogMessage "info" "Creating new YouTube Live Stream to bind to the Broadcast"
+    LogMessage "dbg" "Creating new YouTube Live Stream to bind to the Broadcast"
 
     # Create a new liveStream resource to bind to the liveBroadcast we created
     # above. Like the liveBroadcast, this is the minimum set of fields for this.
@@ -1354,8 +1354,8 @@ CreateNewStream()
     then
       LogMessage "err" "Error getting variable thisStreamId. Output was $createNewLiveStreamOutput"
     else
-      LogMessage "info" "Live Stream Key (aka streamName): $streamName Id: $thisStreamId Stream Status: $streamStatus Health Status: $healthStatus"
-      LogMessage "info" "Binding stream to the Broadcast Id: $thisBroadcastId"
+      LogMessage "dbg" "Live Stream Key (aka streamName): $streamName Id: $thisStreamId Stream Status: $streamStatus Health Status: $healthStatus"
+      LogMessage "dbg" "Binding stream to the Broadcast Id: $thisBroadcastId"
 
       # Bind the live stream to the broadcast.
       curlUrl="https://www.googleapis.com/youtube/v3/liveBroadcasts/bind?part=status&id=$thisBroadcastId&streamId=$thisStreamId&access_token=$accessToken"
@@ -1385,7 +1385,7 @@ CreateNewStream()
       then 
         LogMessage "err" "Error binding to broadcast. Output was $bindToBroadcastOutput"
       else
-        LogMessage "info" "Bound to broadcast. Updating Synology with key $streamName"
+        LogMessage "dbg" "Bound to broadcast. Updating Synology with key $streamName"
 
         # Update the stream name/key on the Synology Live Broadcast feature.
         if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
@@ -1398,14 +1398,14 @@ CreateNewStream()
         if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
         then
           StartStream
-          LogMessage "info" "Stream started, pausing to give it time to start working"
+          LogMessage "dbg" "Stream started, pausing to give it time to start working"
         fi
 
         # Wait a few seconds for the stream to engage, so that it sets the
         # livestream status to "active".
         sleep 10
 
-        LogMessage "info" "Querying liveStreams for the status of the stream after starting it"
+        LogMessage "dbg" "Querying liveStreams for the status of the stream after starting it"
 
         # Query the liveStreams to get the status and confirm that it is Active.
         # According to the lifecycle instructions, it should be Active now
@@ -1427,7 +1427,9 @@ CreateNewStream()
           then
             LogMessage "err" "The streamStatus is not active. Value retrieved was: $thisStreamStatus"
           else
-            LogMessage "info" "Stream Status is $thisStreamStatus. Stream $thisBroadcastId should now be live"
+            # This is the main log message indicating the newly-created stream
+            # is now live. Targeting this as "info" level for the Synology log.
+            LogMessage "info" "New video is live. Video ID: $thisBroadcastId Status: $thisStreamStatus Key: $streamName"
           fi
         fi
 
@@ -1446,7 +1448,7 @@ CreateNewStream()
         # tags, and the thumbnail. Gah. So now we also must have a default
         # Description, Tags, and Thumbnail configured in the crowcam-config file
         # to push into every new video.
-        LogMessage "info" "Setting the categoryId of video $thisBroadcastId to $categoryId"
+        LogMessage "dbg" "Setting the categoryId of video $thisBroadcastId to $categoryId"
         curlData=""
         curlData+="{"
           curlData+="\"id\": \"$thisBroadcastId\","
@@ -1474,7 +1476,7 @@ CreateNewStream()
         else
           # Upload a default thumbnail file (file pointed to by
           # $defaultThumbnail should exist in the same folder as this script).
-          LogMessage "info" "Uploading thumbnail file $defaultThumbnail"
+          LogMessage "dbg" "Uploading thumbnail file $defaultThumbnail"
           curlUrl="https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=$thisBroadcastId&access_token=$accessToken"
           uploadThumbnailOutput=$( curl -s -F "image=@$defaultThumbnail" $curlUrl )
 
@@ -1492,9 +1494,9 @@ CreateNewStream()
             # desired playlist.
             if [ "$playlistToClean" = "uploads" ]
             then
-              LogMessage "info" "Video does not need to be added to playlist $playlistToClean because new video streams will always be added there."
+              LogMessage "dbg" "Video does not need to be added to playlist $playlistToClean because new video streams will always be added there."
             else
-              LogMessage "info" "Adding video $thisBroadcastId to the top of playlist $playlistToClean"
+              LogMessage "dbg" "Adding video $thisBroadcastId to the top of playlist $playlistToClean"
               
               # Get the playlist that we want to work on. This code is similar to
               # what's in CrowCamCleanup.sh, so look there for an explanation of
@@ -1554,7 +1556,7 @@ CreateNewStream()
                     then
                       LogMessage "err" "The variable playlistTargetId came up empty, Output was: $playlistsOutput"
                     else
-                      LogMessage "info" "Adding video $thisBroadcastId to playlist ID: $playlistTargetId Title: $playlistToClean"
+                      LogMessage "dbg" "Adding video $thisBroadcastId to playlist ID: $playlistTargetId Title: $playlistToClean"
                       
                       # Finally, we can add it! Note that if you do not supply the
                       # "position": 0 entry in this JSON, it will default to adding

@@ -144,7 +144,7 @@ MaxComebackRetries=40
 # the stream for two minutes in order to split the stream into two sections.
 # We now have a function to create an entirely new stream using the API. We
 # will still make the long bounce longer than the short one, and simply use
-# that as our indicator as to whether or not to start a new stream when
+# that as our trigger as to whether or not to start a new stream when
 # bouncing.
 shortBounceDuration=4
 longBounceDuration=10
@@ -780,20 +780,29 @@ BounceTheStream()
   LogMessage "dbg" "Pausing for $1 seconds, after bringing down the stream, before bringing it up again"
   sleep $1
 
-  # Write the bounceup time to our configuration file which tracks the startup
-  # time of each stream segment. Do this only for long bounces such as those
-  # which are intended to split the stream. Shorter ones are not expected to
-  # split the stream, so don't write a new start time for the shorter ones.
+  # Originally, this code at this point wrote the bounceup time to our
+  # configuration file which tracks the startup time of each stream segment. It
+  # was intended for long bounces such as those which are intended to split the
+  # stream. After fixing issue #69, this code is now used for actively creating
+  # the new livestream at this point. Test for any bounce that is intended to
+  # be the "long" bounce (i.e., using $longBounceDuration) and, instead of
+  # bouncing, just actively create an entirely new livestream by calling
+  # CreateNewStream. So $longBounceDuration is now our "trigger" for creating a
+  # new livestream at the split point.
   if [ $1 -ge $longBounceDuration ]
   then
     # New code for GitHub issue #69 - Change the long bounce into an actual
-    # creation of an entirely new stream. Since this function already calls
-    # WriteStreamStartTime, we can skip that function call here.
+    # creation of an entirely new stream. Since CreateNewStream already calls
+    # WriteStreamStartTime, we can skip writing the start time here.
     #     WriteStreamStartTime
     CreateNewStream
   fi
 
-  # Bring the stream back up.
+  # Bring the stream back up. This is necessary for the shorter bounces. But
+  # after the bugfix for issue #69, a longer bounce will actually create an
+  # entirely new livestream and the stream will be already started. So for
+  # long bounces, will harmlessly ensure that the Live Broadcast feature is
+  # already turned on.
   if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
   then
     LogMessage "dbg" "Starting stream"
@@ -1186,7 +1195,8 @@ fi
 # Note that this code doesn't get hit if the stream was stopped by the sunset
 # control earlier in the code. So this code will only get hit if the user has
 # disabled their sunrise/sunset controls, or if they live in the land of the
-# midnight sun.
+# midnight sun. Also note that $longBounceDuration is also our new "trigger"
+# value for creating an entirely new livestream at the split point.
 if [ "$currentTimeSeconds" -lt "$TopOfTheHourPeriod" ]
 then
   LogMessage "info" "Performing stream split at midnight"
@@ -1269,12 +1279,14 @@ then
       # We are within the grace period, don't bounce the stream.
       LogMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
     else
-      # The end of the day is not close enough. Bounce the stream.
+      # The end of the day is not close enough. Split the stream here.
       LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
 
       # Perform the bounce, but only if we are not in debug mode.
       # Use the long bounce duration here, because we are deliberately trying
-      # to split the stream into multiple sections with this bounce.
+      # to split the stream into multiple sections with this bounce. After
+      # the fix to issue #69, $longBounceDuration is now our "trigger" for
+      # creating a new livestream at the split point.
       if [ -z "$debugMode" ]
       then
         BounceTheStream $longBounceDuration
@@ -1284,8 +1296,11 @@ then
     fi
   else
     # If the script is not configured for sunrise-sunset start-stops, then
-    # simply bounce the stream based on length alone. But only if we are not
-    # in debug mode.
+    # simply split the stream based on length alone. But only if we are not
+    # in debug mode. Note that bouncing the stream for $longBounceDuration 
+    # is intended to split the stream into two parts. After the fix to issue
+    # #69, $longBounceDuration is now our "trigger" for creating a new
+    # livestream at the split point.
     LogMessage "dbg" "Sunrise-Sunset control is disabled - bouncing stream based on video length without regard to the time of day"
     LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
     if [ -z "$debugMode" ]
