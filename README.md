@@ -101,7 +101,7 @@ Requirements
   script, and if desired, to test and debug all of the scripts. This can be on
   a Linux computer, a MacOS computer, or even a Windows computer if you install
   the [Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
-- These scripts must be set up correctly. See: [Configuration](#configuration)
+- These scripts must be set up correctly. See: [Configuration](#configuration).
 
 Setup of your YouTube live stream is not documented here. See the YouTube and
 Synology documentation to set this up. Make sure that the camera, NAS, Synology
