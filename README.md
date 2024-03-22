@@ -340,16 +340,16 @@ Set the access permissions on the folder and its files, using the SSH prompt:
      chmod 660 client_id.json
 
 ####  Create automated tasks in the Synology Task Scheduler
-In the Synology Control Panel, open the Task Scheduler, and create three tasks,
-each task should have the following settings:
+In the Synology Control Panel, open the Task Scheduler, and create the following
+tasks, each task should have the following settings:
 - Type of tasks: "Scheduled Task", "User-defined script"
 - General, General Settings: Run all three tasks under User: "root"
-- General, General Settings: Name each of the three tasks as follows:
+- General, General Settings: Name each of the tasks as follows:
 ```
      Task:   CrowCam Controller
      Task:   CrowCam Cleanup
 ```
-- Schedule: Set all three tasks to run "Daily"
+- Schedule: Set all tasks to run "Daily"
 - Schedule: First run time: "00:00"
 - Schedule: Frequency: 
     - CrowCam Controller: Frequency: "Every 5 Minutes"
