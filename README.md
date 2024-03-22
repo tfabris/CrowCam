@@ -460,26 +460,26 @@ Task Scheduler.
 
 Resources
 ------------------------------------------------------------------------------
-Initial OAuth script example:
+YouTube OAuth script examples and information:
 - https://gist.github.com/LindaLawton/cff75182aac5fa42930a09f58b63a309
-
-Refresh token expiration date information:
 - https://stackoverflow.com/questions/8953983/do-google-refresh-tokens-expire
+- https://developers.google.com/youtube/v3/live/authentication
+- https://developers.google.com/youtube/v3/live/guides/auth/installed-apps
+- https://developers.google.com/identity/protocols/oauth2/resources/oob-migration
 
 YouTube API samples:
 - https://developers.google.com/youtube/v3/sample_requests
 - https://developers.google.com/youtube/v3/code_samples/apps-script#retrieve_my_uploads
 
-YouTube Video API references, specific details:
+YouTube Video API references:
 - https://developers.google.com/youtube/v3/docs/
-- https://developers.google.com/youtube/v3/docs/channels/list
-- https://developers.google.com/youtube/v3/docs/playlistItems/list
-- https://developers.google.com/youtube/v3/docs/videos/list
-- https://developers.google.com/youtube/v3/docs/videos/delete
-
-YouTube's "Scope" for its OAuth authentication, docs:
-- https://developers.google.com/youtube/v3/live/authentication
-- https://developers.google.com/youtube/v3/live/guides/auth/installed-apps
+- https://developers.google.com/youtube/v3/docs/channels
+- https://developers.google.com/youtube/v3/docs/playlistItems
+- https://developers.google.com/youtube/v3/docs/videos
+- https://developers.google.com/youtube/v3/live/docs/liveBroadcasts
+- https://developers.google.com/youtube/v3/live/docs/liveStreams
+- https://developers.google.com/youtube/v3/live/life-of-a-broadcast
+- https://developers.google.com/youtube/v3/live/guides/migration-guide-default-broadcasts
 
 Google Developer Console:
 - https://console.developers.google.com/apis/dashboard
