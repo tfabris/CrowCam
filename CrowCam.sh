@@ -196,6 +196,12 @@ TestModeComeBackOnRetry=1
 # Performs a check to see if the YouTube live stream is up, and sets
 # the global variable $StreamIsUp to either "true" or "false".
 #
+# If it detects the particular special situation where the stream is in the
+# "finished" state and needs a new stream re-created, then it will do that.
+# Otherwise it doesn't attempt to do any maintenance bounce of the stream.
+# The maintenance bounces are handled outside of this test, based on the
+# $StreamIsUp global variable.
+#
 # Recommend only calling this function shortly after having called
 # Test_Network, since it's only useful if the network is up.
 #
@@ -428,6 +434,24 @@ Test_Stream()
         then
           LogMessage "err" "The recordingStatus is not good. Value retrieved was: $recordingStatus"
           GoodStreamInsideLoop=false
+        fi
+
+        # Issue #69 - If the lifeCycleStatus and recordingStatus indicate that
+        # the stream is considered finished, we must start an entirely new
+        # stream. Attempt to create the new stream here and then retry the
+        # downdetection hysteresis loop.
+        if [ "$lifeCycleStatus" = "complete" ] && [ "$recordingStatus" = "recorded" ] && [ "$GoodStreamInsideLoop" = false ]
+        then
+          LogMessage "err" "The lifeCycleStatus and recordingStatus indicate that it's time to create a new livestream from scratch. Creating a new livestream now"
+          CreateNewStream
+
+          # After creating a new stream, assume that the stream should have come
+          # up, so set the variables from this function back to good, and then
+          # continue on to the next iteration of the downdetection hysteresis
+          # loop.
+          StreamIsUp=true
+          GoodStreamInsideLoop=true
+          continue
         fi
     
         # Attempt to catch issue #23 and correct it. Look for any occurrence
