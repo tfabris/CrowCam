@@ -407,9 +407,14 @@ there.
 
 If you changed the debugMode of the script, copy the changed version to the
 Synology. You can then do one or both of the following:
-- SSH into the Synology NAS and launch the script at the SSH prompt.
-  Note: some of the commands in some scripts might require elevation, so when
-  testing on the Synology, launch the script with sudo. Examples:
+- SSH into the Synology NAS and launch the script at the SSH prompt. ***Make
+  sure to disable the script in the Synology Task Scheduler, and make sure its
+  prior iteration is done running, before running the script from the SSH
+  prompt.*** To check to see if the script is done running in the Task
+  Scheduler, open up Control Panel, Task Scheduler, select the script, and
+  press Action, View Result. Look at Current Status and make sure it doesn't
+  say "running". Finally, these scripts requires elevation, so when testing on
+  the Synology, launch the script with `sudo`. Examples:
 ```
      sudo ./CrowCam.sh
 
@@ -425,8 +430,8 @@ Synology. You can then do one or both of the following:
      bash "/volume1/homes/admin/CrowCam/(scriptname).sh" >> "/volume1/homes/admin/CrowCam/(scriptname).log" 2>&1
 ```
 
-- Note that if the script is running from the Synology Task Scheduler, it will
-  run under the account "root" which is different from the account that it will
+- Note that when the script is running from the Synology Task Scheduler, it will
+  run under the account "root", which is different from the account that it will
   run under when you are logged in with an SSH prompt. So some differences may
   occur. For example, the script may write a temporary file called
   "wgetcookies.txt" to store cookies when accessing the Synology API, and the
