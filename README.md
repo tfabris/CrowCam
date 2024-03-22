@@ -405,18 +405,17 @@ Steps for preparing to debug one of the scripts:
   doesn't say "running". If it's running,  wait for it to finish. Each script
   should take about 5 minutes or less to run. You  may need to close and
   re-open the "Run Result" dialog box to see the "Current status" change.
-  
-Optionally, you can edit the script, locate the script's debugMode variable at
-the top of the script, and temporarily set it to:
+- Optionally, you can edit the script, locate the script's debugMode variable
+  at the top of the script, and temporarily set it to:
 
      debugMode="Synology"
 
-Changing the debugMode variable is optional. Debug mode will shorten some loops
-and will, in some cases, not follow through with writing or deleting certain
-pieces of data. You can also run it without debugMode enabled; either way you
-will always see "dbg" level messages at the shell prompt if you run it from
-there. If you changed the debugMode of the script, remember to copy the changed
-version to the Synology before running it.
+  Changing the debugMode variable is optional. Debug mode will shorten some
+  loops and will, in some cases, not follow through with writing or deleting
+  certain pieces of data. You can also run it without debugMode enabled; either
+  way you will always see "dbg" level messages at the shell prompt if you run
+  it from there. If you changed the debugMode of the script, remember to copy
+  the changed version to the Synology before running it.
 
 You can then do one or both of the following:
 - SSH into the Synology NAS and launch the script at the SSH prompt.  Note:
