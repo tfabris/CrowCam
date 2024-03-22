@@ -104,9 +104,10 @@ Requirements
 - These scripts must be set up correctly. See: [Configuration](#configuration).
 
 Setup of your YouTube live stream is not documented here. See the YouTube and
-Synology documentation to set this up. Make sure that the camera, NAS, Synology
-Surveillance Station, and "Live Broadcast" features are all working correctly,
-and that you can see the stream on your YouTube channel.
+Synology documentation to set this up. First make sure that the camera, NAS,
+Synology Surveillance Station, and "Live Broadcast" features are all working
+correctly, and that you can see the stream on your YouTube channel. Then you
+can begin setting up these scripts.
 
 
 What Each Script Does
