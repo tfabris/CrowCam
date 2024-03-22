@@ -1088,11 +1088,13 @@ midday=$(SecondsToTimeAmPm $middaySeconds)
 # video length, then use that value in place of it. This means that the daily
 # split point will be either midday, or, the max video length, whichever is
 # the shorter one.
-if [ $halfTimeSeconds -lt $maxVideoLengthSeconds ]  
+# 
+# Update: Github issue #79 - Only do the midday split if the user wants it.
+if [ "$middaySplit" = true ] && [ $halfTimeSeconds -lt $maxVideoLengthSeconds ]  
 then  
   LogMessage "dbg" "Using midday bounce length $(SecondsToTime $halfTimeSeconds) in place of maximum video length $(SecondsToTime $maxVideoLengthSeconds) to determine split points"  
   maxVideoLengthSeconds=$halfTimeSeconds
-fi  
+fi
 
 # Output - print the results of our calculations to the screen.
 LogMessage "dbg" "Current time:    $currentTime    ($currentTimeSeconds seconds)"

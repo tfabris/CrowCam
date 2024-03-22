@@ -294,6 +294,27 @@ maxVideoLengthGracePeriod=3600
 hourlyQuickBounce=false
 
 
+# If this middaySplit flag is set to "true", then the live YouTube video
+# stream will split into two separate streams in the midpoint of the day
+# (half way between the sunrise start point and the sunset stop point).
+#
+# It will only do the split if $maxVideoLengthSeconds is longer than
+# half a day. For example, if the time between sunrise and sunset is ten
+# hours long for you today, then it would normally split the stream at
+# the five hour mark. But if you've already set $maxVideoLengthSeconds
+# to four hours, then there's no need to split it at the five hour mark
+# so it won't do that.
+#
+# Recommended value: Depends on what you want. If you've set
+# $maxVideoLengthSeconds to a very long time, and you explicitly don't
+# want the stream splitting up into sections, then set this to false.
+# If you want to ensure that your livestream is split into at least
+# two chunks to keep YouTube's archive processing down to a minimum,
+# then set this to true.
+#
+middaySplit=false
+
+
 # Special feature which forces the YouTube stream to be always-off. This
 # should only be enabled in certain unusual situations. This feature allows
 # you to leave the script running, but have the script deliberately shut down
