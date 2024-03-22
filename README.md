@@ -200,7 +200,7 @@ installation. They are clearly documented in the file.
 
 - _**Optional**_: Instead of editing "crowcam-config", you could also create a
   file in the same folder, named "crowcam-override-config", add a shebang to the
-  top of the file (`#!/bin/bash`) and enter any variables that want to be
+  top of the file (`#!/bin/bash`) and enter any variables that you want to be
   different from crowcam-config. This is useful if, for example, you want to
   subscribe to the GitHub repository and keep the code updated, if you want a
   simpler file to update, or if you want an external program to write small
