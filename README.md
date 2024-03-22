@@ -392,8 +392,20 @@ situations:
 
 To troubleshoot a script, or to see more details about how a script is working,
 SSH into the Synology and run it from the shell. From there, you can see all
-the "dbg" level messages which aren't shown in the Synology log.
+the "dbg" level messages which aren't shown in the Synology system log.
 
+Steps for preparing to debug one of the scripts:
+- ***Disable the script in the Synology Task Scheduler:*** Synology Control
+  panel, Task Scheduler, select the script, uncheck the checkmark in the
+  "Enabled" column next to the script, and press "Save". Make sure to press
+  "Save" or else it doesn't disable the script.
+- ***Make sure its prior iteration is done running:*** Synology Control Panel,
+  Task Scheduler, select the script, press Action, View Result. The "Run
+  Result" dialog box should appear. Look at "Current status" and make sure it
+  doesn't say "running". If it's running,  wait for it to finish. Each script
+  should take about 5 minutes or less to run. You  may need to close and
+  re-open the "Run Result" dialog box to see the "Current status" change.
+  
 Optionally, you can edit the script, locate the script's debugMode variable at
 the top of the script, and temporarily set it to:
 
@@ -403,18 +415,13 @@ Changing the debugMode variable is optional. Debug mode will shorten some loops
 and will, in some cases, not follow through with writing or deleting certain
 pieces of data. You can also run it without debugMode enabled; either way you
 will always see "dbg" level messages at the shell prompt if you run it from
-there.
+there. If you changed the debugMode of the script, remember to copy the changed
+version to the Synology before running it.
 
-If you changed the debugMode of the script, copy the changed version to the
-Synology. You can then do one or both of the following:
-- SSH into the Synology NAS and launch the script at the SSH prompt. ***Make
-  sure to disable the script in the Synology Task Scheduler, and make sure its
-  prior iteration is done running, before running the script from the SSH
-  prompt.*** To check to see if the script is done running in the Task
-  Scheduler, open up Control Panel, Task Scheduler, select the script, and
-  press Action, View Result. Look at Current Status and make sure it doesn't
-  say "running". Finally, these scripts requires elevation, so when testing on
-  the Synology, launch the script with `sudo`. Examples:
+You can then do one or both of the following:
+- SSH into the Synology NAS and launch the script at the SSH prompt.  Note:
+  these scripts requires elevation, so when testing on the Synology, launch
+  the script with `sudo`. Examples:
 ```
      sudo ./CrowCam.sh
 
