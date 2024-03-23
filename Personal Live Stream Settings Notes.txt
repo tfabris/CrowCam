@@ -85,12 +85,13 @@ Video format: H.264
 Audio format: AAC
 Field of View: (N/A on Dahua camera)
 Stream profile: All three set to "Stream 1"
-"Stream 1" settings - Resolution: 1920x1080
+"Stream 1" settings - Resolution: 2304x1296
 "Stream 1" settings - Frame Rate: 30
 "Stream 1" settings - Bitrate: Constant
-"Stream 1" settings - Bitrate KBPS: 2304
-   Note: 2304 is lowest setting the camera allows. Do not set
-   lower values, that might cause camera to jump back to 8192.
+"Stream 1" settings - Bitrate KBPS: 10240
+   Note: Prior settings were 1920x1080 at 2304 KBPS, with 2304 being the
+   lowest setting the camera allows. That was before I moved to an ISP
+   without a bandwidth cap.
 
 IP Camera - Edit - Device Settings - Advanced
 
@@ -156,11 +157,11 @@ Setting - Video - Main Stream
 
     Encode Mode: H.264H
     Smart Codec: Off
-    Resolution: 1920x1080(1080P)
+    Resolution: 2304x1296
     Frame Rate: 30
     Bit Rate Type: CBR
     Bit Rate: Customized
-    KB/S: 2304 (this is the lowest setting that will stick)
+    KB/S: 10240
     iFrame Interval: 30 (most frequent setting allowed)
 
     Note: Changing settings may affect the bit rate. Change the bit rate back
