@@ -1491,7 +1491,7 @@ CreateNewStream()
           thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "kind" | cut -d '"' -f4)
 
           # Ensure there were no errors.
-          if [ "$thumbnailKind" != "youtube#thumbnailSetResponse" ] || [[ $fixCategoryOutput == *"\"error\":"* ]] || [[ $fixCategoryOutput == *"\"errors\":"* ]]
+          if [ "$thumbnailKind" != "youtube#thumbnailSetResponse" ] || [[ $uploadThumbnailOutput == *"\"error\":"* ]] || [[ $uploadThumbnailOutput == *"\"errors\":"* ]]
           then
             LogMessage "err" "Error uploading thumbnail to video $thisBroadcastId. Output was $uploadThumbnailOutput"
           else
@@ -1585,7 +1585,7 @@ CreateNewStream()
                       insertIntoPlaylistsOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
                    
                       # Ensure there were no errors.
-                      if [[ $fixCategoryOutput == *"\"error\":"* ]] || [[ $fixCategoryOutput == *"\"errors\":"* ]]
+                      if [[ $insertIntoPlaylistsOutput == *"\"error\":"* ]] || [[ $insertIntoPlaylistsOutput == *"\"errors\":"* ]]
                       then
                         LogMessage "err" "Error setting categoryId to $categoryId. Output was $insertIntoPlaylistsOutput"
                       else
