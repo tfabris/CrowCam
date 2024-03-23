@@ -449,7 +449,7 @@ GetSunriseSunsetTimeFromGoogle()
     # longer just a space, it's a <0x202f> which is a unicode "narrow nobreak
     # space". Let's see if we can locate the time in the output result by
     # grepping on just the time characters, any dealing with that funky space.
-
+    #
     # Parsing statement detailed explanation. Note: On MacOS the "-P" parameter
     # does not work, so you can't use the \d+ command on MacOS.
     #         -o            Output only the matched text.
@@ -457,13 +457,18 @@ GetSunriseSunsetTimeFromGoogle()
     #         [0-9][0-9]*   Look for 1 or more integer digits (MacOS).
     #         :             Look for a colon.
     #         [0-9][0-9]    Look for exactly two integer digits (MacOS).
-    #         .             Look for a single character of any type.
+    #         .{1,3}        Look for 1-3 characters of any type.
     #         [AP]          Look for a capital letter A or a capital letter P.
     #         M             Look for the capital letter M.
     # This should get everything like "7:25 AM" or "10:00 PM" etc. with a space or
     # any weird unicode character in place of the space.
     #
-    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -m 1 '[0-9][0-9]*:[0-9][0-9].[AP]M')
+    # Update: To fix issue #81, I had to turn on extended regex (-E) and instead
+    # of searching for a single weird unicode character ("."), I had to search
+    # for 1-3 characters (".{1,3}"). This was only necessary when running under
+    # the Synology Task Scheduler; the problem didn't manifest itself when
+    # running on the Synology at the SSH shell prompt.
+    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -E -m 1 '[0-9][0-9]*:[0-9][0-9].{1,3}[AP]M')
 
     # OK but now the time has that weird space in the middle, and without that
     # actual space, it crashes all the other functions that try to do
