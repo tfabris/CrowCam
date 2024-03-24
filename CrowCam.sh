@@ -1441,19 +1441,25 @@ if test -z "$boundStreamTitle"
 then
   LogMessage "err" "The variable boundStreamTitle came up empty. Error accessing YouTube API"
   safeToFixStreamKey=false
-else
-  # If the stream title is not empty, then make sure the title of the stream
-  # is the one that we expect it to be. This fixes GitHub issue #27.
-  if [[ "$titleToDelete" == "$boundStreamTitle" ]]
-  then
-    LogMessage "dbg" "Expected stream title $titleToDelete matches YouTube stream title $boundStreamTitle"
-  else
-    # Log a set of error messages if they do not match.
-    LogMessage "err" "Expected stream title does not match YouTube stream title"
-    LogMessage "err" "Expected name: $titleToDelete"
-    LogMessage "err" "YouTube name:  $boundStreamTitle"
-    safeToFixStreamKey=false
-  fi
+
+  # Fix GitHub issue #82 - Don't actually do anything about a differing video
+  # name. Despite what issue #27 says, I don't think this assertion below is
+  # necessary. Also, it gets in the way when I want to rename the video while
+  # it's in the middle of live-streaming (a valid use-case).
+  #
+  # else
+  #   # If the stream title is not empty, then make sure the title of the stream
+  #   # is the one that we expect it to be. This fixes GitHub issue #27.
+  #   if [[ "$titleToDelete" == "$boundStreamTitle" ]]
+  #   then
+  #     LogMessage "dbg" "Expected stream title $titleToDelete matches YouTube stream title $boundStreamTitle"
+  #   else
+  #     # Log a set of error messages if they do not match.
+  #     LogMessage "err" "Expected stream title does not match YouTube stream title"
+  #     LogMessage "err" "Expected name: $titleToDelete"
+  #     LogMessage "err" "YouTube name:  $boundStreamTitle"
+  #     safeToFixStreamKey=false
+  #   fi
 fi
 
 # Fix for issue #37 - Check to make sure that the stream visibility/privacy is
