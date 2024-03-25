@@ -450,8 +450,10 @@ FixLocale()
     then
       LogMessage "err" "Unable to find a valid locale value to set, locale fixing not performed"
     else
-      # Fix the LC_ALL variable for use in the remainder of this script run.
-      LogMessage "dbg" "Forcing locale to: $forceLocale"
+      # Fix the LC_ALL variable for use in the remainder of this script run. Set
+      # this message to "info" so that I can see its output in the Synology log
+      # when it's running under the Task Scheduler.
+      LogMessage "info" "Forcing locale to: $forceLocale"
       export LC_ALL=$forceLocale
       LogMessage "dbg" "Current Locale:    $LC_ALL"
     fi
