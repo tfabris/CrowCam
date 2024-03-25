@@ -404,6 +404,64 @@ WriteStreamStartTime()
 
 
 # -----------------------------------------------------------------------------
+# Function: Fix Locale.
+#
+# This is part of the bugfix to issue #81. If the system locale is not set, then
+# force the system locale to be our desired value so that grepping for the
+# unicode characters works as expected.
+#
+# In the function GetSunriseSunsetTimeFromGoogle, it became necessary to grep
+# for a unicode narrow nonbreaking space (0x202f), which will succeed if the
+# system locale is set to any UTF8 variant. Running under the Synology Task
+# Scheduler, for some weird reason, has no locale set at all. The $LC_ALL
+# variable is blank in that situation, and so grepping for unicode characters
+# might fail. Since $LC_ALL is set correctly when running at the Synology
+# shell, this is hard to debug at a runtime shell.
+# -----------------------------------------------------------------------------
+FixLocale()
+{
+  # Only perform actions if the existing locale is blank/null.
+  if [ -z "$LC_ALL" ]
+  then
+    LogMessage "dbg" "System LC_ALL variable was null, attempting to fix"
+
+    # Loop through all possible locale values by listing them all using
+    # the "locale -a" command.
+    forceLocale=""
+    for onePossibleLocale in `locale -a`
+    do
+      # Look to see if the string matches our needs. It needs to be some upper
+      # lower or mixed case variation of "en_US.utf8", with or without a hyphen
+      # in "utf-8". This uses the "tr" string translator to change upper case
+      # to lower case, so we get a case insensitive check for this IF
+      # statement.
+      if [[ "$(echo $onePossibleLocale | tr '[:upper:]' '[:lower:]')" = *'en_us'* ]] && [[ "$(echo $onePossibleLocale | tr '[:upper:]' '[:lower:]')" = *'utf'* ]]
+      then
+        # LogMessage "dbg" "FOUND desired locale value:       $onePossibleLocale"
+        forceLocale="$onePossibleLocale"
+        break
+        # else
+        # LogMessage "dbg" "Searching possible locale values: $onePossibleLocale"
+      fi
+    done
+  
+    # Only force the locale if we got a valid value out of the search.
+    if [ -z "$forceLocale" ]
+    then
+      LogMessage "err" "Unable to find a valid locale value to set, locale fixing not performed"
+    else
+      # Fix the LC_ALL variable for use in the remainder of this script run.
+      LogMessage "dbg" "Forcing locale to: $forceLocale"
+      export LC_ALL=$forceLocale
+      LogMessage "dbg" "Current Locale:    $LC_ALL"
+    fi
+  else
+    LogMessage "dbg" "System LC_ALL variable was already set to $LC_ALL - No locale fix needed"
+  fi
+}
+
+
+# -----------------------------------------------------------------------------
 # Function: Get sunrise or sunset time from Google.
 #
 # Performs a simple Google search such as "Sunrise 98133" and finds the 
@@ -426,6 +484,9 @@ GetSunriseSunsetTimeFromGoogle()
     # Debugging message, leave commented out usually.
     # LogMessage "info" "Beginning GetSunriseSunsetTimeFromGoogle" 
 
+    # Fix the locale bug from issue #81
+    FixLocale
+
     # Create the query URL that we will use for Google.
     googleQueryUrl="http://www.google.com/search?q=$1%20$location"
 
@@ -440,6 +501,27 @@ GetSunriseSunsetTimeFromGoogle()
 
     # Alternate version that uses Curl instead of Wget, if needed.
     # googleQueryResult=$( curl -L -A "$userAgent" -s "$googleQueryUrl" )
+
+    # Debug test cases: Uncomment some or all of these to test time-parsing.
+    # googleQueryResult="<test>
+    # <div>123:456 am</div>
+    # <div>123:456 a.m.</div>
+    # <div>123:456</div>
+    # <div>12:32 foo AM</div>
+    # <div>12:32</div>
+    # <div>12:81 am</div>
+    # <div>12:3 am</div>
+    # <div>1:3 am</div>
+    # <div>09:30 azmz</div>
+    # <div>6:59 a.m.</div>
+    # <div>6:59 AM</div>
+    # <div>09:30 a.m.</div>
+    # <div>09:30 A.M.</div>
+    # <div>09:30 am</div>
+    # <div>9:31 am</div>
+    # <div>9:32 AM</div>
+    # <div>09:32 AM</div>
+    # </test>"
     
     # Parse the HTML for our answer, and echo the result back to the caller.
     # Update 2024-03-16 - Google is no longer using the "w-answer-desktop" CSS
@@ -452,30 +534,35 @@ GetSunriseSunsetTimeFromGoogle()
     #
     # Parsing statement detailed explanation. Note: On MacOS the "-P" parameter
     # does not work, so you can't use the \d+ command on MacOS.
-    #         -o            Output only the matched text.
-    #         -m 1          BUGFIX: Output only the first match found.
-    #         [0-9][0-9]*   Look for 1 or more integer digits (MacOS).
-    #         :             Look for a colon.
-    #         [0-9][0-9]    Look for exactly two integer digits (MacOS).
-    #         .{1,3}        Look for 1-3 characters of any type.
-    #         [AP]          Look for a capital letter A or a capital letter P.
-    #         M             Look for the capital letter M.
-    # This should get everything like "7:25 AM" or "10:00 PM" etc. with a space or
+    #    -o               Output only the matched text from each line.
+    #    -m 1             Output only the first match found on each line.
+    #    [0-9]{1,2}       Look for 1 or 2 integer digits of 0-9.
+    #    :                Look for a colon.
+    #    [0-5][0-9]       Look for exactly two integer digits, the first being 0-5.
+    #    .                Fix issue #81 - Look for any one char (such as space 0x202f)
+    #    (AM|p\.m\. etc)  Fix issue #84 - Look for the acceptable combinations of AM/PM.
+    #                     Escape the periods to ensure it's JUST periods it's looking for.
+    #    | head -n 1      Return only the first result, just in case the input string
+    #                     is multiline and grep returns more than one possible result.
+    # This should get everything like "7:25 AM" or "10:00 p.m." etc. with a space or
     # any weird unicode character in place of the space.
-    #
-    # Update: To fix issue #81, I had to turn on extended regex (-E) and instead
-    # of searching for a single weird unicode character ("."), I had to search
-    # for 1-3 characters (".{1,3}"). This was only necessary when running under
-    # the Synology Task Scheduler; the problem didn't manifest itself when
-    # running on the Synology at the SSH shell prompt.
-    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -E -m 1 '[0-9][0-9]*:[0-9][0-9].{1,3}[AP]M')
+    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -E -m 1 '[0-9]{1,2}:[0-5][0-9].(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.)' | head -n 1 )
 
-    # OK but now the time has that weird space in the middle, and without that
+    # OK, but now the time has that weird space in the middle, and without that
     # actual space, it crashes all the other functions that try to do
     # calculations on it. Blech. So let's strip it down to that space using
     # similar techniques.
-    firstTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o '[0-9][0-9]*:[0-9][0-9]')
-    secondTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o '[AP]M')
+    #    LogMessage "dbg" "Post-Processing this time string: $timeWithWeirdSpaceInTheMiddle"
+    firstTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o -E -m 1 '[0-9]{1,2}:[0-5][0-9]' )
+    secondTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o -E '(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.)' )
+
+    # While we're here, I want the final output to be "AM" or "PM" uppercase
+    # without periods, to ensure that later parsing steps can handle it.
+    # Translate the string to uppercase using "tr" and then use substitution in
+    # parameter expansion to replace periods with nothings (twice).
+    secondTimeSection=$(echo $secondTimeSection | tr '[:lower:]' '[:upper:]')
+    secondTimeSection=${secondTimeSection/.}
+    secondTimeSection=${secondTimeSection/.}
 
     # Finally, let's return this thing out of this function as a proper time
     # with a REGULAR space in the middle.
@@ -489,8 +576,17 @@ GetSunriseSunsetTimeFromGoogle()
     # something good.
     if [ -z "$firstTimeSection" ] || [ -z "$secondTimeSection" ]
     then
+      # Debugging output for the console if the parsing code failed somehow.
+      LogMessage "dbg" "Google surise/sunset time retrieval failed"
+      LogMessage "dbg" "Google output was: $googleQueryResult"
+      LogMessage "dbg" "timeWithWeirdSpaceInTheMiddle: $timeWithWeirdSpaceInTheMiddle"
+      LogMessage "dbg" "firstTimeSection:              $firstTimeSection"
+      LogMessage "dbg" "secondTimeSection:             $secondTimeSection"
+
+      # Echo an empty string out of the function.
       echo ""
     else
+      # Echo the correct result out of the function.
       echo "$firstTimeSection $secondTimeSection"
     fi
 

@@ -94,6 +94,28 @@ then
 fi
 
 
+# ----------------------------------------------------------------------------
+# Test: Exercise the sunrise/sunset code changes in issues #81 and #84
+# ----------------------------------------------------------------------------
+
+    LogMessage "dbg" "Retrieving sunrise/sunset times from Google"
+    googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
+    googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
+
+    # Make sure the Google responses were non-null and non-empty.
+    if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
+    then
+      # Failure condition, did not retrieve values.
+      LogMessage "err" "Problem obtaining sunrise/sunset from Google. Received: $googleSunriseString/$googleSunsetString"
+    else
+      # Success condition. 
+      sunrise=$googleSunriseString
+      sunset=$googleSunsetString
+      LogMessage "info" "Retrieved sunrise/sunset times from Google: $sunrise/$sunset"
+    fi
+
+exit 0
+
 
 # ----------------------------------------------------------------------------
 # Test: Create new stream using the new code that I added for issue #69.
