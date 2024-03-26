@@ -25,7 +25,7 @@
 #                  "err"   - Log to console stderr and Synology log as error.
 #                  "dbg"   - Log to console stderr, do not log to Synology.
 #
-#             $2 - The string to log. Do not end with a period, we will add it.
+#             $2 - The string to log. Synology will always add a period to it.
 #
 # Global Variable used: $programname - Prefix all log messages with this.
 #
@@ -39,10 +39,42 @@
 #------------------------------------------------------------------------------
 LogMessage()
 {
-  # Log message to shell console. Echo to STDERR on purpose, and add a period
-  # on purpose, to mimic the behavior of the Synology log entry, which adds
-  # its own period.
-  echo "$programname - $2." >&2
+  # GitHub issue #85 - Correctly interpret multiline strings when logging. I had
+  # a situation where there was an error in an API, and the error details were
+  # embedded in the JSON response that was returned to the API. However the
+  # JSON response was in "pretty" mode, and so it had nice linefeeds and
+  # indents to go along with the curly braces. When I tried to log that JSON
+  # response, since the bash function call to LogMessage interprets each line
+  # as a separate parameter, only the first of the line of the message (in this
+  # case, parameter $2) was printed to the log. Fix this by re-interpreting all
+  # parameters from $2 on up as the message string. This uses a special bash
+  # parameter expansion command to interpret all of the parameters from 2->n.
+  # Excellent explanation here: https://stackoverflow.com/a/3816747/3621748
+  logOutputString="${@:2}"
+
+  # Convenience feature: Logging to the Synology log will always add a trailing
+  # period to the end of the log message. The Synology message template
+  # 0x11800000 that I'm using literally has a period built into it. So before
+  # logging, strip out a trailing period (if any) from the text message, to
+  # prevent double-periods in the log. For a long time, I was just trying to
+  # remember not to add periods at the ends of my log messages, and I would
+  # occasionally forget, and the double period would appear. So strip that
+  # here, and add it back below if it's needed. The technique that I'm using
+  # is to use the Parameter Expansion feature of Bash, and use the special
+  # operator "%" which is meant for trimming characters from the end of an
+  # expansion. In this case, "%." means "Strip the period from the end."
+  logOutputString="${logOutputString%.}"
+
+  # Log message to shell console. This command has the following features:
+  # - Echo to STDERR on purpose (>&2) so that, if you are logging inside
+  #   a Bash "function", the function doesn't accidentally return your
+  #   log message as the return value for that function.
+  # - Echo with the "-e" parameter, so that linefeeds are preserved when
+  #   echoing to the shell console. This makes output more readable when
+  #   you are debugging things like prettified JSON or XML at the console.
+  # - Add a period at the end of the output on purpose, to mimic the
+  #   appearance of the Synology log entry, which adds its own period.
+  echo -e "$programname - $logOutputString." >&2
 
   # Only log to synology if the log level is not "dbg"
   if ! [ "$1" = dbg ]
@@ -53,11 +85,19 @@ LogMessage()
     # if the file is present and executable.
     if  [ -x "$(command -v synologset1)" ]
     then 
+      # GitHub issue #85 - Ensure that all newlines have been removed from the
+      # string before sending it to the Synology log, so that all of the
+      # message is visible (Synology prints only the first line of multi-line
+      # logs). Note that this command must use the "-e" feature to ensure that
+      # the translate (tr) command will correctly get all of the string,
+      # newlines and all, so that it can strip those newlines.
+      synologyLogOutputString=$(echo -e "$logOutputString" | tr -d '\n')
+
       # Special command on Synology to write to its main log file. This uses
       # an existing log entry in the Synology log message table which allows
       # us to insert any message we want. The message in the Synology table
-      # has a period appended to it, so we don't add a period here.
-      synologset1 sys $1 0x11800000 "$programname - $2"
+      # already has a period appended to it, so we don't add a period here.
+      synologset1 sys $1 0x11800000 "$programname - $synologyLogOutputString"
     fi
   fi
 }
@@ -1683,7 +1723,7 @@ CreateNewStream()
                       # Ensure there were no errors.
                       if [[ $insertIntoPlaylistsOutput == *"\"error\":"* ]] || [[ $insertIntoPlaylistsOutput == *"\"errors\":"* ]]
                       then
-                        LogMessage "err" "Error setting categoryId to $categoryId. Output was $insertIntoPlaylistsOutput"
+                        LogMessage "err" "Error adding video $thisBroadcastId to playlist id $playlistTargetId titled $playlistToClean - Output was $insertIntoPlaylistsOutput"
                       else
                         LogMessage "dbg" "Video added to playlist"
                       fi
