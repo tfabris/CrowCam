@@ -1263,7 +1263,7 @@ LogMessage "dbg" "Current time (approximate)                     $currentTimeSec
 LogMessage "dbg" "End of broadcast day                           $stopServiceSeconds $(SecondsToTime $stopServiceSeconds) on the clock"
 LogMessage "dbg" "End of broadcast with grace period subtracted  $gracedEndOfDay $(SecondsToTime $gracedEndOfDay) on the clock"
 
-# Decide if a stream bounce is needed, based on the length of the currently
+# Decide if a stream split is needed, based on the length of the currently
 # recording video stream. Check if the total uptime of the current segment is
 # longer than the configured maximum archive length. If so, we're due to
 # split the video.
@@ -1279,10 +1279,10 @@ then
     if [ $currentTimeSeconds -ge $gracedEndOfDay ]
     then
       # We are within the grace period, don't bounce the stream.
-      LogMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not bouncing the stream"
+      LogMessage "dbg" "Within grace period, end of day is at $(SecondsToTime $stopServiceSeconds). Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum, but not splitting the stream"
     else
       # The end of the day is not close enough. Split the stream here.
-      LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
+      LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), splitting stream"
 
       # Perform the bounce, but only if we are not in debug mode.
       # Use the long bounce duration here, because we are deliberately trying
@@ -1293,7 +1293,7 @@ then
       then
         BounceTheStream $longBounceDuration
       else
-        LogMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+        LogMessage "dbg" "(Skipping the actual split when in debug mode)"
       fi
     fi
   else
@@ -1303,13 +1303,13 @@ then
     # is intended to split the stream into two parts. After the fix to issue
     # #69, $longBounceDuration is now our "trigger" for creating a new
     # livestream at the split point.
-    LogMessage "dbg" "Sunrise-Sunset control is disabled - bouncing stream based on video length without regard to the time of day"
-    LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), bouncing the stream for $longBounceDuration seconds"
+    LogMessage "dbg" "Sunrise-Sunset control is disabled - splitting stream based on video length without regard to the time of day"
+    LogMessage "info" "Current video length $(SecondsToTime $secondsSinceCamstart) exceeds maximum of $(SecondsToTime $maxVideoLengthSeconds), splitting stream"
     if [ -z "$debugMode" ]
     then
       BounceTheStream $longBounceDuration
     else
-      LogMessage "dbg" "(Skipping the actual bounce when in debug mode)"
+      LogMessage "dbg" "(Skipping the actual split when in debug mode)"
     fi
   fi
 fi
@@ -1444,8 +1444,8 @@ then
 
   # Fix GitHub issue #82 - Don't actually do anything about a differing video
   # name. Despite what issue #27 says, I don't think this assertion below is
-  # necessary. Also, it gets in the way when I want to rename the video while
-  # it's in the middle of live-streaming (a valid use-case).
+  # necessary. Also, it gets in the way when I hand-rename the video while
+  # it's in the middle of live-streaming (a valid use case!).
   #
   # else
   #   # If the stream title is not empty, then make sure the title of the stream
@@ -1472,6 +1472,21 @@ privacyStatus=$(echo $liveBroadcastOutput | sed 's/"privacyStatus"/\'$'\n&/g' | 
 LogMessage "dbg" "privacyStatus: $privacyStatus"
 if test -z "$privacyStatus"; then safeToFixStreamKey=false; fi
 
+# While we are here, retrieve the "id" field, so that the API command can
+# identify which video stream to update. This will be used both here when
+# fixing privacyStatus, and also farther down in the code when trying to fix
+# categoryId.
+thisStreamId=""
+thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+LogMessage "dbg" "thisStreamId: $thisStreamId"
+if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
+
+# Same for channelId - We'll need it below when fixing the playlists.
+channelId=""
+channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
+LogMessage "dbg" "channelId: $channelId"
+if test -z "$channelId"; then safeToFixStreamKey=false; fi
+
 # Make sure the privacyStatus is not empty.
 if test -z "$privacyStatus" 
 then
@@ -1486,13 +1501,6 @@ else
     # Log an error message if they do not match.
     LogMessage "err" "Expected stream visibility does not match YouTube stream visibility. Expected visibility: $desiredStreamVisibility YouTube visibility: $privacyStatus"
     
-    # Retrieve the "id" field, so that the API command can identify which
-    # video stream to update.
-    thisStreamId=""
-    thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
-    LogMessage "dbg" "thisStreamId: $thisStreamId"
-    if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
-
     # In addition to retrieving privacyStatus and id, also retrieve all of
     # these other values. According to the documentation, the API call which
     # performs the fix must include all of these values embedded in the API
@@ -1506,7 +1514,6 @@ else
     # retrieved, and if they're not, then something worse is going on with the
     # API, so I shouldn't be making any changes if any of these fields are
     # bad.
-
 
     # Update 2020-09-10 - Suddenly etag isn't being retrieved any more. 
     # Despite what the docs said, it doesn't seem to be needed, so allow for
@@ -1533,11 +1540,7 @@ else
     # because this is missing.
     # if test -z "$etag"; then safeToFixStreamKey=false; fi
 
-    channelId=""
-    channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
-    LogMessage "dbg" "channelId: $channelId"
-    if test -z "$channelId"; then safeToFixStreamKey=false; fi
-    
+
     # Update 2024-03-16 - scheduledStartTime seems to have been changed or
     # something, and isn't coming up when I query it, at least not like this.
     # See if this works if we omit this value.
@@ -1854,6 +1857,211 @@ else
   LogMessage "err" "Unable to obtain all of the YouTube API stream data for $titleToDelete live stream - Will not attempt the Stream Key fix procedure"
 fi
 
+# Fix for issue #85 - Find out if the categoryId is correct, and if not, then
+# you probably need to fix the thumbnail and the playlist too. There's no way
+# to easily check if the thumbnail was updated, but it's possible to check the
+# cateogoryId and the playlist. So if EITHER of those are bad, then fix the
+# thumbnail too. We will set flags to determine if these needed fixing. Set the
+# flags to false to begin with, and if either the categoryId or the playlist
+# are bad, then set the corresponding flag to true so that we know to also 
+# re-upload the thumbnail again.
+mustFixCategory=false
+mustFixPlaylist=false
+
+# Testing "safeToFixStreamKey" before working on these, because it would have
+# been set to false if we hadn't been able to retrieve $thisStreamId above.
+if [ "$safeToFixStreamKey" = true ]
+then
+  # Use the existing variable $thisStreamId to identify the video. In the
+  # liveBroadcasts output, the variable "id" is conveniently the same as the
+  # video ID, and it was already retrieved earlier in this code path, as part
+  # of checking the privacy status of the video, and stored in the variable
+  # $thisStreamId. Use it now to download the "snippet" of that video in order
+  # to retrieve the categoryId of the video, so that we can check it.
+  LogMessage "dbg" "Checking other details of video $thisStreamId titled $boundStreamTitle"
+  curlUrl="https://www.googleapis.com/youtube/v3/videos?part=snippet&id=$thisStreamId&access_token=$accessToken"
+  videosOutput=""
+  videosOutput=$( curl -s $curlUrl )
+  videoCategoryId=$(echo $videosOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
+
+  # Issue #85 - Check to see if the categoryId is retrieved, and if so, test to
+  # see if it matches the expected value. The expected value should have been
+  # set by the CreateNewStream function already. If not, then we have hit the
+  # YouTube bug described in issue #85 and we must work around the bug here.
+  # It's possible that, at this point, the categoryId, thumbnail, and playlist,
+  # might all be unset and need to be fixed.
+  if [ -z "$categoryId" ] || [[ $videosOutput == *"\"error\":"* ]]
+  then
+    LogMessage "err" "Error retrieving categoryId from the video $thisStreamId - Output was $videosOutput"
+  else
+    if [ "$videoCategoryId" = "$categoryId" ] 
+    then
+      LogMessage "dbg" "The categoryId of the video $thisStreamId titled $boundStreamTitle was already set to $videoCategoryId - Category fix not needed"
+    else
+      LogMessage "err" "The categoryId of the video $thisStreamId titled $boundStreamTitle was $videoCategoryId - This does not match the desired categoryId of $categoryId - Fixing the categoryId now"
+      mustFixCategory=true
+
+      # The problem is that fixing the categoryId overwrites the entire
+      # "snippet" field, which ALSO clobbers things like the description, the
+      # tags, and the thumbnail. So those must be written too.
+      LogMessage "dbg" "Setting the categoryId of video $thisStreamId to $categoryId"
+      curlData=""
+      curlData+="{"
+        curlData+="\"id\": \"$thisStreamId\","
+        curlData+="\"snippet\": "
+          curlData+="{"
+            curlData+="\"title\": \"$titleToDelete\","
+            curlData+="\"description\": \"$defaultDescription\","
+            curlData+="\"tags\": $defaultTags,"
+            curlData+="\"categoryId\": \"$categoryId\""
+          curlData+="}"
+      curlData+="}"
+      curlUrl="https://youtube.googleapis.com/youtube/v3/videos?part=snippet&access_token=$accessToken"
+      fixCategoryOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+      respondedCategoryId=""
+      respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
+      if [ "$respondedCategoryId" != "$categoryId" ] || [[ $fixCategoryOutput == *"\"error\":"* ]]
+      then
+        LogMessage "err" "Error setting categoryId to $categoryId on the video $thisStreamId. Output was $fixCategoryOutput"
+      else
+        LogMessage "info" "CategoryId set to $categoryId on the video $thisStreamId"
+      fi
+    fi
+  fi
+
+  # Issue #85 - Obtain the ID of the first video in the playlist and see if it
+  # matches our current broadcast video ID. This code is similar to what's in
+  # CrowCamCleanup.sh, so look there for an explanation of all this
+  # needlessly-complicated stuff. Note that the $channelId was retrieved
+  # earlier in the code when checking the privacy status, so we use that now.
+  if [ "$playlistToClean" = "uploads" ]
+  then
+    LogMessage "dbg" "The desired playlist is $playlistToClean - Cannot work on this playlist."
+  else
+    LogMessage "dbg" "Searching for $thisStreamId at the top of playlist $playlistToClean inside channel ID $channelId"
+    curlUrl="https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=$channelId&access_token=$accessToken"
+    playlistsOutput=""
+    playlistsOutput=$( curl -s $curlUrl )              
+    playlistIds=()
+    playlistTitles=()
+    while IFS= read -r line
+    do
+        lineResult=$( echo $line | grep '"id"' | cut -d '"' -f4)
+        if ! [ -z "$lineResult" ]
+        then
+          playlistIds+=( "$lineResult" )
+        fi
+        lineResult=$( echo $line | grep '"title"' | cut -d '"' -f4 )
+        if ! [ -z "$lineResult" ]
+        then
+          if [ "${#playlistTitles[@]}" -gt "0" ]
+          then
+            if ! [ "$lineResult" =  "${playlistTitles[ ${#playlistTitles[@]} - 1 ]}" ]
+            then
+              playlistTitles+=( "$lineResult" )
+            fi
+          else
+            playlistTitles+=( "$lineResult" )
+          fi
+        fi
+    done <<< "$playlistsOutput"
+    if [ "${#playlistIds[@]}" = "0" ]
+    then
+      LogMessage "err" "Error - Playlist count is zero, Output was: $playlistsOutput"
+    else
+      if [ "${#playlistIds[@]}" != "${#playlistTitles[@]}" ]
+      then
+         LogMessage "err" "Error - Playlist counts unequal, Output was: $playlistsOutput"
+      else
+        playlistTargetId=""
+        for ((i = 0; i < ${#playlistIds[@]}; i++))
+        do
+          if [ "${playlistTitles[$i]}" = "$playlistToClean" ]
+          then
+              playlistTargetId="${playlistIds[$i]}"
+          fi
+        done
+        if test -z "$playlistTargetId" 
+        then
+          LogMessage "err" "The variable playlistTargetId came up empty, Output was: $playlistsOutput"
+        else
+          LogMessage "dbg" "Testing if the video $thisStreamId is the first video found within playlist ID: $playlistTargetId Title: $playlistToClean"
+
+          # Now that we have the playlist ID of the desired playlist via a
+          # needlessly-complicated process, now we can see what its videos are.
+          # Expected: Our current video broadcast ID (conveniently the same as
+          # the Video ID) should be the VERY FIRST item in the playlist, so
+          # retrieve ONLY ONE result (maxResults=1) from the FIRST PAGE of
+          # possible output pages from this playlist (do not query for any
+          # other pages after the first page is returned).
+          curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$playlistTargetId&maxResults=1&part=snippet&mine=true&access_token=$accessToken"
+          playlistItemsCheckOutput=$( curl -s $curlUrl )
+          foundVideoId=$(echo $playlistItemsCheckOutput | sed 's/"videoId"/\'$'\n&/g' | grep -m 1 "videoId" | cut -d '"' -f4)
+          if [ -z "$foundVideoId" ] || [[ $playlistItemsCheckOutput == *"\"error\":"* ]]
+          then
+            LogMessage "err" "Error retrieving playlistItems for playlistTargetId $playlistTargetId titled $playlistToClean - Output was $playlistItemsCheckOutput"
+          else
+            if [ "$thisStreamId" = "$foundVideoId" ] 
+            then
+              LogMessage "dbg" "The video $thisStreamId is the first video found at the top of playlist $playlistTargetId titled $playlistToClean - Playlist fix not needed"
+            else
+              LogMessage "err" "The video $thisStreamId titled $boundStreamTitle was not found at the top of playlist $playlistTargetId titled $playlistToClean - Instead the video $foundVideoId was found in that slot - Fixing the playlist now"
+              mustFixPlaylist=true
+
+              # Issue #85 - Fixing the issue by adding the video to the
+              # playlist. Note: Must use "position 0" in the JSON to add to the
+              # beginning of the playlist, otherwise it will go to the end.
+              curlData=""
+              curlData+="{"
+               curlData+="\"snippet\": "
+               curlData+="{"
+                 curlData+="\"playlistId\": \"$playlistTargetId\","
+                 curlData+="\"position\": 0,"  
+                 curlData+="\"resourceId\": "
+                 curlData+="{"
+                   curlData+="\"kind\": \"youtube#video\","
+                   curlData+="\"videoId\": \"$thisStreamId\""
+                 curlData+="}"
+               curlData+="}"
+              curlData+="}"
+              curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&access_token=$accessToken"
+              insertIntoPlaylistsOutput=$( curl -s -m 20 -X POST -H "Content-Type: application/json" -d "$curlData" $curlUrl )
+              if [[ $insertIntoPlaylistsOutput == *"\"error\":"* ]] || [[ $insertIntoPlaylistsOutput == *"\"errors\":"* ]]
+              then
+                LogMessage "err" "Error adding video $thisStreamId to playlist id $playlistTargetId titled $playlistToClean - Output was $insertIntoPlaylistsOutput"
+              else
+                LogMessage "info" "Video $thisStreamId added to playlist $playlistToClean"
+              fi
+            fi
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  # GitHub Issue #85 - Fix a broken Thumbnail. If either one of the categoryId
+  # or the playlist needed to be fixed, then that means the thumbnail is likely
+  # to be bad too. In the case of categoryId it is DEFINITELY bad because the
+  # act of fixing the categoryID clobbered it. In the case of the playlist
+  # needing to be fixed, that's a more questionable case, it only MIGHT be a
+  # bad thumbnail. However it was certainly bad when I first encountered
+  # issue #85, so if the playlist needed to be fixed, then fix the thumbnail
+  # too. Use the "kind" field in the response to ensure it worked.
+  if [ "$mustFixCategory" = true ] || [ "$mustFixPlaylist" = true ]
+  then
+    LogMessage "dbg" "Fixing video $thisStreamId - Updating thumbnail file $defaultThumbnail"
+    curlUrl="https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=$thisStreamId&access_token=$accessToken"
+    uploadThumbnailOutput=$( curl -s -F "image=@$defaultThumbnail" $curlUrl )
+    thumbnailKind=""
+    thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "kind" | cut -d '"' -f4)
+    if [ "$thumbnailKind" != "youtube#thumbnailSetResponse" ] || [[ $uploadThumbnailOutput == *"\"error\":"* ]] || [[ $uploadThumbnailOutput == *"\"errors\":"* ]]
+    then
+      LogMessage "err" "Error uploading thumbnail to video $thisStreamId. Output was $uploadThumbnailOutput"
+    else
+      LogMessage "info" "Thumbnail uploaded."
+    fi
+  fi
+fi
 
 # ----------------------------------------------------------------------------
 # Hourly quick bounce.

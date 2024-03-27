@@ -1621,7 +1621,7 @@ CreateNewStream()
           curlUrl="https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=$thisBroadcastId&access_token=$accessToken"
           uploadThumbnailOutput=$( curl -s -F "image=@$defaultThumbnail" $curlUrl )
 
-          # Parse out the "kind" field from the thumbnail response, it's suppose
+          # Parse out the "kind" field from the thumbnail response, it's supposed
           # to contain "kind": "youtube#thumbnailSetResponse" in the JSON response.
           thumbnailKind=""
           thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "kind" | cut -d '"' -f4)
