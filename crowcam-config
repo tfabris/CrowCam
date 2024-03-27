@@ -197,55 +197,54 @@ startServiceOffset=-10
 stopServiceOffset=0
 
 
-# maxVideoLengthSeconds - Maximum length, in seconds, that an archived video
-# stream segment is allowed to get, before the code will attempt to split the
-# video stream into another segment. If the stream been running for longer
-# than this configured value, then the script will split the stream into
-# multiple segments by stopping the current livestream and creating a new one. 
+# maxVideoLengthSeconds - Maximum length, in seconds, that the livestream is
+# allowed to run, before the code will split the video into another segment by
+# restarting the livestream. If the stream has been running for longer than
+# this configured value, then the script will split the stream into multiple
+# segments by stopping the current livestream and creating a new one. 
 #
-# In the past, occurred with YouTube video archives if we recorded a stream
-# which lasts too long in any given day. The first problem is that the maximum
-# length of a YouTube video was about 12 hours (actually, more like 11:55 in
+# Problems occur with YouTube video archives if we recorded a stream which lasts
+# too long in any given day. The first problem is that the maximum length of a
+# YouTube video archive segment is about 12 hours (actually, more like 11:55 in
 # practice), and so if we livestream for longer than that, the video archive
 # for that day will be truncated. The second problem is that there is a
 # "processing" phase on YouTube, where the stream is being converted into an
-# archive video, and this "processing" takes an unexpectedly long time if the
+# archive video, and this processing takes an unexpectedly long time if the
 # video file is too large. So splitting the video during the day, even if it's
 # not having any network troubles, is useful to do.
 #
 # My original recommendation was to set maxVideoLengthSeconds to 4 hours,
 # because this allows the segment to be post-processed by YouTube relatively
 # quickly. In the past, I tried setting it to 7 hours, to split a summer day's
-# archive into two segments, but YouTube often takes too long to post-process
+# archive into two segments, but YouTube often took too long to post-process
 # 7-hour videos, making it hard to edit the video, or to insert accurate
 # timestamps into the video description, unless I wait a few days before
-# performing the edits. I'm currently experimenting to see if YouTube has
-# improved their post-processing features in recent years, and I'm trying some
-# longer values.
+# performing the edits. Recent experiments seem to indicate that the
+# post-processing is better recently, so values longer than 4 hours are OK.
 #
-# If you don't care about quickly the video gets post-processed by YouTube,
-# then I recommend setting the value to a length which is slightly less
-# than the winter solstice daylight hours in your region, and/or slightly less
-# than half of the summer solstice daylight hours. For instance, if the
-# shortest day of your year is going to be 8.5 hours, and the longest day of
-# your year is going to be about 16 hours, then set maxVideoLengthSeconds to
-# something like 6-8 hours. You can also set it for a shorter length, if you
-# prefer the day's video to be split up into even smaller segments, however, be
-# advised that each split point will cause the video stream to go down for a
-# couple of minutes, so don't make this number too small, or else you'll have
-# too many moments of downtime during the day.
+# If you don't care about how quickly the video gets post-processed by YouTube,
+# then I recommend setting the value to a length which is slightly less than
+# the winter solstice daylight hours in your region, and/or slightly less than
+# half of the summer solstice daylight hours. For instance, if the shortest day
+# of your year is going to be 8.5 hours, and the longest day of your year is
+# going to be about 16 hours, then set maxVideoLengthSeconds to something like
+# 6-8 hours. You can also set it for a shorter length, if you prefer the day's
+# video to be split up into even smaller segments, however, be advised that
+# each split point will cause the video stream to go down for a moment, so
+# don't make this number too small, or else you'll have too many moments of
+# downtime during the day.
 #
 # Some possible values could be:
-#    maxVideoLengthSeconds=64800    (18 hours, allows for offset values)
+#    maxVideoLengthSeconds=64800    (18 hours)
 #    maxVideoLengthSeconds=57600    (16 hours, max daylight in Seattle)
-#    maxVideoLengthSeconds=42900    (11:55, previous max recommend value)
+#    maxVideoLengthSeconds=42840    (11:54, max length of an archived segment)
 #    maxVideoLengthSeconds=39600    (11 hours)
 #    maxVideoLengthSeconds=28800    (8 hours)
 #    maxVideoLengthSeconds=25200    (7 hours)
 #    maxVideoLengthSeconds=21600    (6 hours)
-#    maxVideoLengthSeconds=14400    (4 hours, recommended)
+#    maxVideoLengthSeconds=14400    (4 hours)
 #
-maxVideoLengthSeconds=64800
+maxVideoLengthSeconds=42840
 
 
 # Grace period for $maxVideoLengthSeconds (above), in seconds.
@@ -312,7 +311,7 @@ hourlyQuickBounce=true
 # two chunks to keep YouTube's archive processing down to a minimum,
 # then set this to true.
 #
-middaySplit=false
+middaySplit=true
 
 
 # Special feature which forces the YouTube stream to be always-off. This
