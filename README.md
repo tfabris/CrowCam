@@ -112,8 +112,8 @@ can begin setting up these scripts.
 
 What Each Script Does
 ------------------------------------------------------------------------------
-There are three main scripts in this archive, which are configured to run on
-an automatic timer on the Synology NAS. The three scripts are:
+The main scripts in this archive are configured to run on an automatic timer
+on the Synology NAS. The scripts are:
 
 ####  CrowCam.sh
 This script has multiple purposes:
