@@ -255,10 +255,12 @@ credentials.
 - Application type: "Desktop App".
 - Name: (whatever name you want, mine is "CrowCam")
 - Press "Create".
-- A screen will show the client ID and client secret. You do not need to copy
-  them to the clipboard, they will be in the JSON file you're about to
-  download. Press OK.
-- You may be given a prompt to download a JSON file, if so, download it.
+- A dialog box will show the client ID and client secret. You do not need to
+  copy them to the clipboard, they will be in the JSON file you're about to
+  download.
+- This dialog box may have a prompt to download a JSON file, if so, download
+  it.
+- Press OK (or whatever button closes the dialog box).
 - The Credentials screen should now show your credentials. You can also
   download the JSON file from this screen by pressing the "download" icon on
   the right side of the screen (a small downward-pointing arrow).
