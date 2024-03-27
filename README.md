@@ -343,7 +343,7 @@ Set the access permissions on the folder and its files, using the SSH prompt:
 In the Synology Control Panel, open the Task Scheduler, and create the following
 tasks, each task should have the following settings:
 - Type of tasks: "Scheduled Task", "User-defined script"
-- General, General Settings: Run all three tasks under User: "root"
+- General, General Settings: Run all the tasks under User: "root"
 - General, General Settings: Name each of the tasks as follows:
 ```
      Task:   CrowCam Controller
@@ -368,7 +368,7 @@ tasks, each task should have the following settings:
 
 Usage and Troubleshooting
 ------------------------------------------------------------------------------
-All three scripts should now be running via the Synology Task Manager.
+The scripts should now be running via the Synology Task Manager.
 
 You can monitor the Synology Log Center, over a long period of time, to see if
 the scripts are running OK. The scripts will not put much information into the
