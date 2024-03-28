@@ -209,9 +209,14 @@ stopServiceOffset=0
 # practice), and so if we livestream for longer than that, the video archive
 # for that day will be truncated. The second problem is that there is a
 # "processing" phase on YouTube, where the stream is being converted into an
-# archive video, and this processing takes an unexpectedly long time if the
-# video file is too large. So splitting the video during the day, even if it's
-# not having any network troubles, is useful to do.
+#  archive video, and this processing can take a long time if the video file is
+#  too large.
+# 
+# If you wish to use YouTube's built-in video editing tools on your videos
+# (the YouTube video editor on the YouTube web site), then features such as
+# trimming, blurring, and audio editing are disabled, there is a six-hour
+# limit. So splitting the video during the day, even if it's not having any
+# network troubles, is useful to do.
 #
 # My original recommendation was to set maxVideoLengthSeconds to 4 hours,
 # because this allows the segment to be post-processed by YouTube relatively
@@ -223,12 +228,13 @@ stopServiceOffset=0
 # post-processing is better recently, so values longer than 4 hours are OK.
 #
 # If you don't care about how quickly the video gets post-processed by YouTube,
-# then I recommend setting the value to a length which is slightly less than
-# the winter solstice daylight hours in your region, and/or slightly less than
-# half of the summer solstice daylight hours. For instance, if the shortest day
-# of your year is going to be 8.5 hours, and the longest day of your year is
-# going to be about 16 hours, then set maxVideoLengthSeconds to something like
-# 6-8 hours. You can also set it for a shorter length, if you prefer the day's
+# and you don't plan to use YouTube's built in video editor tools, then I
+# recommend setting the value to a length which is slightly less than the
+# winter solstice daylight hours in your region, and/or slightly less than half
+# of the summer solstice daylight hours. For instance, if the shortest day of
+# your year is going to be 8.5 hours, and the longest day of your year is going
+# to be about 16 hours, then set maxVideoLengthSeconds to something like 6-8
+# hours. You can also set it for a shorter length, if you prefer the day's
 # video to be split up into even smaller segments, however, be advised that
 # each split point will cause the video stream to go down for a moment, so
 # don't make this number too small, or else you'll have too many moments of
@@ -241,7 +247,7 @@ stopServiceOffset=0
 #    maxVideoLengthSeconds=39600    (11 hours)
 #    maxVideoLengthSeconds=28800    (8 hours)
 #    maxVideoLengthSeconds=25200    (7 hours)
-#    maxVideoLengthSeconds=21600    (6 hours)
+#    maxVideoLengthSeconds=21600    (6 hours, max length that allows editing)
 #    maxVideoLengthSeconds=14400    (4 hours)
 #
 maxVideoLengthSeconds=42840
