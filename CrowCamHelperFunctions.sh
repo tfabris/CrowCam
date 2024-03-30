@@ -713,9 +713,11 @@ GetSunriseSunsetTimeFromGoogle()
 #------------------------------------------------------------------------------
 GetRealTimes()
 {
-  # GitHub issue #87 - Preset a variable to keep track of whether there was a 
-  # cache miss on this video or not.
+  # GitHub issue #87 - Preset a variable to keep track of whether there was a
+  # cache miss on this video or not. Also a separate variable for live videos
+  # in progress, to fine-tune the chattiness control.
   cacheMiss=false
+  liveVideoInProgress=false
 
   # Make sure the first parameter is not empty. If it's not empty, the begin
   # processing the cache file and try to read a value from it based on the ID.
@@ -788,6 +790,12 @@ GetRealTimes()
           # hasn't finished playing yet. 
           LogMessage "dbg" "Cache invalidate: $oneVideoId - Start: $actualStartTime End: (none) - Likely a live video in progress"
           
+          # GitHub issue #87 - Live videos in progress cause too much chatty
+          # logs since they retrigger a cache miss every time. Flag this
+          # special case so that we can un-chatty the chattiness we added in
+          # this case.
+          liveVideoInProgress=true
+
           # Invalidate the cache entry by doing the following: Delete the
           # cache entry from the file, clear out the cacheReturn variable, and
           # let the code fall through to the next section with an empty
@@ -806,8 +814,13 @@ GetRealTimes()
       LogMessage "dbg" "Cache miss for video: $oneVideoId"
 
       # GitHub issue #87 - Flag cache misses to the CrowCamCleanup script so it
-      # can log this situation.
-      cacheMiss=true
+      # can log this situation. Update: But not if it's a live video in
+      # progress, because that gets too chatty during the time period that live
+      # videos are running.
+      if [ "$liveVideoInProgress" = false ]
+      then
+        cacheMiss=true
+      fi
       curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"
       liveStreamingDetailsOutput=""
       liveStreamingDetailsOutput=$( curl -s $curlUrl )

@@ -598,7 +598,7 @@ do
     # from the GetRealTimes function now.
     if [ "$cacheMiss" = true ]
     then
-      LogMessage "info" "Cache miss, video $oneVideoId titled $oneVideoTitle - May be new"
+      LogMessage "info" "Cache miss, new video $oneVideoId titled $oneVideoTitle"
       logToSynology=true
     fi
 
