@@ -367,7 +367,7 @@ done
 # echo " "
 
 # Begin parsing the video data out of the JSON results. Log our intentions.
-LogMessage "dbg" "Processing JSON results from the API queries"
+LogMessage "dbg" "Retrieving playlistItemIds, titles, and videoIds from the JSON results"
 
 # Set up empty arrays to hold the video details. These arrays will build the
 # video details list in order, so the arrays will have the same ordering.
@@ -417,8 +417,10 @@ IFS=$IFS_backup
 
 # Syntax note: the pound sign retrieves the count/size of the array.
 videoDataArrayCount=${#videoDataArray[@]}  
+LogMessage "dbg" "videoDataArrayCount: $videoDataArrayCount"
 
 # Process all items
+LogMessage "dbg" "Looping through videoDataArray to get three final arrays"
 loopIndex=0
 while [ $loopIndex -lt $videoDataArrayCount ]   
 do
@@ -719,6 +721,70 @@ do
         fi
     fi
 done
+
+LogMessage "dbg" "Stripping redundant pagination sections to return the API results back to parseable JSON"
+# Github Issue #83 - Make sure the string is parseable JSON before using it.
+# At this point, the string $uploadsOutput is a collection of multiple pages'
+# worth of JSON queries concatenated together, at 50 results per page. This
+# produces invalid JSON output when treated as a single string. It looks like
+# this right now:
+#     {
+#      "kind": "youtube#playlistItemListResponse", (...),
+#      "items": [  (...),(...),(...) ],
+#      "pageInfo": { (...) }
+#     }
+#     {
+#      "kind": "youtube#playlistItemListResponse", (...),
+#      "items": [  (...),(...),(...) ],
+#      "pageInfo": { (...) }
+#     }
+#     {
+#      "kind": "youtube#playlistItemListResponse", (...),
+#      "items": [  (...),(...),(...) ],
+#      "pageInfo": { (...) }
+#     }
+# What we want is to run all the items together into a single list of items. Do this by
+# finding the section between each items-bracket-end and each items-bracket-beginning
+# and replacing the whole thing with a single comma. It replaces all the intermediate
+# redundant instances of "pageinfo" and "kind:playlistItemListResponse" and leaves only
+# a nice clean-smelling list of "items":[(...),(...),(...)] in the middle which is now
+# proper JSON again. It still contains one "kind:playlistItemListResponse" at the top and
+# one "pageinfo" at the end, and those are OK and we want to keep them.
+# 
+# Explanation of the SED statement below:
+#
+#  sed '   '      Surround SED command with singles so that you can use unescaped doubles.
+#  s_             Substitute the following pattern with another pattern.
+#   _             Use underscores as the SED delimiters instead of the traditional slashes
+#                 that SED normally uses, because all the forward and back slashes together
+#                 was hurting my tiny monkey brain.
+#  \]             Search for a single close square bracket (escaped), the end of "items:[]"
+#  , "pageinfo":  Search for a comma, a space, "pageinfo", a colon, and a space, the section
+#                 I want to remove after all but the final items:[] section.
+#  [   ]*         SPECIAL TRICK: We want to get anything up until the opening of the next 
+#                 "items:[]" section. But if we just searched for ".*" here, it fails
+#                 because it would grab all of the middle "items:[]"" sections because it
+#                 would greedily grab everything up until the FINAL occurrence of the
+#                 opening bracket (i.e., the LAST "items:[]" section). And there's a side
+#                 issue which is that the lazy match search "(.*?)" would work here if only
+#                 SED would support it (it doesn't). So we have to do this trick...
+#  [   ]*         Search for any number of characters within this character set...
+#  [^\[]*         But you're searching for any characters which are NOT (^) an open square
+#                 bracket (escaped) so that you non-greedily grab up until the FIRST
+#                 occurrence of said bracket instead of the last one. We want to grab up to
+#                 the opening bracket of the first occurrence of the next upcoming "items:[]"
+#  \[             Search for a single open square bracket (escaped). This is to grab just that
+#                 one bracket character that follows the the prior search.
+#  _              End of the sed "search for" phrase, start of the sed "replace with" phrase
+#  ,              Replace with a single comma character.
+#  _g             Greedy, replace all possible occurrences instead of just the first.
+#
+# This should work to remove all the doubled-up sections between the end of every "items:[]"
+# section (which always precedes a "pageinfo:" section) and then up until the opening bracket
+# of the next "items:[]" section. This should also be safe even if the user types square
+# brackets into the video description, because it's only searching for a lonely opening
+# square bracket in the cruft area between the items, not inside each item.
+uploadsOutput=$( echo $uploadsOutput | sed 's_\], "pageInfo":[^\[]*\[_,_g' )
 
 # Output the entire set of concatenated JSON data retrievals into a file on
 # the hard disk for later processing. Do this last, so that if any of the
