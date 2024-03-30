@@ -824,7 +824,7 @@ echo "$uploadsOutput" > "$DIR/$videoData"
 # to our secondary project.
 if [ "$logToSynology" = true ]
 then
-  LogMessage "info" "Processed: ${#playlistItemIds[@]} items, uploading."
+  LogMessage "info" "Processed: ${#playlistItemIds[@]} items."
 else
   LogMessage "dbg" "Processed: ${#playlistItemIds[@]} items."
 fi
