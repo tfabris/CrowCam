@@ -460,17 +460,21 @@ do
   ((loopIndex++))
 done
 
-# Log the number of videos found. But only log this late at night. All the
-# extra logs fill up the Synology log too much, too much noise. But I want to
-# know if it's working in general, so I want a log sometimes. I compromise by
-# printing it to the Synology log only during the midnight and 7pm hours.
-currentHour=$( date +"%H" )
-if [ "$currentHour" = "00" ] || [ "$currentHour" = "19" ]
-then
-    LogMessage "info" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
-else
-    LogMessage "dbg" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
-fi
+# GitHub issue #87 - Only log debug mode here. Final log is after processing is
+# fully done, and only in certain situations (no longer basing the log on the
+# time hour any more.)
+#     # Log the number of videos found. But only log this late at night. All the
+#     # extra logs fill up the Synology log too much, too much noise. But I want to
+#     # know if it's working in general, so I want a log sometimes. I compromise by
+#     # printing it to the Synology log only during the midnight and 7pm hours.
+#     currentHour=$( date +"%H" )
+#     if [ "$currentHour" = "00" ] || [ "$currentHour" = "19" ]
+#     then
+#         LogMessage "info" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+#     else
+#         LogMessage "dbg" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+#     fi
+LogMessage "dbg" "Total: ${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
 
 # Error out of the program if the count is zero.
 if [ "${#videoIds[@]}" = "0" ]
@@ -496,6 +500,12 @@ fi
 #     echo "${playlistItemIds[$i]} ${videoIds[$i]} ${titles[$i]}"
 # done
 # LogMessage "dbg" "${#playlistItemIds[@]} playlistItemIds, ${#videoIds[@]} videoIds, ${#titles[@]} titles found. Processing"
+
+# GitHub issue #87 - Set a flag which indicates whether we should log some of
+# our actions to the Synology ("info" level instead of "dbg" level). Start
+# with the flag set to false, and set to true if a condition comes up which
+# would be worth logging.
+logToSynology=false
 
 # Iterate through the array and delete any old videos which have not been renamed.
 for ((i = 0; i < ${#videoIds[@]}; i++))
@@ -526,6 +536,9 @@ do
       # Don't delete the playlist item if we are in debug mode.
       if [ -z "$debugMode" ]
       then
+          # GitHub issue #87 - This is a situation I'd like to have the Synology log for this.
+          logToSynology=true
+
           # Remove the item from the cache if it happens to be in there.
           DeleteRealTimes "$oneVideoId"
 
@@ -571,12 +584,23 @@ do
     # file, so it won't end up eating a super ton of quota very much.
     timeResponseString=""
     timeResponseString=$( GetRealTimes "$oneVideoId" )
-
-    # Debug output.
-    # LogMessage "dbg" "Response: $oneVideoId: $timeResponseString"
+    LogMessage "dbg" "GetRealTimes response: $oneVideoId: $timeResponseString"
 
     # Place the cache responses into variables.
-    read -r throwawayVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+    read -r cacheMiss throwawayVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+
+    # GitHub issue #87 -If a new video was recently added to the list, I would
+    # like to log the fact that we're uploading it, each time that happens.
+    # However, this script doesn't know specifically when the videos it's
+    # writing are new or not. It knows when one was deleted, so it can log
+    # that, but the only indicator of a "new" video would be a cache miss from
+    # the GetRealTimes function. Reading that as the first parameter return
+    # from the GetRealTimes function now.
+    if [ "$cacheMiss" = true ]
+    then
+      LogMessage "info" "Cache miss, video $oneVideoId titled $oneVideoTitle - May be new"
+      logToSynology=true
+    fi
 
     # Debug output. Display the output of the variables (compare with string
     # response above, weird spacing is so it lines up).
@@ -637,11 +661,14 @@ do
     fi
 
     # Debug output of the state of the variables we are comparing.
-    LogMessage "dbg" "Checking: $videoNeedsDeleting - $oneVideoId - $actualStartTime - $oneVideoTitle"
+    LogMessage "dbg" "Checking: $videoNeedsDeleting $cacheMiss - $oneVideoId - $actualStartTime - $oneVideoTitle"
 
     # Delete the video if it deserves to be deleted.
     if [ "$videoNeedsDeleting" = true ]
     then
+        # GitHub issue #87 - This is a situation I'd like to have the Synology log for this.
+        logToSynology=true
+
         # Log to the Synology log that we are deleting a video.
         LogMessage "info" "Title: $oneVideoTitle Id: $oneVideoId Date: $actualStartTime - more than $dateBufferDays days old. Deleting $oneVideoTitle"
 
@@ -792,6 +819,15 @@ uploadsOutput=$( echo $uploadsOutput | sed 's_\], "pageInfo":[^\[]*\[_,_g' )
 # written. This helps to ensure that the file is a good file which represents
 # accurate data.
 echo "$uploadsOutput" > "$DIR/$videoData"
+
+# GitHub issue # 87 - log to the synology that we will be uploading our output
+# to our secondary project.
+if [ "$logToSynology" = true ]
+then
+  LogMessage "info" "Processed: ${#playlistItemIds[@]} items, uploading."
+else
+  LogMessage "dbg" "Processed: ${#playlistItemIds[@]} items."
+fi
 
 # Trigger secondary script to upload the video data to my secondary project,
 # if the project exists on the hard disk parallel to this project.

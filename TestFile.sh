@@ -152,15 +152,16 @@ do
     # the data from the YouTube API if there is a cache miss.
     timeResponseString=""
     timeResponseString=$( GetRealTimes "$oneVideoId" )
+    LogMessage "dbg" "timeResponseString: $timeResponseString"
 
     # Place the cache responses into variables, test making sure this works.
-    read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+    read -r cacheMiss oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
 
     # Get return value from the tested function.
     isItOld=$( IsOlderThan $actualStartTime 1 )
 
     # Display the output of the variable.
-    LogMessage "dbg" "isItOld:  $isItOld  $actualStartTime  $oneVideoId"
+    LogMessage "dbg" "isItOld: $isItOld cacheMiss: $cacheMiss actualStartTime: $actualStartTime oneVideoId: $oneVideoId"
 done
 
 exit 0
@@ -191,7 +192,7 @@ do
     LogMessage "dbg" "Response: $oneVideoId: $timeResponseString"
 
     # Place the cache responses into variables, test making sure this works.
-    read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+    read -r cacheMiss oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
 
     # Display the output of the variables (compare with string response above).
     LogMessage "dbg" "Values:   $oneVideoId              $actualStartTime $actualEndTime"

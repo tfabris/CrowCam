@@ -647,11 +647,16 @@ GetSunriseSunsetTimeFromGoogle()
 # Parameters: $1   The YouTube Video ID of the video you want.
 # Returns:         One of the following sets of output:
 #
-#                  If there is a cache miss, and no timing values retrieved:
-#                      - No return value
+#                  If there is a cache miss, will return "true"
+#                  in the first cacheMiss parameter, otherwise "false".
+#
+#                  If no timing values retrieved:
+#                      - Only the cacheMiss "true" or "false", no other output.
 #
 #                  If cache file or API contains actualStartTime/actualEndTime,
 #                  returns a string containing the data in the following format:
+#                      - Either true or false for the first cacheMiss variable
+#                      - A space
 #                      - The video ID
 #                      - A space
 #                      - The actual start time 
@@ -660,6 +665,8 @@ GetSunriseSunsetTimeFromGoogle()
 #
 #                  If cache file or API contains actualStartTime but no end time,
 #                  returns a string containing the data in the following format:
+#                      - Either true or false for the first cacheMiss variable
+#                      - A space
 #                      - The video ID
 #                      - A space
 #                      - The actual start time
@@ -667,6 +674,8 @@ GetSunriseSunsetTimeFromGoogle()
 #                  If cache file or API contains no actualStartTime/actualEndTime,
 #                  but it does contain a recordingDate time, then it returns
 #                  a string containing the data in the following format:
+#                      - Either true or false for the first cacheMiss variable
+#                      - A space
 #                      - The video ID
 #                      - A space
 #                      - The recording date, with a timestamp of midnight UTC.
@@ -677,7 +686,7 @@ GetSunriseSunsetTimeFromGoogle()
 #         do a "read" statement to process them like this:
 #
 #             timeResponseString=$( GetRealTimes $oneVideoId )
-#             read -r oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
+#             read -r cacheMiss oneVideoId actualStartTime actualEndTime <<< "$timeResponseString"
 #
 #         ActualStartTime and actualEndTime will exist on archives of "live"
 #         videos. If video contains an actualStartTime and actualEndTime then
@@ -704,6 +713,10 @@ GetSunriseSunsetTimeFromGoogle()
 #------------------------------------------------------------------------------
 GetRealTimes()
 {
+  # GitHub issue #87 - Preset a variable to keep track of whether there was a 
+  # cache miss on this video or not.
+  cacheMiss=false
+
   # Make sure the first parameter is not empty. If it's not empty, the begin
   # processing the cache file and try to read a value from it based on the ID.
   if [ ! -z $1 ]
@@ -755,7 +768,11 @@ GetRealTimes()
           then
             LogMessage "dbg" "Cache hit: $oneVideoId - 0Zulu - This is an uploaded video"
           else
-            LogMessage "dbg" "Cache invalidate - Special rare case of young 0Zulu video - $oneVideoId - Start: $actualStartTime End: (none)"
+            LogMessage "info" "Cache invalidate - Special rare case of young 0Zulu video - $oneVideoId - Start: $actualStartTime End: (none)"
+
+            # GitHub issue #87 - Consider this situation a cache miss for the
+            # purposes of logging.
+            cacheMiss=true
             
             # Invalidate the cache entry by doing the following: Delete the
             # cache entry from the file, clear out the cacheReturn variable, and
@@ -786,7 +803,11 @@ GetRealTimes()
     if [ -z "$cacheReturn" ]
     then
       # If nothing was returned from the cache, query the API for that data.
-      LogMessage "dbg" "Cache miss: $oneVideoId"
+      LogMessage "dbg" "Cache miss for video: $oneVideoId"
+
+      # GitHub issue #87 - Flag cache misses to the CrowCamCleanup script so it
+      # can log this situation.
+      cacheMiss=true
       curlUrl="https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$oneVideoId&access_token=$accessToken"
       liveStreamingDetailsOutput=""
       liveStreamingDetailsOutput=$( curl -s $curlUrl )
@@ -809,7 +830,7 @@ GetRealTimes()
         # also echo them to the standard output to return them back to the
         # caller of this function.
         echo "$oneVideoId $actualStartTime $actualEndTime" >> "$DIR/$videoRealTimestamps"
-        echo "$oneVideoId $actualStartTime $actualEndTime"
+        echo "$cacheMiss $oneVideoId $actualStartTime $actualEndTime"
       else
         # If the start and end times were blank, check to see if the video is
         # not found at all, which can happen if the video was deleted yet
@@ -856,8 +877,12 @@ GetRealTimes()
             # value blank. Note: recordingDate is the date only, and always
             # has a time-of-day stamp of midnight UTC (00:00:00.000Z).
             LogMessage "dbg" "Substituting into the cache: Using recordingDate from video $oneVideoId in place of actualStartTime. Value: $recordingDate"
+
+            # Write into the cache file.
             echo "$oneVideoId $recordingDate" >> "$DIR/$videoRealTimestamps"
-            echo "$oneVideoId $recordingDate"
+
+            # Return the results from this function.
+            echo "$cacheMiss $oneVideoId $recordingDate"
           else
             # If the video was found in the playlist, but it had neither a
             # recording date nor an actual start time, it might be an
@@ -868,15 +893,17 @@ GetRealTimes()
             # live stream, for example, I wonder if an online live stream has
             # an actualStartTime but doesn't yet contain an actualEndTime, or
             # if they are both blank until the live stream finishes.
-            LogMessage "dbg" "Did not find a recordingDate from video $oneVideoId - video may be an upcoming scheduled video"
+            LogMessage "info" "Did not find a recordingDate from video $oneVideoId - video may be an upcoming scheduled video"
+            echo "$cacheMiss"
           fi
         else
           LogMessage "dbg" "Video was not found in search: $oneVideoId - Video may have been deleted" 
+          echo "$cacheMiss"
         fi
       fi
     else
       # If there was a value found in the cache, return it.
-      echo "$cacheReturn"
+      echo "$cacheMiss $cacheReturn"
     fi
   fi
 }
