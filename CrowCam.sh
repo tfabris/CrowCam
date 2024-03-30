@@ -305,6 +305,17 @@ Test_Stream()
       liveBroadcastOutput=""
       liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 
+      # Github issue #88 - Sometimes the output from an API call returns an error,
+      # and so subsequent variable retrievals might retrieve inappropriate values.
+      if [[ $liveBroadcastOutput == *"\"error\":"* ]] || [[ $liveBroadcastOutput == *"\"errors\":"* ]]
+      then
+        LogMessage "err" "Error retrieving liveBroadcasts object inside Test_Stream function. Output was $liveBroadcastOutput"
+
+        # Zero out the output string so that any subsequent parsers get zilch.
+        liveBroadcastOutput=""
+        GoodApiDataRetrieved=false
+      fi
+
       # Extract the first "lifeCycleStatus" and "recordingStatus" entries that we find.
       lifeCycleStatus=""
       lifeCycleStatus=$(echo $liveBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "lifeCycleStatus" | cut -d '"' -f4)
@@ -336,6 +347,17 @@ Test_Stream()
         liveStreamsOutput=""
         liveStreamsOutput=$( curl -s -m 20 $curlUrl )
   
+        # Github issue #88 - Sometimes the output from an API call returns an error,
+        # and so subsequent variable retrievals might retrieve inappropriate values.
+        if [[ $liveStreamsOutput == *"\"error\":"* ]] || [[ $liveStreamsOutput == *"\"errors\":"* ]]
+        then
+          LogMessage "err" "Error retrieving liveStreams object inside Test_Stream function. Output was $liveStreamsOutput"
+
+          # Zero out the output string so that any subsequent parsers get zilch.
+          liveStreamsOutput=""
+          GoodApiDataRetrieved=false
+        fi
+
         # Debugging output. Leave disabled most of the time.
         #   LogMessage "dbg" "Live Streams output response:"
         #   LogMessage "dbg" "---------------------------------------------------------- $liveStreamsOutput"
@@ -1380,6 +1402,22 @@ else
   # Leave deactivated most of the time.
   # LogMessage "dbg" "Live Broadcast output information: $liveBroadcastOutput"
 
+  # Github issue #88 - Sometimes the output from an API call returns an error,
+  # and so subsequent variable retrievals might retrieve inappropriate values.
+  #
+  # In this case, a failure in the Live Broadcasts retrieval causes the
+  # variable "thisStreamId" (obtained further down) to be the wrong field and to
+  # have some other problems. Error check the output here and zero out the output
+  # if there is a problem.
+  if [[ $liveBroadcastOutput == *"\"error\":"* ]] || [[ $liveBroadcastOutput == *"\"errors\":"* ]]
+  then
+    LogMessage "err" "Error retrieving liveBroadcasts object. Output was $liveBroadcastOutput"
+
+    # Zero out the output string so that any subsequent parsers get zilch.
+    liveBroadcastOutput=""
+    safeToFixStreamKey=false
+  fi
+
   # Extract the boundStreamId which is needed in order to find the secret key.
   boundStreamId=""
   boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
@@ -1406,6 +1444,17 @@ else
   curlUrl="https://www.googleapis.com/youtube/v3/liveStreams?part=cdn&id=$boundStreamId&access_token=$accessToken"
   liveStreamsOutput=""
   liveStreamsOutput=$( curl -s -m 20 $curlUrl )
+
+  # Github issue #88 - Sometimes the output from an API call returns an error,
+  # and so subsequent variable retrievals might retrieve inappropriate values.
+  if [[ $liveStreamsOutput == *"\"error\":"* ]] || [[ $liveStreamsOutput == *"\"errors\":"* ]]
+  then
+    LogMessage "err" "Error retrieving liveStreams object. Output was $liveStreamsOutput"
+
+    # Zero out the output string so that any subsequent parsers get zilch.
+    liveStreamsOutput=""
+    safeToFixStreamKey=false
+  fi
 
   # Debugging output. Only needed if you run into a nasty bug here.
   # Leave deactivated most of the time.
@@ -1787,7 +1836,7 @@ else
       # somewhere in that text. So try to make this check as specific as
       # possible,  so that if the user has a video description that merely
       # contains the word "error" somewhere in it, it won't false-alarm. 
-      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] 
+      if [ -z "$streamVisibilityFixOutput" ] || [[ $streamVisibilityFixOutput == *"\"error\":"* ]] || [[ $streamVisibilityFixOutput == *"\"errors\":"* ]]
       then
         LogMessage "err" "The API returned an error when trying to fix the privacyStatus. The streamVisibilityFixOutput was: $streamVisibilityFixOutput"
       fi
@@ -1890,7 +1939,7 @@ then
   # YouTube bug described in issue #85 and we must work around the bug here.
   # It's possible that, at this point, the categoryId, thumbnail, and playlist,
   # might all be unset and need to be fixed.
-  if [ -z "$categoryId" ] || [[ $videosOutput == *"\"error\":"* ]]
+  if [ -z "$categoryId" ] || [[ $videosOutput == *"\"error\":"* ]] || [[ $videosOutput == *"\"errors\":"* ]]
   then
     LogMessage "err" "Error retrieving categoryId from the video $thisStreamId - Output was $videosOutput"
   else
@@ -1920,7 +1969,7 @@ then
       fixCategoryOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
       respondedCategoryId=""
       respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
-      if [ "$respondedCategoryId" != "$categoryId" ] || [[ $fixCategoryOutput == *"\"error\":"* ]]
+      if [ "$respondedCategoryId" != "$categoryId" ] || [[ $fixCategoryOutput == *"\"error\":"* ]] || [[ $fixCategoryOutput == *"\"errors\":"* ]]
       then
         LogMessage "err" "Error setting categoryId to $categoryId on the video $thisStreamId. Output was $fixCategoryOutput"
       else
@@ -1997,7 +2046,7 @@ then
           curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$playlistTargetId&maxResults=1&part=snippet&mine=true&access_token=$accessToken"
           playlistItemsCheckOutput=$( curl -s $curlUrl )
           foundVideoId=$(echo $playlistItemsCheckOutput | sed 's/"videoId"/\'$'\n&/g' | grep -m 1 "videoId" | cut -d '"' -f4)
-          if [ -z "$foundVideoId" ] || [[ $playlistItemsCheckOutput == *"\"error\":"* ]]
+          if [ -z "$foundVideoId" ] || [[ $playlistItemsCheckOutput == *"\"error\":"* ]] || [[ $playlistItemsCheckOutput == *"\"errors\":"* ]]
           then
             LogMessage "err" "Error retrieving playlistItems for playlistTargetId $playlistTargetId titled $playlistToClean - Output was $playlistItemsCheckOutput"
           else
@@ -2125,7 +2174,7 @@ else
   if [ "$StreamIsUp" = false ] 
   then
     # Inform the user that we're bouncing the stream.
-    LogMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down"
+    LogMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down during the quick test in the main code after having run the Test_Network function"
     
     # Bounce the stream. 
     BounceTheStream $shortBounceDuration
@@ -2297,7 +2346,7 @@ LogMessage "dbg" "Status - Network up: $NetworkIsUp - Stream up: $StreamIsUp"
 if [ "$StreamIsUp" = false ] 
 then
   # Inform the user that we're bouncing the stream.
-  LogMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down"
+  LogMessage "err" "Bouncing the YouTube stream for $shortBounceDuration seconds, because the stream was unexpectedly down in the main code after the Test_Stream function"
   
   # Bounce the stream. Use the short bounce duration because we are
   # experimenting with the idea that the "VideoIngestionFasterThanRealtime"
