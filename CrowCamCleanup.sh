@@ -839,7 +839,7 @@ then
     LogMessage "dbg" "Missing file $uploadScript"
   else
     LogMessage "dbg" "Launching file $uploadScript"
-    bash "$uploadScript"
+    bash "$uploadScript" $logToSynology
   fi
 else
   LogMessage "dbg" "Debug mode - Not trying to launch file $uploadScript"
