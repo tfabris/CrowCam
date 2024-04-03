@@ -104,10 +104,15 @@ TopOfTheHourPeriod=300
 # Try to prevent busting the quota by re-querying more slowly. You can view
 # your quota usage here:
 # https://console.developers.google.com/apis/api/youtube.googleapis.com/quotas?project=crowcam
-NumberOfStreamTests=4
+#
+# Github Issue #89 - Reduce the size of the hysteresis loop for testing the
+# stream, because in the new YouTube world of "no persistent broadcasts", they
+# are overzealous about auto-ending your livestream if you don't start
+# re-squirting data quickly enough.
+NumberOfStreamTests=2
 
 # Number of seconds to pause between stream-up-check tests.
-PauseBetweenStreamTests=15
+PauseBetweenStreamTests=7
 
 # When in test mode, pause for a shorter period between tests, and do fewer
 # loops of the main network test loop.
