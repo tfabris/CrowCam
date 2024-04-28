@@ -1,6 +1,6 @@
 CrowCam
 ==============================================================================
-&copy; 2020 by Tony Fabris
+&copy; 2024 by Tony Fabris
 
 https://github.com/tfabris/CrowCam
 
@@ -213,7 +213,7 @@ YouTube standards for thumbnail files. Make sure to change it to something that
 is appropriate for **your** YouTube channel! The file I've included in the
 source code is the one for my YouTube channel, and I'm sure you don't want that.
 
-####  Create API credentials file:
+####  Create Synology API credentials file:
 Create an API credentials file named "api-creds" (no file extension),
 containing a single line of ASCII text: A username, a space, and then a
 password. These will be used for connecting to the API of your Synology NAS.
@@ -228,7 +228,7 @@ If you have trouble with the API user, then look here for details of a Synology
 API user permissions bug, including details of a workaround:
 https://github.com/tfabris/CrowCam/issues/90
 
-####  Obtain OAuth credentials:
+####  Obtain YouTube OAuth credentials:
 OAuth credentials are used for giving these scripts permission to access the
 YouTube account, so that it can do things such as clean up old video stream
 archives and check on the status of the stream. You should only need create
