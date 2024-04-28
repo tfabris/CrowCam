@@ -1059,6 +1059,7 @@ WebApiCall()
   if ! [[ $webResult == *"\"success\":true"* ]]
   then
     LogMessage "err" "The call to the Synology Web API failed. Exiting program"
+    LogMessage "err" "Response: $webResult"
 
     # Work-around to problem of being unable to exit the script from within
     # this function. Send kill signal to top level PID and then exit
