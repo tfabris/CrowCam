@@ -224,6 +224,10 @@ Surveillance Station "Live Broadcast" feature on and off. The built-in account
 different user for security reasons. Create the "api-creds" file and place it
 in the same directory as these scripts.
 
+If you have trouble with the API user, then look here for details of a Synology
+API user permissions bug, including details of a workaround:
+https://github.com/tfabris/CrowCam/issues/90
+
 ####  Obtain OAuth credentials:
 OAuth credentials are used for giving these scripts permission to access the
 YouTube account, so that it can do things such as clean up old video stream
