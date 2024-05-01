@@ -1903,6 +1903,34 @@ then
       # fails.
       LogMessage "info" "Updating local Synology stream name/key to be $streamName"
       WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
+
+      # Work around GitHub issue #91 - The Synology API recently developed a bug
+      # where, if the YouTube key starts with four base-10 decimal digits
+      # (instead of a combination of digits and letters) then it will not save
+      # the key properly in the Synology Live Broadcast feature, and it will
+      # only save the first four digits. To fix this, recheck the key in the
+      # Synology API and if it's still different after the API call to update
+      # the key, then just make a whole new YouTube stream from scratch and
+      # hope that the new key has a better, non-bug-inducing, key. So far I've
+      # had the key be the "bad" version twice in two days so hopefully this
+      # isn't a big trend.
+      #
+      # Query the Synology API for the key again a second time to ensure it
+      # is the same as the one we sent just a moment ago.
+      LogMessage "info" "Re-querying local stream key to ensure the update succeeded"
+      streamKeyQuery=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
+      streamKey=""
+      streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "key" | cut -d '"' -f4)
+      LogMessage "dbg" "Local Synology stream key (needs to match YouTube stream name/key): $streamKey"
+
+      # If the local key still doesn't match the YouTube key, then create a new stream.
+      if [[ "$streamKey" == "$streamName" ]]
+      then
+        LogMessage "info" "Verified: Local Synology stream key matches YouTube stream name/key, update was successful"
+      else
+        LogMessage "err" "Update failed: Local Synology stream key does not match YouTube stream name/key. Possible recurrence of GitHub issue #91. Creating new YouTube stream to work around the issue"
+        CreateNewStream
+      fi
     fi
   else
     LogMessage "dbg" "Not in a position to obtain the Stream Key of $featureName feature - Will not attempt the Stream Key fix procedure"
