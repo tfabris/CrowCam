@@ -1570,9 +1570,11 @@ CreateNewStream()
         LogMessage "dbg" "Bound to broadcast. Updating Synology with key $streamName"
 
         # Update the stream name/key on the Synology Live Broadcast feature.
+        # NOTE: Adding %22 (doublequotes) around the key string as an
+        # additional workaround for GitHub issue #91.
         if [ -z "$debugMode" ] || [[ $debugMode == *"Home"* ]] || [[ $debugMode == *"Synology"* ]]
         then
-          WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
+          WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=%22$streamName%22" >/dev/null
         fi
 
         # Start the stream.

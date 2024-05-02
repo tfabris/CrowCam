@@ -1899,10 +1899,10 @@ then
 
       # Write the new key to the Synology configuration automatically. Use the
       # Synology API's "Save" method to set "key=(the new key)". Response is
-      # expected to be {"success":true} and will error out of the script if it
-      # fails.
+      # expected to be {"success":true}. NOTE: Adding %22 (doublequotes) around
+      # the key string as an additional workaround for GitHub issue #91.
       LogMessage "info" "Updating local Synology stream name/key to be $streamName"
-      WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=$streamName" >/dev/null
+      WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&method=Save&version=1&key=%22$streamName%22" >/dev/null
 
       # Work around GitHub issue #91 - The Synology API recently developed a bug
       # where, if the YouTube key starts with four base-10 decimal digits
