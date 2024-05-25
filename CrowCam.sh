@@ -1535,6 +1535,21 @@ thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "i
 LogMessage "dbg" "thisStreamId: $thisStreamId"
 if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
 
+# GitHub issue #88 and #92 - Assert that the video stream ID is a valid ID and
+# not some other unexpected value. If it's not, then flag it as a problem and
+# log the entire API response so that I can diagnose the issue further, the
+# next time it occurs. Supposedly a YouTube video ID is 11 characters long, so
+# for this sanity check, we can just go with the variable length. This isn't a
+# perfect check, but for the particular issue I saw in #88 and #92, it would
+# definitely flag the issue so that I can dig further into it.
+streamIdLength="${#thisStreamId}"  # Funky syntax to get the length of the variable. Needed because "expr length" is not available on some systems.
+LogMessage "dbg" "streamIdLength: $streamIdLength"
+if [ $streamIdLength -gt 13 ] || [ $streamIdLength -lt 11 ] # Give it some headroom in case they add digits.
+then
+  safeToFixStreamKey=false;
+  LogMessage "err" "The variable thisStreamId was the wrong length of $streamIdLength . Error accessing YouTube API. The liveBroadcastOutput was $liveBroadcastOutput"
+fi
+
 # Same for channelId - We'll need it below when fixing the playlists.
 channelId=""
 channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
