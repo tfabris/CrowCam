@@ -598,8 +598,23 @@ do
     # from the GetRealTimes function now.
     if [ "$cacheMiss" = true ]
     then
-      LogMessage "info" "Cache miss, new video $oneVideoId titled $oneVideoTitle"
-      logToSynology=true
+      # Github issue #94 - Special case for situations where we have a Cache
+      # Miss because it's an "upcoming" video. If the GetRealTimes function
+      # works as I'm designing it, then we'll have a situation where
+      # GetRealTimes will return ONLY the cacheMiss variable followed by the
+      # videoID and then nothing else. If this is the case then we expect it to
+      # be the situation where it was an "upcoming" video with just a video ID
+      # and no timestamps. If we hit that situation, then don't log at INFO
+      # level the fact that we got a cache miss on this video. Also don't log
+      # the fact that we're uploading the data file (don't set logToSynology to
+      # true).
+      if [ ! -z "$throwawayVideoId" ] && [ -z "$actualStartTime" ]
+      then
+        LogMessage "dbg" "Video $throwawayVideoId is a cache miss without any start or end times. It is likely to be an upcoming video. Muting info logs about this cache miss."
+      else
+        LogMessage "info" "Cache miss, new video $oneVideoId titled $oneVideoTitle"
+        logToSynology=true
+      fi
     fi
 
     # Debug output. Display the output of the variables (compare with string

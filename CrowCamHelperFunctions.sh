@@ -906,8 +906,20 @@ GetRealTimes()
             # live stream, for example, I wonder if an online live stream has
             # an actualStartTime but doesn't yet contain an actualEndTime, or
             # if they are both blank until the live stream finishes.
-            LogMessage "info" "Did not find a recordingDate from video $oneVideoId - video may be an upcoming scheduled video"
-            echo "$cacheMiss"
+            # 
+            # GitHub issue #94 - In this particular situation, change this
+            # message to DBG so that "upcoming" videos don't get too chatty in
+            # the log.
+            LogMessage "dbg" "Did not find a recordingDate from video $oneVideoId - video may be an upcoming scheduled video"
+
+            # GitHub issue #94 - Allow for the return values from this function
+            # to indicate if we hit the situation of an "upcoming" video when
+            # running CrowCamCleanup. In this case only, we want to return ONLY
+            # the cacheMiss true or false, followed by the oneVideoId, while
+            # leaving the remainder of the echoed-back parameters blank. This
+            # will be used as a special case so that CrowCamCleanup can do
+            # whatever special-casing is needed for an "upcoming" video.
+            echo "$cacheMiss $oneVideoId"
           fi
         else
           LogMessage "dbg" "Video was not found in search: $oneVideoId - Video may have been deleted" 
