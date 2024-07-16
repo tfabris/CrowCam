@@ -956,62 +956,6 @@ DeleteRealTimes()
 
 
 #------------------------------------------------------------------------------
-# Function: Check if Synology Surveillance Station service is up.
-# 
-# Parameters: None
-# Returns: "true" if the Synology Surveillance Station is up, "false" if not.
-#------------------------------------------------------------------------------
-IsServiceUp()
-{
-  # Preset a variable to return so that all paths return some kind of value.
-  # Value will be changed depending on the outcome of the tests below.
-  ReturnCode=1
-
-  # When running on Synology, check the actual service using a Syno command.
-  if [ -z "$debugMode" ] || [[ $debugMode == *"Synology"* ]]
-  then 
-    # Note - you must redirect to /dev/null or else your output from this
-    # command will become the return text rather than "true" or "false" below.
-    # This command has no "quiet" mode, so do /dev/null instead.
-    synoservicectl --status $serviceName > /dev/null
-    ReturnCode=$?
-  fi
-
-  # Version of service check command for testing on Mac. The $serviceName
-  # variable will be different when running in debug mode on Mac, so that it
-  # is easier to test in that environment.
-  if [[ $debugMode == *"Mac"* ]]
-  then
-    pgrep -xq -- "${serviceName}"
-    ReturnCode=$?
-  fi
-
-  # Version of service check command for testing on Windows. The $serviceName
-  # variable will be different when running in debug mode on Windows, so that
-  # it is easier to test in that environment.
-  if [[ $debugMode == *"Win"* ]]
-  then
-    # Special handling of windows command needed, in order to make it
-    # compatible with multiple different flavors of Bash on Windows. For
-    # example, Git Bash will take "net start" directly, but the Linux Subsystem
-    # For Windows 10 needs it put into cmd.exe /c in order to work. Also, the
-    # backticks are needed or else it doesn't always work properly. Fun times.
-    winOutput=`cmd.exe /c "net start"`
-    echo "$winOutput" | grep -q "$serviceName"
-    ReturnCode=$?
-  fi
-
-  # Check return code and report running or down.
-  if [ "$ReturnCode" = 0 ]
-  then
-    echo "true"
-  else
-    echo "false"
-  fi
-}
-
-
-#------------------------------------------------------------------------------
 # Function: Web API Call. Performs a Synology Web API call. Uses the global
 #           variable $webApiRootUrl for the base URL, the part of the URL for
 #           everything up to and including "/webapi/".

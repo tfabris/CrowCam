@@ -359,51 +359,6 @@ then
 fi
 
 
-# Name of the Synology Surveillance Station service that we are checking, to
-# see if it is up. If the service is not up, it will be assumed that it has
-# been deliberately turned off on the NAS, and these scripts will skip the
-# steps which are not applicable if the service is shut down. To test this
-# behavior, you can stop and start this service on the Synology NAS either by
-# going to the Package Center GUI and disabling the "Surveillance Station"
-# package temporarily, or by connecting to the synology shell via SSH, and
-# issuing commands such as:
-#      sudo synoservicectl --stop pkgctl-SurveillanceStation
-#      sudo synoservicectl --start pkgctl-SurveillanceStation
-#      sudo synoservicectl --status pkgctl-SurveillanceStation
-#
-# Do not change this value.
-#
-serviceName="pkgctl-SurveillanceStation"
-
-
-# When running these scripts in test/debug mode on Mac, the scripts must check
-# for a different serviceName. Since the Mac is not running the
-# "pkgctl-SurveillanceStation" program, the scripts must check for some other
-# program instead, otherwise they will skip most of their behavior.
-#
-# Set this to a program on your Mac which you can easily stop and start.
-#
-if [[ $debugMode == *"Mac"* ]]
-then
-  serviceName="Google Chrome"
-fi
-
-
-# When running these scripts in test/debug mode on Windows, the scripts must
-# check for a different serviceName. Since the computer is not running the
-# "pkgctl-SurveillanceStation" program, the scripts must check for some other
-# program instead, otherwise they will skip most of their behavior.
-#
-# Set this to the name of a Windows service which you can easily stop and start
-# from the "Services.msc" control panel on Windows. To see all running service
-# names on Windows, type "net start" by itself at a DOS command prompt.
-#
-if [[ $debugMode == *"Win"* ]]
-then
-  serviceName="Adobe Acrobat Update Service"
-fi
-
-
 # Name of the "YouTube Live Broadcast" feature that we are turning on and off.
 # This is only used in log messages. 
 #

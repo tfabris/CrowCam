@@ -759,17 +759,13 @@ ChangeStreamState()
 # a blip in the internet service at the site which is hosting the webcam.
 #
 # It would also be possible to fix stream issues by restarting the Synology
-# Surveillance Station service itself, with a command similar to this:
-#
-#                synoservicectl --restart $serviceName
-#
-# However that method is not desirable because it would stop all security
-# camera recordings, if more than one camera were installed in the system.
-# Bouncing the "Live Broadcast" feature is the more desirable method because
-# it allows the Surveillance Station Service to keep running, in case we are
-# using other security cameras on it. This method allows all cameras to
-# continue working and recording to the NAS, while bouncing the YouTube Stream
-# portion of the system.
+# Surveillance Station service itself, however, that method is not desirable
+# because it would stop all security camera recordings, if more than one camera
+# were installed in the system. Bouncing the "Live Broadcast" feature is the
+# more desirable method because it allows the Surveillance Station Service to
+# keep running, in case we are using other security cameras on it. This method
+# allows all cameras to continue working and recording to the NAS, while
+# bouncing the YouTube Stream portion of the system.
 #
 # Parameters: $1 - Integer - length of bounce (down time) in seconds.
 # Returns: Nothing.
@@ -892,35 +888,6 @@ read username password < "$apicreds"
 if [ -z "$username" ] || [ -z "$password" ]
 then
   LogMessage "err" "Problem obtaining Synology API credentials from external file"
-fi
-
-
-# ----------------------------------------------------------------------------
-# Check to see if Surveillance Station is even running at all. If not, we are
-# likely to be in a place where it is deliberately shut down, so simply exit
-# this script entirely. This script should only do its business if
-# Surveillance Station is supposed to be up.
-#
-# Note: To test this, you can issue the following commands to make an
-# SSH login into the NAS and stop or start the service at will, like this:
-#
-#    ssh admin@your.nas.address
-# 
-#    (the below stuff needs SUDO only if you do it at the
-#     SSH prompt, but SUDO is not needed in Task Scheduler)
-#
-#    sudo synoservicectl --status pkgctl-SurveillanceStation
-#
-#    sudo synoservicectl --stop pkgctl-SurveillanceStation
-#    
-#    sudo synoservicectl --start pkgctl-SurveillanceStation
-# ----------------------------------------------------------------------------
-currentServiceState=$( IsServiceUp )
-if [ "$currentServiceState" = false ]
-then
-  # Output for local machine test runs.
-  LogMessage "dbg" "$serviceName is not running. Exiting program"
-  exit 0
 fi
 
 
