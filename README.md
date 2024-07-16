@@ -365,7 +365,7 @@ tasks, each task should have the following settings:
   for a task that runs every 5 minutes, the highest run time available will be
   "23:55", a task that runs every 20 minutes will be "23:40", etc.
 - Task Settings, Run Command, User-defined script: create a command in each
-  task to run each of the the corresponding scripts, for example:
+  task to run each of the corresponding scripts, for example:
 ```
      CrowCam Controller:        bash "/volume1/homes/admin/CrowCam/CrowCam.sh"
      CrowCam Cleanup:           bash "/volume1/homes/admin/CrowCam/CrowCamCleanup.sh"
@@ -494,6 +494,9 @@ Ideas for how to parse the Json results from the Curl calls:
 - https://stackoverflow.com/questions/38364261/parse-json-to-array-in-a-shell-script
 - https://stackoverflow.com/questions/2489856/piping-a-bash-variable-into-awk-and-storing-the-output
 
+Synology API references:
+- https://global.download.synology.com/download/Document/Software/DeveloperGuide/Os/DSM/All/enu/DSM_Login_Web_API_Guide_enu.pdf
+- https://global.download.synology.com/download/Document/Software/DeveloperGuide/Package/SurveillanceStation/All/enu/Surveillance_Station_Web_API.pdf
 
 Acknowledgments
 ------------------------------------------------------------------------------
