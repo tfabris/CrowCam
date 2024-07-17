@@ -1040,29 +1040,99 @@ WebApiAuth()
   # Set up strings
   cookieParametersAuth="--keep-session-cookies --save-cookies $cookieFileName --timeout=10"
 
-  # Create string for authenticating with Synology Web API. Note: deliberately
-  # using version=1 in this call because I ran into problems with version=3.
-  authWebCall="auth.cgi?api=SYNO.API.Auth&version=1&method=login&account=$username&passwd=$password&session=SurveillanceStation&format=cookie"
+  # Github issue #77 - Determine if we are running on DSM version 6 or earlier,
+  # or DSM version 7 or later, based on the API call differences. Start with
+  # the variable set to "0" to indicate "unknown". This variable will only be
+  # changed if one of the tests gets a successful result. The possible values
+  # for this variable will be:
+  # "0" = version of DSM is unknown
+  # "6" = version of DSM is v6 or earlier
+  # "7" = version of DSM is v7 or later
+  dsmVersion="0"
+
+  # Query for DSM 6.x - This query will succeed on both DSM 6.x and 7.x. I'm not
+  # sure if it will succeed on DSM 5.x or earlier. In both versions 6 and 7,
+  # the command exists in "query.cgi" and therefore succeeds. However the 7.x
+  # test, below, will get run after this test. So these tests will prioritize
+  # the highest successful result, even if both get a successful result.
+  LogMessage "dbg" "Querying $webApiRootUrl to see if it is DSM 6.x or earlier"
+  versionResult=""
+  versionWebCall="query.cgi?api=SYNO.API.Info&version=1&method=query&query=SYNO.API.Auth"
+  versionResult=$( wget -qO- "$webApiRootUrl/$versionWebCall" )
+  LogMessage "dbg" "Version query response: $versionResult"
+  if [[ $versionResult == *"\"success\":true"* ]]
+  then
+    dsmVersion="6"
+    LogMessage "dbg" "DSM version appears to be $dsmVersion or earlier"
+  else
+    LogMessage "dbg" "Query did not succeed"
+  fi
+
+  # Query for DSM 7.x - This fails with an error 102 ("command not found") if
+  # running on DSM 6.x, but works on 7.x. Synology added this command to
+  # "entry.cgi" when they upgraded from version 6 to version 7.
+  LogMessage "dbg" "Querying $webApiRootUrl to see if it is DSM 7.x or later"
+  versionResult=""
+  versionWebCall="entry.cgi?api=SYNO.API.Info&version=1&method=query&query=SYNO.API.Auth"
+  versionResult=$( wget -qO- "$webApiRootUrl/$versionWebCall" )
+  LogMessage "dbg" "Version query response: $versionResult"
+  if [[ $versionResult == *"\"success\":true"* ]]
+  then
+    dsmVersion="7"
+    LogMessage "dbg" "DSM version appears to be $dsmVersion or later"
+  else
+    LogMessage "dbg" "Query did not succeed"
+  fi
+
+  # If neither the version 6 nor version 7 queries succeeded, then terminate the program.
+  if [[ $dsmVersion == "0" ]]
+  then
+    LogMessage "err" "Querying $webApiRootUrl for the DSM version did not succeed. Terminating program."
+
+    # Work-around the problem of being unable to exit the script from within
+    # this function. Send kill signal to mid level PID and then exit
+    # the function to prevent additional commands from being executed.
+    kill -s TERM $WEBAPICALL_PID
+    exit 1
+  fi
+
+  # Github issue #77 - Create a string for authenticating with Synology Web API.
+  # The possible strings are mutually exclusive: the v6 string fails on v7, and
+  # vice-versa. The failure, when it happens, is code 102 ("command not found"),
+  # because Synology moved the command from "auth.cgi" into "entry.cgi" when
+  # they upgraded DSM from version 6 to version 7.
+  #
+  # Please note that the "version=" statement in these API command parameters is
+  # not the same thing as the DSM version. It is the API version, and it can be
+  # different for each API command. Each API command has a minimum and maximum
+  # API version number in the documentation.
+  authWebCall=""
+  LogMessage "dbg" "Attempting to authenticate to DSM version $dsmVersion"
+  if [[ $dsmVersion == "6" ]]
+  then
+    authWebCall="auth.cgi?api=SYNO.API.Auth&version=1&method=login&account=$username&passwd=$password&session=SurveillanceStation&format=cookie"
+  else
+    authWebCall="entry.cgi?api=SYNO.API.Auth&version=3&method=login&account=$username&passwd=$password&session=SurveillanceStation&format=cookie"
+  fi  
 
   # Debugging output for local machine test runs. Do not use this under normal
   # circumstances - it prints the password in clear text.
   # LogMessage "dbg" "Logging into Web API: wget -qO- $cookieParametersAuth \"$webApiRootUrl/$authWebCall\""
 
   # Make the web API call. The expected response from this call will be
-  # {"success":true}. Note: The response is more detailed in version=3 but I
-  # had some problems with other calls in version=3 so I went back down to
-  # version=1 on all calls.
+  # {"success":true}. Note: The response is more detailed in version=3 but
+  # still contains the same "success":true string.
   authResult=$( wget -qO- $cookieParametersAuth "$webApiRootUrl/$authWebCall" )
 
-  # Output for local machine test runs.
-  LogMessage "dbg" "Response: $authResult"
+  # Output for debug runs.
+  LogMessage "dbg" "Auth response: $authResult"
 
   # Check to make sure our call to the web API succeeded, exit if not.
   if ! [[ $authResult == *"\"success\":true"* ]]
   then
     LogMessage "err" "The call to authenticate with the Synology Web API failed. Exiting program. Response: $authResult"
 
-    # Work-around to problem of being unable to exit the script from within
+    # Work-around the problem of being unable to exit the script from within
     # this function. Send kill signal to mid level PID and then exit
     # the function to prevent additional commands from being executed.
     kill -s TERM $WEBAPICALL_PID
