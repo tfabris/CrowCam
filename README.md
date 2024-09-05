@@ -11,6 +11,9 @@ software and in YouTube itself. Including:
 - Camera on/off times based on local sunrise/sunset.
 - Work around bugs in Synology streaming software which sometimes cause the
   stream to stop working unexpectedly.
+- Split up the stream into 12-hour chunks, so that they can be archived
+  (YouTube has a 12 hour limit on livestream archives, and will truncate
+  anything longer than that).
 - Automatically clean up old YouTube stream archives.
 
 This project could be useful to anyone who uses a Synology NAS, running the
@@ -29,10 +32,8 @@ include well-documented methods for the following things:
 - How to work around the YouTube bug which randomly resets your live stream's
   public/private/unlisted status with no warning.
 - How to work around the YouTube bug which limits the length of your video
-  live stream to 12 hours maximum.
+  live stream archives to 12 hours maximum.
 - How to clean out old YouTube stream archives automatically via a script.
-- How to properly fail out of a Bash script while down inside a sub-function,
-  since in Bash, "exit 1" doesn't work as expected when inside a function.
 - How to access and use the Synology API.
 - How to use OAuth to access the YouTube API from a shell script.
 - How to parse the output of the YouTube API to learn information about the
