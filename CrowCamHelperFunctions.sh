@@ -1592,6 +1592,15 @@ CreateNewStream()
       if [ "$lifeCycleStatusAfterBind" != "ready" ] || [[ $bindToBroadcastOutput == *"\"error\":"* ]]
       then 
         LogMessage "err" "Error binding to broadcast. Output was $bindToBroadcastOutput"
+
+        # GitHub Issue #93 - If we get errors binding to the broadcast, also
+        # echo the information that was used in the bind, as well as the status
+        # of the live stream that the bind was going to use. Maybe there is
+        # something wrong with one of the three variables that were used to
+        # perform the bind. For example, what if the stream or the broadcast ID
+        # were wrong because they had been incorrectly parsed or something?
+        # *** TEMPORARY - REMOVE THIS MESSAGE AFTER FIXING BUG #93 ***
+        LogMessage "err" "Temporary error message for debugging GitHub Issue #93: thisBroadcastId: $thisBroadcastId thisStreamId: $thisStreamId accessToken: $accessToken streamStatus: $streamStatus healthStatus: $healthStatus - Output from Creating live stream, createNewLiveStreamOutput: $createNewLiveStreamOutput"
       else
         LogMessage "dbg" "Bound to broadcast. Updating Synology with key $streamName"
 
