@@ -933,10 +933,10 @@ sunrise=$(< "$crowcamSunrise")
 sunset=$(< "$crowcamSunset")
 
 # Address GitHub issue #18 - Reduce the frequency of error messages from the
-# Google sunrise/sunset time queries. Here's the concept of how/when the Google
-# search query will be done:
+# sunrise/sunset time queries. Here's the concept of how/when the search query
+# will be done:
 #
-# - We want to query the sunrise/sunset from Google and write the new values to
+# - We want to query the sunrise/sunset and write the new values to
 #   our fallback files. But we don't want to do this every single time we run
 #   the program. We only want to do this approximately once per day.
 # 
@@ -948,7 +948,7 @@ sunset=$(< "$crowcamSunset")
 # 
 # - We'll do this by checking the timestamps of the fallback files that we've
 #   written. If the files are clearly from yesterday or older, then, query
-#   Google for some new values and write the values to the files.
+#   for some new values and write the values to the files.
 #
 # - But don't simply check for "look if the file is >24hrs old", because then
 #   you would get a slow drift each day, where the file gets written a few
@@ -976,7 +976,7 @@ then
   ageLimit=1080 # 1080 minutes is 18 hours of age.
 
   # Check the file date/time stamps on the sunrise/sunset files. If they are
-  # recent enough, don't bother to check with Google. To look up the file age,
+  # recent enough, don't bother to query. To look up the file age,
   # use the Bash "find" statement with the "-mmin" parameter (search based on
   # the file age in minutes). The "+" symbol before the ageLimit indicates
   # that the statement should return "true" if the file is *older* than the
@@ -1007,29 +1007,64 @@ then
   # Thanks to Shonky from the EmpegBBS for understanding and explaining this
   # tricky issue: https://empegbbs.com/ubbthreads.php/topics/371885
   #
-  # Finally: Also perform the Google Search if the files do not exist. This
+  # Finally: Also perform the search if the files do not exist. This
   # ensures that the program's first-run will write the necessary files if they
   # have not been created yet.
   if [ ! -f "$crowcamSunrise" ] || [ ! -f "$crowcamSunset" ] || [ "$( find "$crowcamSunrise" -mmin +$ageLimit )" != "" ] || [ "$( find "$crowcamSunset" -mmin +$ageLimit )" != "" ]
   then
-    # Get more accurate sunrise/sunset results from Google if available.
-    LogMessage "dbg" "Retrieving sunrise/sunset times from Google"
-    googleSunriseString=$(GetSunriseSunsetTimeFromGoogle "Sunrise")
-    googleSunsetString=$(GetSunriseSunsetTimeFromGoogle "Sunset")
+    # GitHub Issue #95 - Google no longer works for retrieving sunrise/sunset
+    # times. New method Jan 2025:
+    sunriseSunsetStrings=$(GetSunriseSunsetTimeFromTimeAndDate)
 
-    # Make sure the Google responses were non-null and non-empty.
-    if [ -z "$googleSunriseString" ] || [ -z "$googleSunsetString" ]
+    # The above command returns two lines like this:
+    #     7:47 am
+    #     4:54 pm
+    # Now turn the multiline string into an array. Normally we'd use this:
+    #         readarray -t bothTimes <<< "$bothParsedTimes"
+    # However readarray was introduced in a later Bash version, which is not
+    # available on my test/debug system. So we must be more clever with the
+    # reading of the array. I am using the technique shown here:
+    # https://stackoverflow.com/a/24628676/3621748
+    SAVEIFS=$IFS                       # Save the current IFS (Internal Field Separator).
+    IFS=$'\n'                          # Change the IFS to a newline.
+    bothTimes=($sunriseSunsetStrings)  # Use the parentheses syntax to define the array.
+    IFS=$SAVEIFS                       # Restore original IFS
+
+    # Debugging messages, leave commented out most of the time.
+    # LogMessage "dbg" "sunriseSunsetStrings: $sunriseSunsetStrings"
+    # LogMessage "dbg" "bothTimes[0]:         ${bothTimes[0]}"
+    # LogMessage "dbg" "bothTimes[1]:         ${bothTimes[1]}"
+
+    # Turn the array contents into my sunrise and sunset strings.
+    sunriseString=${bothTimes[0]}
+    sunsetString=${bothTimes[1]}
+
+    # I want the final output to be "AM" or "PM" uppercase without periods, to
+    # ensure that later parsing steps can handle it. Though at the time of this
+    # writing it's without periods, that could change, so anticipate this by
+    # doing the following steps. Translate the string to uppercase using "tr"
+    # and then use substitution in parameter expansion to replace periods with
+    # nothings (twice).
+    sunriseString=$(echo $sunriseString | tr '[:lower:]' '[:upper:]')
+    sunriseString=${sunriseString/.}
+    sunriseString=${sunriseString/.}
+    sunsetString=$(echo $sunsetString | tr '[:lower:]' '[:upper:]')
+    sunsetString=${sunsetString/.}
+    sunsetString=${sunsetString/.}
+
+    # Make sure the query responses were non-null and non-empty.
+    if [ -z "$sunriseString" ] || [ -z "$sunsetString" ]
     then
       # Failure condition, did not retrieve values.
-      LogMessage "err" "Problem obtaining sunrise/sunset from Google. Falling back to previously saved values: $sunrise/$sunset"
+      LogMessage "err" "Problem obtaining sunrise/sunset from web. Falling back to previously saved values: $sunrise/$sunset"
     else
-      # Success condition. If the Google responses were non-empty, use them
+      # Success condition. If the responses were non-empty, use them
       # in place of the fallback values and write them to the fallback files.
-      sunrise=$googleSunriseString
-      sunset=$googleSunsetString
-      LogMessage "info" "Retrieved sunrise/sunset times from Google: $sunrise/$sunset"
+      sunrise=$sunriseString
+      sunset=$sunsetString
+      LogMessage "info" "Retrieved sunrise/sunset times from web: $sunrise/$sunset"
       
-      # If the Google responses were not empty, then write them into our fallback
+      # If the responses were not empty, then write them into our fallback
       # files. Use "-n" to ensure they do not write a trailing newline character.
       echo -n "$sunrise" > "$crowcamSunrise"
       echo -n "$sunset" > "$crowcamSunset"
@@ -1037,14 +1072,14 @@ then
   fi
 fi
 
-# Check to make sure that the sunrise and sunset values are not empty. This
-# can occur in certain situations, for instance if there is a problem with
-# Google during the very first run of the program. In that case, the fallback
-# files won't yet exist, the Google search will fail, and there will be no
-# sunrise or sunset times in these variables.
+# Check to make sure that the sunrise and sunset values are not empty. This can
+# occur in certain situations, for instance if there is a problem with the site
+# during the very first run of the program. In that case, the fallback files
+# won't yet exist, the search will fail, and there will be no sunrise or sunset
+# times in these variables.
 if [ -z "$sunrise" ] || [ -z "$sunset" ]
 then
-  LogMessage "err" "Problem obtaining sunrise/sunset values. Unable to obtain values from Google, and also unable to use fallback values"
+  LogMessage "err" "Problem obtaining sunrise/sunset values. Unable to obtain values from web, and also unable to use fallback values"
   exit 1
 fi
 

@@ -502,137 +502,80 @@ FixLocale()
 
 
 # -----------------------------------------------------------------------------
-# Function: Get sunrise or sunset time from Google.
+# Function: Get sunrise and sunset times from TimeAndDate.com.
 #
-# Performs a simple Google search such as "Sunrise 98133" and finds the 
-# "answer box" on Google containing the answer. The "answer box" is the little
-# box that google puts at the top of your search results when it thinks that
-# you were searching for a particular piece of data, such as the results of a
-# math calculation, or, as in this case, the astronomical data for a particular
-# location.
+# This function is a workaround for GitHub issue #95, where we stopped being
+# able to use Google to get our sunrise and sunset times. This parses the
+# timestamps for sunrise and sunset from the TimeAndDate.com web site instead,
+# and returns them in a multiline string.
 # 
-# Parameters:       $1         Should be either "Sunrise" or "Sunset".
-# Global Variables: $location  Global variable containing your location, such
-#                              as "98125" or "Seattle,WA"
+# Parameters:                  None.
+# Global Variables: $location  Global variable containing your location, in a
+#                              special format which is specific to the site,
+#                              such as "usa/seattle".
 #                   $userAgent Global variable containing user-agent for the
-#                              web query (see above for details).
-# Returns:                     String of the time that Google responded with,
-#                              such as "7:25 AM"
+#                              web query to ensure the screen scrape works.
+# Returns:                     String of two times that were found on the page
+#                              such as "7:25 am" and "4:54 pm", with a newline
+#                              separator between them.
 # -----------------------------------------------------------------------------
-GetSunriseSunsetTimeFromGoogle()
+GetSunriseSunsetTimeFromTimeAndDate()
 {
     # Debugging message, leave commented out usually.
-    # LogMessage "info" "Beginning GetSunriseSunsetTimeFromGoogle" 
+    # LogMessage "dbg" "Beginning GetSunriseSunsetTimeFromTimeAndDate" 
 
     # Fix the locale bug from issue #81
     FixLocale
 
-    # Create the query URL that we will use for Google.
-    googleQueryUrl="http://www.google.com/search?q=$1%20$location"
+    # Create the query URL that we will use.
+    timeAndDateQueryUrl="https://www.timeanddate.com/sun/$location"
 
-    # Debugging output
-    # LogMessage "dbg" "Google Sunrise/Sunset Query URL: $googleQueryUrl"
+    # Debugging message, leave commented out usually.
+    # LogMessage "dbg" "TimeAndDate Sunrise/Sunset Query URL: $timeAndDateQueryUrl"
 
     # Perform the query on the URL, and place the HTML results into a variable.
-    googleQueryResult=$( wget -L -qO- --user-agent="$userAgent" "$googleQueryUrl" )
+    timeAndDateQueryResult=$( wget -L -qO- --user-agent="$userAgent" "$timeAndDateQueryUrl" )
     
-    # Debugging output
-    # LogMessage "dbg" "Google Sunrise/Sunset Query Result: $googleQueryResult"
+    # Debugging messages, leave commented out usually.
+    # LogMessage "dbg" "TimeAndDate Sunrise/Sunset Query Result: $timeAndDateQueryResult"
 
-    # Alternate version that uses Curl instead of Wget, if needed.
-    # googleQueryResult=$( curl -L -A "$userAgent" -s "$googleQueryUrl" )
-
-    # Debug test cases: Uncomment some or all of these to test time-parsing.
-    # googleQueryResult="<test>
-    # <div>123:456 am</div>
-    # <div>123:456 a.m.</div>
-    # <div>123:456</div>
-    # <div>12:32 foo AM</div>
-    # <div>12:32</div>
-    # <div>12:81 am</div>
-    # <div>12:3 am</div>
-    # <div>1:3 am</div>
-    # <div>09:30 azmz</div>
-    # <div>6:59 a.m.</div>
-    # <div>6:59 AM</div>
-    # <div>09:30 a.m.</div>
-    # <div>09:30 A.M.</div>
-    # <div>09:30 am</div>
-    # <div>9:31 am</div>
-    # <div>9:32 AM</div>
-    # <div>09:32 AM</div>
-    # </test>"
-    
-    # Parse the HTML for our answer, and echo the result back to the caller.
-    # Update 2024-03-16 - Google is no longer using the "w-answer-desktop" CSS
-    # class in their output, instead the classname seems to be random
-    # characters which might be dynamically generated. Also they changed the
-    # whitespace between the time and the AM/PM indicator so that it's no
-    # longer just a space, it's a <0x202f> which is a unicode "narrow nobreak
-    # space". Let's see if we can locate the time in the output result by
-    # grepping on just the time characters, any dealing with that funky space.
+    # The first two timestamps on the web page will look like this on the screen:
+    #      Daylight
+    #      7:47 am – 4:54 pm
+    #      9 hours, 7 minutes
+    # Parse out the first two instances of things that look like times from the page.
     #
     # Parsing statement detailed explanation. Note: On MacOS the "-P" parameter
     # does not work, so you can't use the \d+ command on MacOS.
     #    -o               Output only the matched text from each line.
-    #    -m 1             Output only the first match found on each line.
+    #    -E               Extended version of regular expressions.
+    #    -m 2             Output only the first two matches found on each line.
     #    [0-9]{1,2}       Look for 1 or 2 integer digits of 0-9.
     #    :                Look for a colon.
     #    [0-5][0-9]       Look for exactly two integer digits, the first being 0-5.
-    #    .                Fix issue #81 - Look for any one char (such as space 0x202f)
+    #    .                Fix issue #81 - Look for any one char (such as space or 0x202f)
     #    (AM|p\.m\. etc)  Fix issue #84 - Look for the acceptable combinations of AM/PM.
     #                     Escape the periods to ensure it's JUST periods it's looking for.
-    #    | head -n 1      Return only the first result, just in case the input string
-    #                     is multiline and grep returns more than one possible result.
+    #    | head -n 2      Return the first two results.
     # This should get everything like "7:25 AM" or "10:00 p.m." etc. with a space or
-    # any weird unicode character in place of the space.
-    timeWithWeirdSpaceInTheMiddle=$(echo $googleQueryResult | grep -o -E -m 1 '[0-9]{1,2}:[0-5][0-9].(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.)' | head -n 1 )
+    # any weird unicode character in place of the space and return the first two hits.
+    bothParsedTimes=$(echo $timeAndDateQueryResult | grep -o -E -m 2 '[0-9]{1,2}:[0-5][0-9].(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.)' | head -n 2 )
 
-    # OK, but now the time has that weird space in the middle, and without that
-    # actual space, it crashes all the other functions that try to do
-    # calculations on it. Blech. So let's strip it down to that space using
-    # similar techniques.
-    #    LogMessage "dbg" "Post-Processing this time string: $timeWithWeirdSpaceInTheMiddle"
-    firstTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o -E -m 1 '[0-9]{1,2}:[0-5][0-9]' )
-    secondTimeSection=$(echo $timeWithWeirdSpaceInTheMiddle | grep -o -E '(AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.)' )
-
-    # While we're here, I want the final output to be "AM" or "PM" uppercase
-    # without periods, to ensure that later parsing steps can handle it.
-    # Translate the string to uppercase using "tr" and then use substitution in
-    # parameter expansion to replace periods with nothings (twice).
-    secondTimeSection=$(echo $secondTimeSection | tr '[:lower:]' '[:upper:]')
-    secondTimeSection=${secondTimeSection/.}
-    secondTimeSection=${secondTimeSection/.}
-
-    # Finally, let's return this thing out of this function as a proper time
-    # with a REGULAR space in the middle.
-    #
-    # BUGFIX - If we didn't get any data from Google, then we want to return a
-    # null string. But saying "echo "$firstTimeSection $secondTimeSection"" at
-    # the end of the function does NOT return a null string. Even if Google
-    # gets nothing, it still returns a string with a single space. This is a
-    # problem if there is an error extracting data from Google. So we must
-    # check it and only return the "spaced" string if Google returned us
-    # something good.
-    if [ -z "$firstTimeSection" ] || [ -z "$secondTimeSection" ]
+    if [ -z "$bothParsedTimes" ] 
     then
       # Debugging output for the console if the parsing code failed somehow.
-      LogMessage "dbg" "Google surise/sunset time retrieval failed"
-      LogMessage "dbg" "Google output was: $googleQueryResult"
-      LogMessage "dbg" "timeWithWeirdSpaceInTheMiddle: $timeWithWeirdSpaceInTheMiddle"
-      LogMessage "dbg" "firstTimeSection:              $firstTimeSection"
-      LogMessage "dbg" "secondTimeSection:             $secondTimeSection"
-
+      LogMessage "dbg" "TimeAndDate sunrise/sunset time retrieval failed"
+      LogMessage "dbg" "bothParsedTimes: $bothParsedTimes"
+      LogMessage "dbg" "TimeAndDate output was: $timeAndDateQueryResult"
+ 
       # Echo an empty string out of the function.
       echo ""
     else
-      # Echo the correct result out of the function.
-      echo "$firstTimeSection $secondTimeSection"
+      # Echo the results out of the function. This should be a multiline string.
+      echo "$bothParsedTimes"
     fi
-
-    # Debugging message, leave commented out usually.
-    # LogMessage "info" "Done with GetSunriseSunsetTimeFromGoogle"
 }
+
 
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.

@@ -162,24 +162,33 @@ defaultTags='[ "Crows", "Squirrels", "Animals", "Live", "Cam", "Webcam", "Birds"
 sunriseSunsetControl=true
 
 
-# Camera location for using in a Google Search. Can be a zip code, a city name,
-# or something else which might result in a Google search that returns the
-# correct sunrise or sunset time. Special bonus: If you leave the location
-# blank (""), Google will just search on the word "Sunrise" or "Sunset" and
-# automatically attempt to determine your location, based on where the query is
-# originating from. Maybe this will work for your particular situation, feel
-# free to experiment with leaving it blank. The code simply performs a Google
-# search with a search string where the word "Sunrise" or "Sunset" precedes
-# this location string. Examples: 
-#   location="98125"        Google search will be "Sunrise 98125" etc.
-#   location="Seattle,WA"   Google search will be "Sunrise Seattle,WA" etc.
-#   location="Bangladesh"   Google search will be "Sunset Bangladesh" etc.
-#   location=""             Google search will be "Sunset" etc.
-# Note: Must not have any spaces in the location string.
+# Camera location for retrieving sunrise and sunset times. At the current time
+# it needs to be in a format that the web site TimeAndDate.com can accept,
+# which is the country name, a slash, and the city name.
 #
-# Set this value to either blank ("") or your location. No spaces.
+# Note: There should not be any spaces in the location string. The web site puts
+# dashes in places where there would normally be spaces.
 #
-location=""
+# To find out your location string, browse to http://www.timeanddate.com/sun/
+# and find your location in the "Place or country..." search box on that
+# screen. Once you find the location and select it, your URL in the top of your
+# browser will change to something resembling one of these:
+#
+#    https://www.timeanddate.com/worldclock/<<location>>
+#    https://www.timeanddate.com/sun/<<location>>
+#
+# Examples:
+#
+#    https://www.timeanddate.com/worldclock/usa/seattle
+#    https://www.timeanddate.com/sun/usa/seattle
+#    https://www.timeanddate.com/sun/trinidad-and-tobago/port-of-spain
+#
+# Find the part at the end of the url which is just the country name, a slash,
+# and the city name, and put that into this location variable. Make sure there
+# is only a slash in the middle of the variable, no slash at the beginning, and
+# no spaces.
+#
+location="usa/seattle"
 
 
 # Difference, in minutes, that you want to perform the startup and shutdown of
