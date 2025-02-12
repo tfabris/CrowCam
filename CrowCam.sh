@@ -1016,9 +1016,19 @@ then
     # times. New method Jan 2025:
     sunriseSunsetStrings=$(GetSunriseSunsetTimeFromTimeAndDate)
 
+    # GitHub Issue #96 - Add SunriseSunset.io as an additional method for
+    # retrieving the times.
+    if [ -z "$sunriseSunsetStrings" ]
+    then
+      LogMessage "info" "WARNING: Unable to retrieve Sunrise and Sunset from TimeAndDate, attempting SunriseSunset.io instead"
+      sunriseSunsetStrings=$(GetSunriseSunsetTimeFromSunriseSunsetIo)
+    fi
+
     # The above command returns two lines like this:
     #     7:47 am
     #     4:54 pm
+    # (The lines might also contain seconds, too.)
+    #
     # Now turn the multiline string into an array. Normally we'd use this:
     #         readarray -t bothTimes <<< "$bothParsedTimes"
     # However readarray was introduced in a later Bash version, which is not

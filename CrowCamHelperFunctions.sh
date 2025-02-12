@@ -341,7 +341,8 @@ GetFutureZulu()
 #------------------------------------------------------------------------------
 # Function: Convert a timestamp from HH:MM format into seconds since midnight.
 # 
-# Parameters: $1 = input time in HH:MM format. Can be 12- or 24-hour format.
+# Parameters: $1 = input time in HH:MM format or HH:MM:SS format.
+#                  Can be 12- or 24-hour format.
 #             $2 = optional - "AM" or "PM" if 12-hour format is being used.
 #
 # Returns: integer of the number of seconds since midnight.
@@ -377,7 +378,7 @@ TimeToSeconds()
     SavedIFS="$IFS"
     IFS=":."
     Time=($inputTime)
-    calculatedSeconds=$((10#${Time[0]}*3600 + 10#${Time[1]}*60))
+    calculatedSeconds=$((10#${Time[0]}*3600 + 10#${Time[1]}*60 + 10#${Time[2]}))
 
     # If "PM" was passed in the second parameter, then add 12 hours to it.
     if [[ $2 == *"PM"* ]]
@@ -576,6 +577,97 @@ GetSunriseSunsetTimeFromTimeAndDate()
     fi
 }
 
+
+# -----------------------------------------------------------------------------
+# Function: Get sunrise and sunset times from SunriseSunset.io.
+#
+# This function is a secondary method of fixing the issues described in GitHub
+# issues #95 and #96. This is used as a fallback if the previous
+# GetSunriseSunset function fails. I'm not using this as my main retrieval
+# method for the following reasons:
+# 
+# - I don't like the fact that the SunriseSunset.io API forces me to use
+#   Lat/Long and won't accept a city name or a postcode as a parameter, nor
+#   will it automatically find my location based on my IP address. Their web
+#   site has these features, why not let the API use them?
+#
+# - The web site is relatively new, and I don't trust its longevity. The fact
+#   that it uses one of those recent trendy ccTLD's (".io") makes me think
+#   that it's a flash in the pan and will disappear eventually.
+# 
+# Parameters:                  None.
+# Global Variables: $lat $lng  Global variables containing your location in
+#                              latitude/longitude format.
+#                   $userAgent Global variable containing user-agent for the
+#                              web query to ensure the screen scrape works.
+# Returns:                     String of two times that were found on the page
+#                              such as "7:22:28 AM" and "5:27:27 PM", with a
+#                              newline separator between them.
+#
+# This function is derived from suggested changes from Damian (user "quog")
+# on GitHub, from the issue #96 bug report.
+# -----------------------------------------------------------------------------
+GetSunriseSunsetTimeFromSunriseSunsetIo()
+{
+    # Create the query URL that we will use.
+    sunriseSunsetIoQueryUrl="https://api.sunrisesunset.io/json?lat=$lat&lng=$lng"
+    LogMessage "dbg" "Retrieving sunrise/sunset from $sunriseSunsetIoQueryUrl"
+
+    # Perform the web query.
+    sunriseSunsetIoQueryResult=$( wget -L -qO- --user-agent="$userAgent" "$sunriseSunsetIoQueryUrl" )
+
+    # Debugging message, leave commented out usually.
+    # LogMessage "dbg" "SunriseSunset.io Query Result: $sunriseSunsetIoQueryResult"
+
+    # Parse the actual sunrise/sunset times from the JSON. Not using "JQ" here
+    # because some systems don't have JQ installed. The web query should
+    # produce a JSON result that looks similar to this:
+    #           {
+    #             "results": {
+    #               "date": "2025-02-12",
+    #               "sunrise": "7:22:28 AM",
+    #               "sunset": "5:27:27 PM",
+    #               "first_light": "5:38:26 AM",
+    #               "last_light": "7:11:28 PM",
+    #               "dawn": "6:50:24 AM",
+    #               "dusk": "5:59:30 PM",
+    #               "solar_noon": "12:24:57 PM",
+    #               "golden_hour": "4:43:02 PM",
+    #               "day_length": "10:04:58",
+    #               "timezone": "America/Los_Angeles",
+    #               "utc_offset": -480
+    #             },
+    #             "status": "OK"
+    #           }
+    # Brute-force extract the values following the field names.
+    parsedSunrise=""
+    parsedSunrise=$(echo $sunriseSunsetIoQueryResult | sed 's/"sunrise"/\'$'\n&/g' | grep -m 1 "sunrise" | cut -d '"' -f4)
+    parsedSunset=""
+    parsedSunset=$(echo $sunriseSunsetIoQueryResult | sed 's/"sunset"/\'$'\n&/g' | grep -m 1 "sunset" | cut -d '"' -f4)
+
+    if [ -z "$parsedSunrise" ] || [ -z "$parsedSunset" ] 
+    then
+      # Debugging output for the console if the parsing code failed somehow.
+      LogMessage "dbg" "SunriseSunset.io time retrieval failed"
+      LogMessage "dbg" "SunriseSunset.io values:     Sunrise $parsedSunrise   Sunset $parsedSunset"
+      LogMessage "dbg" "SunriseSunset.io output was: $sunriseSunsetIoQueryResult"
+ 
+      # Echo an empty string out of the function.
+      echo ""
+    else
+      # Debugging message, leave commented out usually.
+      # LogMessage "dbg" "SunriseSunset.io values:   Sunrise $parsedSunrise   Sunset $parsedSunset"
+
+      # Create a multiline string of the two parsed results. The simplest way to
+      # do it involves putting the second line of the string in the far left
+      # column of the source code. Sorry it breaks indentation.
+      bothParsedTimes="$parsedSunrise
+$parsedSunset"
+
+      # Echo the multiline string out of the function.
+      echo "$bothParsedTimes"
+    fi
+}
 
 #------------------------------------------------------------------------------
 # Function: Get the real start and stop times of a given video.

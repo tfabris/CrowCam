@@ -191,6 +191,13 @@ sunriseSunsetControl=true
 location="usa/seattle"
 
 
+# Latitude and Longitude coordinates of your camera. These are used as a
+# fallback, if the location scrape above fails. Find these coordinates by
+# browsing to https://www.latlong.net/ and searching for your city name.
+lat=47.606209
+lng=-122.332069
+
+
 # Difference, in minutes, that you want to perform the startup and shutdown of
 # the video stream during any given day. A value of zero would mean exactly on
 # time, negative numbers are preceding sunrise or sunset, and positive numbers
