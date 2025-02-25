@@ -1559,7 +1559,16 @@ LogMessage "dbg" "streamIdLength: $streamIdLength"
 if [ $streamIdLength -gt 13 ] || [ $streamIdLength -lt 11 ] # Give it some headroom in case they add digits.
 then
   safeToFixStreamKey=false;
-  LogMessage "err" "The variable thisStreamId was the wrong length of $streamIdLength . Error accessing YouTube API. The liveBroadcastOutput was $liveBroadcastOutput"
+
+  # Print certain variables in the error message so that I can diagnose
+  # issue #92 more clearly. Print thisStreamId and also print boundStreamTitle
+  # which was already validated after having been scraped out of the same JSON
+  # using the same method. If boundStreamTitle looks fine but thisStreamId does
+  # not, then there is some weird intermittent parsing failure using the
+  # sed/grep/cut method I'm using. Also possible could be that it's parsing
+  # fine but the validator which counts the length of the thisStreamId variable
+  # is intermittently failing. Find out.
+  LogMessage "err" "The variable thisStreamId was the wrong length of $streamIdLength . Error accessing YouTube API. Variable thisStreamId was $thisStreamId . Variable boundStreamTitle was $boundStreamTitle . The liveBroadcastOutput was $liveBroadcastOutput"
 fi
 
 # Same for channelId - We'll need it below when fixing the playlists.
