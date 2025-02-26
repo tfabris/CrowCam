@@ -641,9 +641,9 @@ GetSunriseSunsetTimeFromSunriseSunsetIo()
     #           }
     # Brute-force extract the values following the field names.
     parsedSunrise=""
-    parsedSunrise=$(echo $sunriseSunsetIoQueryResult | sed 's/"sunrise"/\'$'\n&/g' | grep -m 1 "sunrise" | cut -d '"' -f4)
+    parsedSunrise=$(echo $sunriseSunsetIoQueryResult | sed 's/"sunrise"/\'$'\n&/g' | grep -m 1 "\"sunrise\"" | cut -d '"' -f4)
     parsedSunset=""
-    parsedSunset=$(echo $sunriseSunsetIoQueryResult | sed 's/"sunset"/\'$'\n&/g' | grep -m 1 "sunset" | cut -d '"' -f4)
+    parsedSunset=$(echo $sunriseSunsetIoQueryResult | sed 's/"sunset"/\'$'\n&/g' | grep -m 1 "\"sunset\"" | cut -d '"' -f4)
 
     if [ -z "$parsedSunrise" ] || [ -z "$parsedSunset" ] 
     then
@@ -866,9 +866,9 @@ GetRealTimes()
 
       # Parse the actual start/stop times out of the details output.
       actualStartTime=""
-      actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+      actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "\"actualStartTime\"" | cut -d '"' -f4)
       actualEndTime=""
-      actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+      actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "\"actualEndTime\"" | cut -d '"' -f4)
 
       # If the video is not a live streaming video, or it is not found, then
       # the actual start and end times will come out blank. 
@@ -889,7 +889,7 @@ GetRealTimes()
         #     "totalResults": 1
         # To check this, cannot do my usual retrieval of a value like this, it
         # doesn't work due to totalResults integer not surrounded by quotes.
-        #     totalResults=$(echo $liveStreamingDetailsOutput | sed 's/"totalResults"/\'$'\n&/g' | grep -m 1 "totalResults" | cut -d '"' -f4)
+        #     totalResults=$(echo $liveStreamingDetailsOutput | sed 's/"totalResults"/\'$'\n&/g' | grep -m 1 "\"totalResults\"" | cut -d '"' -f4)
         # So just check for the whole string.
         if [[ "$liveStreamingDetailsOutput" == *"\"totalResults\": 1"* ]]
         then
@@ -912,7 +912,7 @@ GetRealTimes()
           # YouTube settings for this video. If untouched, the recording date
           # will be inaccurate.
           recordingDate=""
-          recordingDate=$(echo $recordingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "recordingDate" | cut -d '"' -f4)
+          recordingDate=$(echo $recordingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "\"recordingDate\"" | cut -d '"' -f4)
 
           # Check if we successfully retrieved a recordingDate for this video.
           if [ ! -z "$recordingDate" ]
@@ -1361,8 +1361,8 @@ YouTubeApiAuth()
   # Cut on quotes and return the fourth field only.
   #                 cut -d '"' -f4
 
-  clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "client_id" | cut -d '"' -f4)
-  clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "client_secret" | cut -d '"' -f4)
+  clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "\"client_id\"" | cut -d '"' -f4)
+  clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "\"client_secret\"" | cut -d '"' -f4)
 
   # Make sure the clientId is not empty.
   if test -z "$clientId" 
@@ -1427,7 +1427,7 @@ YouTubeApiAuth()
   # Cut on quotes and return the fourth field only.
   #                 cut -d '"' -f4
   accessToken=""
-  accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep -m 1 "access_token" | cut -d '"' -f4)
+  accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep -m 1 "\"access_token\"" | cut -d '"' -f4)
 
   # Make sure the Access Token is not empty.
   if test -z "$accessToken" 
@@ -1511,7 +1511,7 @@ CreateNewStream()
   # Retrieve the first "id" field of the response, this is the broadcast that we
   # must bind the new liveStream (below) to.
   thisBroadcastId=""
-  thisBroadcastId=$(echo $createNewLiveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+  thisBroadcastId=$(echo $createNewLiveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "\"id\"" | cut -d '"' -f4)
   if [ -z "$thisBroadcastId" ] || [[ $createNewLiveBroadcastOutput == *"\"error\":"* ]]
   then
     LogMessage "err" "Error getting variable thisBroadcastId. Output was $createNewLiveBroadcastOutput"
@@ -1539,7 +1539,7 @@ CreateNewStream()
     #     # out of the JSON since true/false don't have quotes around them and might
     #     # be followed with a comma.
     #     isReusable=""
-    #     isReusable=$(echo $createNewLiveStreamOutput | sed 's/"isReusable"/\'$'\n&/g' | grep -m 1 "isReusable" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    #     isReusable=$(echo $createNewLiveStreamOutput | sed 's/"isReusable"/\'$'\n&/g' | grep -m 1 "\"isReusable\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
 
     LogMessage "dbg" "Creating new YouTube Live Stream to bind to the Broadcast"
 
@@ -1565,13 +1565,13 @@ CreateNewStream()
     # Retrieve the first "id" field of the response, this is the liveStream that we
     # must bind to the broadcast (above).
     thisStreamId=""
-    thisStreamId=$(echo $createNewLiveStreamOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+    thisStreamId=$(echo $createNewLiveStreamOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "\"id\"" | cut -d '"' -f4)
 
     # Retrieve the field "streamName" from the response as well. This is the
     # liveStream's "secret Name/Key" that we must plug into the Synology "Live
     # broadcast" feature in order for the stream to work.
     streamName=""
-    streamName=$(echo $createNewLiveStreamOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "streamName" | cut -d '"' -f4)
+    streamName=$(echo $createNewLiveStreamOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "\"streamName\"" | cut -d '"' -f4)
 
     # Also find the parameters "streamStatus" and the "status" value inside
     # the "healthStatus" and tell us what they were. I don't know if these will
@@ -1588,9 +1588,9 @@ CreateNewStream()
     # Due to the weird JSON, to get the healthStatus, we must locate TWO
     # sections named "status" (-m 2) and parse the second one (tail -1).
     healthStatus=""
-    healthStatus=$(echo $createNewLiveStreamOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
+    healthStatus=$(echo $createNewLiveStreamOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "\"status\"" | tail -1 | cut -d '"' -f4 )
     streamStatus=""
-    streamStatus=$(echo $createNewLiveStreamOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+    streamStatus=$(echo $createNewLiveStreamOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "\"streamStatus\"" | cut -d '"' -f4)
 
     # Ensure there were no major errors getting the liveStream details, then display what we got.
     if [ -z "$thisStreamId" ] || [ -z "$streamName" ] || [[ $createNewLiveStreamOutput == *"\"error\":"* ]]
@@ -1621,7 +1621,7 @@ CreateNewStream()
       # }
       # Get the lifeCycleStatus back from the response.
       lifeCycleStatusAfterBind=""
-      lifeCycleStatusAfterBind=$(echo $bindToBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "lifeCycleStatus" | cut -d '"' -f4)
+      lifeCycleStatusAfterBind=$(echo $bindToBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "\"lifeCycleStatus\"" | cut -d '"' -f4)
 
       # Ensure there were no errors and check for the "lifeCycleStatus": "ready" part.
       if [ "$lifeCycleStatusAfterBind" != "ready" ] || [[ $bindToBroadcastOutput == *"\"error\":"* ]]
@@ -1670,7 +1670,7 @@ CreateNewStream()
 
         # Retrieve the streamStatus field of the response
         thisStreamStatus=""
-        thisStreamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+        thisStreamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "\"streamStatus\"" | cut -d '"' -f4)
 
         # Ensure no errors.
         if [ -z "$thisStreamStatus" ] || [[ $liveStreamsOutput == *"\"error\":"* ]]
@@ -1721,7 +1721,7 @@ CreateNewStream()
         # that section should contain the updated categoryId field. Retrieve
         # that field of the response and check it.
         respondedCategoryId=""
-        respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
+        respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "\"categoryId\"" | cut -d '"' -f4)
 
         # Ensure there were no errors.
         if [ "$respondedCategoryId" != "$categoryId" ] || [[ $fixCategoryOutput == *"\"error\":"* ]]
@@ -1737,7 +1737,7 @@ CreateNewStream()
           # Parse out the "kind" field from the thumbnail response, it's supposed
           # to contain "kind": "youtube#thumbnailSetResponse" in the JSON response.
           thumbnailKind=""
-          thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "kind" | cut -d '"' -f4)
+          thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "\"kind\"" | cut -d '"' -f4)
 
           # Ensure there were no errors.
           if [ "$thumbnailKind" != "youtube#thumbnailSetResponse" ] || [[ $uploadThumbnailOutput == *"\"error\":"* ]] || [[ $uploadThumbnailOutput == *"\"errors\":"* ]]
@@ -1759,7 +1759,7 @@ CreateNewStream()
               channelsOutput=""
               channelsOutput=$( curl -s $curlUrl )
               channelId=""
-              channelId=$(echo $channelsOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+              channelId=$(echo $channelsOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "\"id\"" | cut -d '"' -f4)
               if test -z "$channelId" 
               then
                 LogMessage "err" "The variable channelId came up empty. Error accessing API. Output was $channelsOutput"

@@ -132,7 +132,7 @@ channelsOutput=$( curl -s $curlUrl )
 # developed this on didn't have "jq" installed in them, so I am using commands
 # which are more cross-platform compatible.
 uploadsId=""
-uploadsId=$(echo $channelsOutput | sed 's/"uploads"/\'$'\n&/g' | grep -m 1 "uploads" | cut -d '"' -f4)
+uploadsId=$(echo $channelsOutput | sed 's/"uploads"/\'$'\n&/g' | grep -m 1 "\"uploads\"" | cut -d '"' -f4)
 
 # Make sure the uploadsId is not empty. Whether we use it or not, it should be
 # obtained, and it indicates a query or parse error if it's not obtained.
@@ -161,7 +161,7 @@ else
   # playlists like "uploads", but does not include user-created playlists like
   # "CrowCam Archives". So parse the channelId out of the results.
   channelId=""
-  channelId=$(echo $channelsOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+  channelId=$(echo $channelsOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "\"id\"" | cut -d '"' -f4)
 
   # Make sure the channelId is not empty.
   if test -z "$channelId" 
@@ -332,7 +332,7 @@ do
     # it from the curl results. If this results in a nonblank string, then,
     # the string will be the next page token for the next loop. 
     nextPageToken=""
-    nextPageToken=$(echo $uploadsOneLoopOutput | sed 's/"nextPageToken"/\'$'\n&/g' | grep "nextPageToken" | cut -d '"' -f4)
+    nextPageToken=$(echo $uploadsOneLoopOutput | sed 's/"nextPageToken"/\'$'\n&/g' | grep "\"nextPageToken\"" | cut -d '"' -f4)
     
     # Concatenate the current loop's output with all the prior loops' output.
     # This will be used later, to scan for all of the videos in the entire

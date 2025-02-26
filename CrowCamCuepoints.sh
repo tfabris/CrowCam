@@ -170,7 +170,7 @@ eventCount=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.Recording&versi
 
 # Parse the count of "total": out of that output:
 totalRecentEvents=""
-totalRecentEvents=$(echo $eventCount | sed 's/"total"/\'$'\n&/g' | grep -m 1 "total" | cut -d ':' -f2 | cut -d '}' -f1)
+totalRecentEvents=$(echo $eventCount | sed 's/"total"/\'$'\n&/g' | grep -m 1 "\"total\"" | cut -d ':' -f2 | cut -d '}' -f1)
 LogMessage "dbg" "totalRecentEvents: $totalRecentEvents"
 
 # Currently the above experimental code does not produce the results that I
@@ -216,7 +216,7 @@ liveBroadcastOutput=$( curl -s -m 20 $curlUrl )
 # Extract the boundStreamId which may be needed in order to find other
 # information later. 
 boundStreamId=""
-boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "\"boundStreamId\"" | cut -d '"' -f4)
 LogMessage "dbg" "boundStreamId: $boundStreamId"
 
 # Make sure the boundStreamId is not empty.
@@ -233,7 +233,7 @@ fi
 # structure of the cuepoint resource, so it knows which video in which to
 # insert the new cuepoint.
 broadcastId=""
-broadcastId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+broadcastId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "\"id\"" | cut -d '"' -f4)
 LogMessage "dbg" "broadcastId: $broadcastId"
 
 # Make sure the broadcastId is not empty.
@@ -247,7 +247,7 @@ fi
 
 # Extract the channelId which is needed in the JSON structure as well.
 channelId=""
-channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
+channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "\"channelId\"" | cut -d '"' -f4)
 LogMessage "dbg" "channelId: $channelId"
 
 # Make sure the channelId is not empty.

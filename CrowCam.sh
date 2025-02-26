@@ -323,16 +323,16 @@ Test_Stream()
 
       # Extract the first "lifeCycleStatus" and "recordingStatus" entries that we find.
       lifeCycleStatus=""
-      lifeCycleStatus=$(echo $liveBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "lifeCycleStatus" | cut -d '"' -f4)
+      lifeCycleStatus=$(echo $liveBroadcastOutput | sed 's/"lifeCycleStatus"/\'$'\n&/g' | grep -m 1 "\"lifeCycleStatus\"" | cut -d '"' -f4)
       LogMessage "dbg" "lifeCycleStatus: $lifeCycleStatus"
 
       recordingStatus=""
-      recordingStatus=$(echo $liveBroadcastOutput | sed 's/"recordingStatus"/\'$'\n&/g' | grep -m 1 "recordingStatus" | cut -d '"' -f4)
+      recordingStatus=$(echo $liveBroadcastOutput | sed 's/"recordingStatus"/\'$'\n&/g' | grep -m 1 "\"recordingStatus\"" | cut -d '"' -f4)
       LogMessage "dbg" "recordingStatus: $recordingStatus"
     
       # Extract the boundStreamId which is needed in order to find other information.
       boundStreamId=""
-      boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+      boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "\"boundStreamId\"" | cut -d '"' -f4)
       LogMessage "dbg" "boundStreamId: $boundStreamId"
     
       # Make sure the boundStreamId is not empty.
@@ -381,7 +381,7 @@ Test_Stream()
         #     inactive – The stream is in inactive state which means the user is not receiving data via the stream.
         #     ready – The stream has valid CDN settings.
         streamStatus=""
-        streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "streamStatus" | cut -d '"' -f4)
+        streamStatus=$(echo $liveStreamsOutput | sed 's/"streamStatus"/\'$'\n&/g' | grep -m 1 "\"streamStatus\"" | cut -d '"' -f4)
         LogMessage "dbg" "streamStatus: $streamStatus"
 
         # Make sure the streamStatus is not empty.
@@ -418,7 +418,7 @@ Test_Stream()
         #    bad – The stream has some issues for which the severity is error.
         #    noData – YouTube's live streaming backend servers do not have any information about the stream's health status.
         healthStatus=""
-        healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "status" | tail -1 | cut -d '"' -f4 )
+        healthStatus=$(echo $liveStreamsOutput | sed 's/"status"/\'$'\n&/g' | grep -m 2 "\"status\"" | tail -1 | cut -d '"' -f4 )
         LogMessage "dbg" "healthStatus: $healthStatus"
     
         # Make sure the healthStatus is not empty.
@@ -1437,7 +1437,7 @@ else
 
   # Extract the boundStreamId which is needed in order to find the secret key.
   boundStreamId=""
-  boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+  boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "\"boundStreamId\"" | cut -d '"' -f4)
   LogMessage "dbg" "boundStreamId: $boundStreamId"
 fi
 
@@ -1484,7 +1484,7 @@ else
   # secret key. We need this key, but we're using the same name as the YouTube
   # API variable name to identify it.
   streamName=""
-  streamName=$(echo $liveStreamsOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "streamName" | cut -d '"' -f4)
+  streamName=$(echo $liveStreamsOutput | sed 's/"streamName"/\'$'\n&/g' | grep -m 1 "\"streamName\"" | cut -d '"' -f4)
   LogMessage "dbg" "Secret YouTube stream name/key for this broadcast (aka streamName): $streamName"
 
   # Make sure the streamName is not empty.
@@ -1499,7 +1499,7 @@ fi
 # Fix GitHub issue #27 - extract the stream title which we will use to make
 # sure that we're working on the correct stream.
 boundStreamTitle=""
-boundStreamTitle=$(echo $liveBroadcastOutput | sed 's/"title"/\'$'\n&/g' | grep -m 1 "title" | cut -d '"' -f4)
+boundStreamTitle=$(echo $liveBroadcastOutput | sed 's/"title"/\'$'\n&/g' | grep -m 1 "\"title\"" | cut -d '"' -f4)
 LogMessage "dbg" "boundStreamTitle: $boundStreamTitle"
 
 # Make sure the stream title is not empty.
@@ -1534,7 +1534,7 @@ fi
 # disappear. The goal is to have it automatically fix this and get the stream
 # to go back to a visible/working state again without human intervention.
 privacyStatus=""
-privacyStatus=$(echo $liveBroadcastOutput | sed 's/"privacyStatus"/\'$'\n&/g' | grep -m 1 "privacyStatus" | cut -d '"' -f4)
+privacyStatus=$(echo $liveBroadcastOutput | sed 's/"privacyStatus"/\'$'\n&/g' | grep -m 1 "\"privacyStatus\"" | cut -d '"' -f4)
 LogMessage "dbg" "privacyStatus: $privacyStatus"
 if test -z "$privacyStatus"; then safeToFixStreamKey=false; fi
 
@@ -1561,7 +1561,7 @@ fi
 # fixing privacyStatus, and also farther down in the code when trying to fix
 # categoryId.
 thisStreamId=""
-thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "id" | cut -d '"' -f4)
+thisStreamId=$(echo $liveBroadcastOutput | sed 's/"id"/\'$'\n&/g' | grep -m 1 "\"id\"" | cut -d '"' -f4)
 LogMessage "dbg" "thisStreamId: $thisStreamId"
 if test -z "$thisStreamId"; then safeToFixStreamKey=false; fi
 
@@ -1591,7 +1591,7 @@ fi
 
 # Same for channelId - We'll need it below when fixing the playlists.
 channelId=""
-channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "channelId" | cut -d '"' -f4)
+channelId=$(echo $liveBroadcastOutput | sed 's/"channelId"/\'$'\n&/g' | grep -m 1 "\"channelId\"" | cut -d '"' -f4)
 LogMessage "dbg" "channelId: $channelId"
 if test -z "$channelId"; then safeToFixStreamKey=false; fi
 
@@ -1640,7 +1640,7 @@ else
     # I'm having to parse this like a crazy person:
     #   "etag": "\"Bdx4f4ps3xCOOo1WZ91nTLkRZ_c/QD47KDPSQZK5sRit4gFAPblFBb8\"",
     # etag=""
-    # etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "etag" | cut -d '"' -f5 | cut -d '\' -f1)
+    # etag=$(echo $liveBroadcastOutput | sed 's/"etag"/\'$'\n&/g' | grep -m 1 "\"etag\"" | cut -d '"' -f5 | cut -d '\' -f1)
     # LogMessage "dbg" "etag: $etag"
     # Update 2020-09-10 - Suddenly etag isn't being retrieved any more. 
     # Despite what the docs said, it doesn't seem to be needed, so allow for
@@ -1653,17 +1653,17 @@ else
     # something, and isn't coming up when I query it, at least not like this.
     # See if this works if we omit this value.
     # scheduledStartTime=""
-    # scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "scheduledStartTime" | cut -d '"' -f4)
+    # scheduledStartTime=$(echo $liveBroadcastOutput | sed 's/"scheduledStartTime"/\'$'\n&/g' | grep -m 1 "\"scheduledStartTime\"" | cut -d '"' -f4)
     # LogMessage "dbg" "scheduledStartTime: $scheduledStartTime"
     # if test -z "$scheduledStartTime"; then safeToFixStreamKey=false; fi
     
     actualStartTime=""
-    actualStartTime=$(echo $liveBroadcastOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+    actualStartTime=$(echo $liveBroadcastOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "\"actualStartTime\"" | cut -d '"' -f4)
     LogMessage "dbg" "actualStartTime: $actualStartTime"
     if test -z "$actualStartTime"; then safeToFixStreamKey=false; fi
     
     liveChatId=""
-    liveChatId=$(echo $liveBroadcastOutput | sed 's/"liveChatId"/\'$'\n&/g' | grep -m 1 "liveChatId" | cut -d '"' -f4)
+    liveChatId=$(echo $liveBroadcastOutput | sed 's/"liveChatId"/\'$'\n&/g' | grep -m 1 "\"liveChatId\"" | cut -d '"' -f4)
     LogMessage "dbg" "liveChatId: $liveChatId"
 
     # Update 2020-09-10 - Suddenly liveChatId isn't being retrieved any more. 
@@ -1673,42 +1673,42 @@ else
     #    if test -z "$liveChatId"; then safeToFixStreamKey=false; fi
     
     boundStreamId=""
-    boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "boundStreamId" | cut -d '"' -f4)
+    boundStreamId=$(echo $liveBroadcastOutput | sed 's/"boundStreamId"/\'$'\n&/g' | grep -m 1 "\"boundStreamId\"" | cut -d '"' -f4)
     LogMessage "dbg" "boundStreamId: $boundStreamId"
     if test -z "$boundStreamId"; then safeToFixStreamKey=false; fi
 
     enableMonitorStream=""
-    enableMonitorStream=$(echo $liveBroadcastOutput | sed 's/"enableMonitorStream"/\'$'\n&/g' | grep -m 1 "enableMonitorStream" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    enableMonitorStream=$(echo $liveBroadcastOutput | sed 's/"enableMonitorStream"/\'$'\n&/g' | grep -m 1 "\"enableMonitorStream\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "enableMonitorStream: $enableMonitorStream"
     if test -z "$enableMonitorStream"; then safeToFixStreamKey=false; fi
 
     broadcastStreamDelayMs=""
-    broadcastStreamDelayMs=$(echo $liveBroadcastOutput | sed 's/"broadcastStreamDelayMs"/\'$'\n&/g' | grep -m 1 "broadcastStreamDelayMs" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    broadcastStreamDelayMs=$(echo $liveBroadcastOutput | sed 's/"broadcastStreamDelayMs"/\'$'\n&/g' | grep -m 1 "\"broadcastStreamDelayMs\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "broadcastStreamDelayMs: $broadcastStreamDelayMs"
     if test -z "$broadcastStreamDelayMs"; then safeToFixStreamKey=false; fi
 
     enableDvr=""
-    enableDvr=$(echo $liveBroadcastOutput | sed 's/"enableDvr"/\'$'\n&/g' | grep -m 1 "enableDvr" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    enableDvr=$(echo $liveBroadcastOutput | sed 's/"enableDvr"/\'$'\n&/g' | grep -m 1 "\"enableDvr\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "enableDvr: $enableDvr"
     if test -z "$enableDvr"; then safeToFixStreamKey=false; fi
 
     enableContentEncryption=""
-    enableContentEncryption=$(echo $liveBroadcastOutput | sed 's/"enableContentEncryption"/\'$'\n&/g' | grep -m 1 "enableContentEncryption" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    enableContentEncryption=$(echo $liveBroadcastOutput | sed 's/"enableContentEncryption"/\'$'\n&/g' | grep -m 1 "\"enableContentEncryption\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "enableContentEncryption: $enableContentEncryption"
     if test -z "$enableContentEncryption"; then safeToFixStreamKey=false; fi
 
     enableEmbed=""
-    enableEmbed=$(echo $liveBroadcastOutput | sed 's/"enableEmbed"/\'$'\n&/g' | grep -m 1 "enableEmbed" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    enableEmbed=$(echo $liveBroadcastOutput | sed 's/"enableEmbed"/\'$'\n&/g' | grep -m 1 "\"enableEmbed\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "enableEmbed: $enableEmbed"
     if test -z "$enableEmbed"; then safeToFixStreamKey=false; fi
 
     recordFromStart=""
-    recordFromStart=$(echo $liveBroadcastOutput | sed 's/"recordFromStart"/\'$'\n&/g' | grep -m 1 "recordFromStart" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    recordFromStart=$(echo $liveBroadcastOutput | sed 's/"recordFromStart"/\'$'\n&/g' | grep -m 1 "\"recordFromStart\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "recordFromStart: $recordFromStart"
     if test -z "$recordFromStart"; then safeToFixStreamKey=false; fi
 
     startWithSlate=""
-    startWithSlate=$(echo $liveBroadcastOutput | sed 's/"startWithSlate"/\'$'\n&/g' | grep -m 1 "startWithSlate" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
+    startWithSlate=$(echo $liveBroadcastOutput | sed 's/"startWithSlate"/\'$'\n&/g' | grep -m 1 "\"startWithSlate\"" | cut -d '"' -f3 | cut -d ' ' -f2 | cut -d ',' -f1)
     LogMessage "dbg" "startWithSlate: $startWithSlate"
     if test -z "$startWithSlate"; then safeToFixStreamKey=false; fi
 
@@ -1925,7 +1925,7 @@ then
     
     # Extract the "key" from the Synology response which is needed in order to find the secret key.
     streamKey=""
-    streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "key" | cut -d '"' -f4)
+    streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "\"key\"" | cut -d '"' -f4)
     LogMessage "dbg" "Local Synology stream key (needs to match YouTube stream name/key): $streamKey"
 
     # Make sure the streamKey is not empty.
@@ -1974,7 +1974,7 @@ then
       LogMessage "info" "Re-querying local stream key to ensure the update succeeded"
       streamKeyQuery=$( WebApiCall "entry.cgi?api=SYNO.SurveillanceStation.YoutubeLive&version=1&method=Load" )
       streamKey=""
-      streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "key" | cut -d '"' -f4)
+      streamKey=$(echo $streamKeyQuery | sed 's/"key"/\'$'\n&/g' | grep -m 1 "\"key\"" | cut -d '"' -f4)
       LogMessage "dbg" "Local Synology stream key (needs to match YouTube stream name/key): $streamKey"
 
       # If the local key still doesn't match the YouTube key, then create a new stream.
@@ -2018,7 +2018,7 @@ then
   curlUrl="https://www.googleapis.com/youtube/v3/videos?part=snippet&id=$thisStreamId&access_token=$accessToken"
   videosOutput=""
   videosOutput=$( curl -s $curlUrl )
-  videoCategoryId=$(echo $videosOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
+  videoCategoryId=$(echo $videosOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "\"categoryId\"" | cut -d '"' -f4)
 
   # Issue #85 - Check to see if the categoryId is retrieved, and if so, test to
   # see if it matches the expected value. The expected value should have been
@@ -2055,7 +2055,7 @@ then
       curlUrl="https://youtube.googleapis.com/youtube/v3/videos?part=snippet&access_token=$accessToken"
       fixCategoryOutput=$( curl -s -m 20 -X PUT -H "Content-Type: application/json" -d "$curlData" $curlUrl )
       respondedCategoryId=""
-      respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "categoryId" | cut -d '"' -f4)
+      respondedCategoryId=$(echo $fixCategoryOutput | sed 's/"categoryId"/\'$'\n&/g' | grep -m 1 "\"categoryId\"" | cut -d '"' -f4)
       if [ "$respondedCategoryId" != "$categoryId" ] || [[ $fixCategoryOutput == *"\"error\":"* ]] || [[ $fixCategoryOutput == *"\"errors\":"* ]]
       then
         LogMessage "err" "Error setting categoryId to $categoryId on the video $thisStreamId. Output was $fixCategoryOutput"
@@ -2132,7 +2132,7 @@ then
           # other pages after the first page is returned).
           curlUrl="https://www.googleapis.com/youtube/v3/playlistItems?playlistId=$playlistTargetId&maxResults=1&part=snippet&mine=true&access_token=$accessToken"
           playlistItemsCheckOutput=$( curl -s $curlUrl )
-          foundVideoId=$(echo $playlistItemsCheckOutput | sed 's/"videoId"/\'$'\n&/g' | grep -m 1 "videoId" | cut -d '"' -f4)
+          foundVideoId=$(echo $playlistItemsCheckOutput | sed 's/"videoId"/\'$'\n&/g' | grep -m 1 "\"videoId\"" | cut -d '"' -f4)
           if [ -z "$foundVideoId" ] || [[ $playlistItemsCheckOutput == *"\"error\":"* ]] || [[ $playlistItemsCheckOutput == *"\"errors\":"* ]]
           then
             LogMessage "err" "Error retrieving playlistItems for playlistTargetId $playlistTargetId titled $playlistToClean - Output was $playlistItemsCheckOutput"
@@ -2189,7 +2189,7 @@ then
     curlUrl="https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=$thisStreamId&access_token=$accessToken"
     uploadThumbnailOutput=$( curl -s -F "image=@$defaultThumbnail" $curlUrl )
     thumbnailKind=""
-    thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "kind" | cut -d '"' -f4)
+    thumbnailKind=$(echo $uploadThumbnailOutput | sed 's/"kind"/\'$'\n&/g' | grep -m 1 "\"kind\"" | cut -d '"' -f4)
     if [ "$thumbnailKind" != "youtube#thumbnailSetResponse" ] || [[ $uploadThumbnailOutput == *"\"error\":"* ]] || [[ $uploadThumbnailOutput == *"\"errors\":"* ]]
     then
       LogMessage "err" "Error uploading thumbnail to video $thisStreamId. Output was $uploadThumbnailOutput"

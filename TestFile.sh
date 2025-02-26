@@ -253,11 +253,11 @@ do
 
     # Parse the actual times out of the details output.
     actualStartTime=""
-    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "\"actualStartTime\"" | cut -d '"' -f4)
     actualEndTime=""
-    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "\"actualEndTime\"" | cut -d '"' -f4)
     recordingDate=""
-    recordingDate=$(echo $liveStreamingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "recordingDate" | cut -d '"' -f4)
+    recordingDate=$(echo $liveStreamingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "\"recordingDate\"" | cut -d '"' -f4)
 
     # Display the output of the variables .
     LogMessage "dbg" "Values: oneVideoId: $oneVideoId - actualStartTime: $actualStartTime - actualEndTime: $actualEndTime - recordingDate: $recordingDate"
@@ -302,11 +302,11 @@ do
 
     # Parse the actual times out of the details output.
     actualStartTime=""
-    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "actualStartTime" | cut -d '"' -f4)
+    actualStartTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualStartTime"/\'$'\n&/g' | grep -m 1 "\"actualStartTime\"" | cut -d '"' -f4)
     actualEndTime=""
-    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "actualEndTime" | cut -d '"' -f4)
+    actualEndTime=$(echo $liveStreamingDetailsOutput | sed 's/"actualEndTime"/\'$'\n&/g' | grep -m 1 "\"actualEndTime\"" | cut -d '"' -f4)
     recordingDate=""
-    recordingDate=$(echo $liveStreamingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "recordingDate" | cut -d '"' -f4)
+    recordingDate=$(echo $liveStreamingDetailsOutput | sed 's/"recordingDate"/\'$'\n&/g' | grep -m 1 "\"recordingDate\"" | cut -d '"' -f4)
 
     # Display the output of the variables .
     LogMessage "dbg" "Values: oneVideoId: $oneVideoId - actualStartTime: $actualStartTime - actualEndTime: $actualEndTime - recordingDate: $recordingDate"

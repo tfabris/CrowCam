@@ -93,8 +93,8 @@ clientIdOutput=$(< "$clientIdJson")
 #                 grep -m 1 "client_id"
 # Cut on quotes and return the fourth field only.
 #                 cut -d '"' -f4
-clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "client_id" | cut -d '"' -f4)
-clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "client_secret" | cut -d '"' -f4)
+clientId=$(echo $clientIdOutput | sed 's/"client_id"/\'$'\n&/g' | grep -m 1 "\"client_id\"" | cut -d '"' -f4)
+clientSecret=$(echo $clientIdOutput | sed 's/"client_secret"/\'$'\n&/g' | grep -m 1 "\"client_secret\"" | cut -d '"' -f4)
 
 # Make sure the clientId is not empty.
 if test -z "$clientId" 
@@ -338,7 +338,7 @@ echo "Refresh Token Output:"
 echo "$refreshTokenOutput"
 echo ""
 refreshToken=""
-refreshToken=$(echo $refreshTokenOutput | sed 's/"refresh_token"/\'$'\n&/g' | grep -m 1 "refresh_token" | cut -d '"' -f4)
+refreshToken=$(echo $refreshTokenOutput | sed 's/"refresh_token"/\'$'\n&/g' | grep -m 1 "\"refresh_token\"" | cut -d '"' -f4)
 echo ""
 echo "The refresh token is:"
 echo "$refreshToken"
@@ -378,7 +378,7 @@ accessTokenOutput=$( curl -s --request POST --data "client_id=$clientId&client_s
 # Parse the Access Token out of the results, using the same techniques as
 # described elsewhere in this file.
 accessToken=""
-accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep -m 1 "access_token" | cut -d '"' -f4)
+accessToken=$(echo $accessTokenOutput | sed 's/"access_token"/\'$'\n&/g' | grep -m 1 "\"access_token\"" | cut -d '"' -f4)
 
 # Make sure the Access Token is not empty.
 if test -z "$accessToken" 
