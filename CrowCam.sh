@@ -1538,6 +1538,24 @@ privacyStatus=$(echo $liveBroadcastOutput | sed 's/"privacyStatus"/\'$'\n&/g' | 
 LogMessage "dbg" "privacyStatus: $privacyStatus"
 if test -z "$privacyStatus"; then safeToFixStreamKey=false; fi
 
+# GitHub issue #92 (secondary issue) - Assert that the privacyStatus variable is
+# one of the valid values based on the YouTube API documentation. 
+if [ "$privacyStatus" == "private" ] || [ "$privacyStatus" == "public" ] || [ "$privacyStatus" == "unlisted" ]
+then
+  LogMessage "dbg" "privacyStatus value has been validated"
+else
+  safeToFixStreamKey=false;
+
+  # The secondary issue involved a blank error message being written to the
+  # Synology log. I suspect that it could be because of some kind of corruption
+  # of the privacyStatus variable which is messing up the parameter passing to
+  # the LogMessage function. So I'm going to print two separate error messages
+  # in this case, the first one happening before I try to print the contents of
+  # the privacyStatus variable.
+  LogMessage "err" "The variable privacyStatus was not one of the valid values. Error accessing YouTube API."
+  LogMessage "err" "Variable privacyStatus was $privacyStatus . Variable boundStreamTitle was $boundStreamTitle . The liveBroadcastOutput was $liveBroadcastOutput"
+fi
+
 # While we are here, retrieve the "id" field, so that the API command can
 # identify which video stream to update. This will be used both here when
 # fixing privacyStatus, and also farther down in the code when trying to fix
@@ -1560,7 +1578,7 @@ if [ $streamIdLength -gt 13 ] || [ $streamIdLength -lt 11 ] # Give it some headr
 then
   safeToFixStreamKey=false;
 
-  # Print certain variables in the error message so that I can diagnose
+  # Print certain variables in the error message so that I can diagnose GitHub
   # issue #92 more clearly. Print thisStreamId and also print boundStreamTitle
   # which was already validated after having been scraped out of the same JSON
   # using the same method. If boundStreamTitle looks fine but thisStreamId does
