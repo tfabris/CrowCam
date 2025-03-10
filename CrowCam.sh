@@ -955,25 +955,31 @@ sunset=$(< "$crowcamSunset")
 #   seconds later each day until finally it wraps around and hits our 3:30am
 #   router health-reboot window.
 # 
-# - Scheme: Only perform the query this if we're post-2pm - This ensures a nice
-#   middle-of-the-afternoon check which works for most timezones and latitudes
-#   most of the time. This will also ensure we're looking at the upcoming
-#   sunrise time (tomorrow AM) as opposed to the sunrise from earlier today.
+# - Scheme: (Updated to fix bug #97) Only perform the query in the time window
+#   after 3am. This is to ensure that on DST-change-days that we are sure to
+#   retrieve the time of TODAY'S DST-shifted sunrise and sunset. Also, start
+#   the window at 3:01am insead of exactly at 3:00am, so that if their website
+#   changes at the DST change, and if it has a bit of lag to their update, then
+#   I'll scrape the post-update version of their site.
 #
-# - If the file is older than, say, 18 hours, (when the check is made, i.e.,
-#   during the post-2pm window), then we know it's yesterday's file but not a
-#   drifted version of a file from the same day.
+# - If the file is older than, say, 22 hours (when the check is made, i.e.,
+#   during the post-3am window), then we know it's yesterday's file but not a
+#   drifted version of a file from the same day. The reason I'm doing 22 hours
+#   is to ensure that, on the day of the DST shift, it still grabs the time.
+#   For instance most days of the year, the file will be approximately 24 hours
+#   old, but on one particular Sunday it'll be 23 hours old and on another
+#   particular Sunday it'll be 25 hours old.
 #
 # - Also, always perform the query when we are in debug mode, so that we can
 #   see if the query works.
 
-if [ $currentTimeSeconds -gt 50400 ] || [ ! -z "$debugMode" ]  # 50400 sec is 14hr since midnight aka 2pm.
+if [ $currentTimeSeconds -gt 10860 ] || [ ! -z "$debugMode" ]  # 10860 sec is 3 hours and 1 minute since midnight, aka 3:01am.
 then
   # Set the file age limit in minutes. If a sunrise/sunset file is older than
   # this many minutes, will be considered eligible for a refresh query. I'm using
   # minutes for the value instead of seconds because the "find" command accepts
   # a parameter of minutes for this particular kind of file search.
-  ageLimit=1080 # 1080 minutes is 18 hours of age.
+  ageLimit=1320 # 1320 minutes is 22 hours of age.
 
   # Check the file date/time stamps on the sunrise/sunset files. If they are
   # recent enough, don't bother to query. To look up the file age,
