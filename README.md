@@ -490,7 +490,10 @@ YouTube Video API references:
 Google Developer Console:
 - https://console.developers.google.com/apis/dashboard
 
-Ideas for how to parse the Json results from the Curl calls:
+Look Up Your YouTube API Quota Usage:
+- https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas
+
+Ideas for how to parse Json results from Curl calls:
 - https://stackoverflow.com/questions/723157/how-to-insert-a-newline-in-front-of-a-pattern
 - https://stackoverflow.com/questions/38364261/parse-json-to-array-in-a-shell-script
 - https://stackoverflow.com/questions/2489856/piping-a-bash-variable-into-awk-and-storing-the-output
