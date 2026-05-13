@@ -151,7 +151,7 @@ MaxComebackRetries=40
 # will still make the long bounce longer than the short one, and simply use
 # that as our trigger as to whether or not to start a new stream when
 # bouncing.
-shortBounceDuration=4
+shortBounceDuration=1
 longBounceDuration=10
 
 # The number of seconds to sleep after bouncing, before allowing the program
