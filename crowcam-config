@@ -312,7 +312,7 @@ maxVideoLengthGracePeriod=3600
 #
 # Recommended value: true
 #
-hourlyQuickBounce=true
+hourlyQuickBounce=false
 
 
 # If this middaySplit flag is set to "true", then the live YouTube video
