@@ -539,24 +539,31 @@ do
           # GitHub issue #87 - This is a situation I'd like to have the Synology log for this.
           logToSynology=true
 
-          # Remove the item from the cache if it happens to be in there.
-          DeleteRealTimes "$oneVideoId"
+          # UPDATE - issue #99. Don't delete the video since recently, sometimes
+          # the name "Deleted video" is a false alarm and the YouTube API is
+          # lying to us. I think they're hiring too many vibe coders lately. So
+          # we can't depend on this any more and now I just want to print a
+          # warning instead.
+          LogMessage "info" "Playlist $playlistToClean contained a video, $oneVideoId named $oneVideoTitle. Not Deleting: See GitHub issue #99."
 
-          # Delete the playlist item. Note that in this section of the code,
-          # we will only see something titled "Deleted video" in a custom
-          # playlist, since deleted videos automatically disappear from the
-          # "uploads" playlist.
-          deletePlaylistItemOutput=""
-          curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemId&access_token=$accessToken"
-          LogMessage "err" "Playlist $playlistToClean contained a video, $oneVideoId named $oneVideoTitle. Deleting playlist item $onePlaylistItemId"
-          deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
-          LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
-          if [[ $deletePlaylistItemOutput == *"error"* ]]
-          then
-              LogMessage "err" "The attempt to delete playlist item $onePlaylistItemId failed with an error. Error accessing API. Exiting program"
-              LogMessage "err" "The deletePlaylistItemOutput was $( echo $deletePlaylistItemOutput | tr '\n' ' ' )"
-              exit 1
-          fi
+              # # Remove the item from the cache if it happens to be in there.
+              # DeleteRealTimes "$oneVideoId"
+
+              # # Delete the playlist item. Note that in this section of the code,
+              # # we will only see something titled "Deleted video" in a custom
+              # # playlist, since deleted videos automatically disappear from the
+              # # "uploads" playlist.
+              # deletePlaylistItemOutput=""
+              # curlFullPlaylistItemString="curl -s --request DELETE https://www.googleapis.com/youtube/v3/playlistItems?id=$onePlaylistItemId&access_token=$accessToken"
+              # LogMessage "err" "Playlist $playlistToClean contained a video, $oneVideoId named $oneVideoTitle. Deleting playlist item $onePlaylistItemId"
+              # deletePlaylistItemOutput=$( $curlFullPlaylistItemString )
+              # LogMessage "dbg" "Curl deletePlaylistItemOutput was: $deletePlaylistItemOutput"
+              # if [[ $deletePlaylistItemOutput == *"error"* ]]
+              # then
+              #     LogMessage "err" "The attempt to delete playlist item $onePlaylistItemId failed with an error. Error accessing API. Exiting program"
+              #     LogMessage "err" "The deletePlaylistItemOutput was $( echo $deletePlaylistItemOutput | tr '\n' ' ' )"
+              #     exit 1
+              # fi
 
           # Continue to the next item in the loop. If the video is already
           # deleted, then no further processing is needed besides cleaning
